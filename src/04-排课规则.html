@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>排课规则配置 - 智能排课系统</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card h3 {
+            color: #1e3c72;
+            margin-top: 0;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #1e3c72;
+            padding-bottom: 8px;
+        }
+        .card h4 {
+            color: #1e3c72;
+            margin: 15px 0 10px 0;
+            font-size: 14px;
+        }
+        
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #1e3c72;
+            padding: 12px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        
+        .rule-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .rule-name {
+            font-weight: 500;
+        }
+        .rule-desc {
+            font-size: 12px;
+            color: #666;
+            margin-left: 10px;
+        }
+        
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.3s;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #1e3c72;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-left: 10px;
+        }
+        .badge-fixed {
+            background: #e9ecef;
+            color: #6c757d;
+        }
+        .badge-config {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .config-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+        .config-table th, .config-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            vertical-align: top;
+        }
+        .config-table th {
+            background: #f5f5f5;
+            font-weight: 500;
+        }
+        .btn-add {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        .btn-add:hover { background: #218838; }
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 3px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        .btn-delete:hover { background: #c82333; }
+        
+        .period-pair {
+            display: inline-block;
+            background: #e8f4fd;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin: 2px;
+            font-size: 12px;
+        }
+        
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: flex-end;
+        }
+        button {
+            background: #1e3c72;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover { background: #2b4c7c; }
+        button.danger { background: #dc3545; }
+        button.danger:hover { background: #c82333; }
+        button.secondary { background: #6c757d; }
+        
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            width: 500px;
+            max-width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-content h4 {
+            margin-top: 0;
+            color: #1e3c72;
+        }
+        .modal-content input, .modal-content select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 15px;
+        }
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 2000;
+            animation: fadeOut 2s ease-in-out;
+        }
+        .toast.error { background: #dc3545; }
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; visibility: hidden; }
+        }
+        
+        .mutex-group {
+            background: #f8f9fa;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <h3>📋 排课规则配置</h3>
+        <div class="info-box">
+            💡 <strong>规则说明</strong><br>
+            • <strong>硬约束</strong>：必须遵守，违反则不能排课<br>
+            • <strong>软约束</strong>：尽量满足，按优先级排序<br>
+            • <strong>连排规则</strong>：最高优先级，让教师课程集中
+        </div>
+
+        <!-- ========== 一、连排规则 ========== -->
+        <h3>⭐ 一、连排规则（最高优先级）</h3>
+        <div class="info-box" style="background:#fff3cd; border-left-color:#ffc107;">
+            💡 连排规则优先于所有其他软约束，目的是让教师的课程集中，减少碎片化时间。
+        </div>
+        
+        <div class="rule-row">
+            <div>
+                <span class="rule-name">阶段1：跨班连排（连续）</span>
+                <span class="rule-desc">同一教师在不同班级连续上课</span>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="stage1Enabled" checked>
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div style="margin-left: 20px; margin-bottom: 15px;">
+            <div style="font-size: 13px; color: #666; margin-bottom: 8px;">节次组合：</div>
+            <div id="stage1Pairs"></div>
+            <button class="btn-add" id="addStage1Pair" style="margin-top: 8px;">+ 添加节次组合</button>
+        </div>
+        
+        <div class="rule-row">
+            <div>
+                <span class="rule-name">阶段2：跨班间隔连排（间隔1节）</span>
+                <span class="rule-desc">同一教师在不同班级间隔1节上课</span>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="stage2Enabled" checked>
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div style="margin-left: 20px; margin-bottom: 15px;">
+            <div style="font-size: 13px; color: #666; margin-bottom: 8px;">节次组合：</div>
+            <div id="stage2Pairs"></div>
+            <button class="btn-add" id="addStage2Pair" style="margin-top: 8px;">+ 添加节次组合</button>
+        </div>
+
+        <!-- ========== 二、硬约束 ========== -->
+        <h3>🔒 二、硬约束（必须满足）</h3>
+        
+        <div class="rule-row">
+            <div><span class="rule-name">教师冲突</span><span class="rule-desc">同一教师同一时间不能在两班上课</span></div>
+            <span class="badge badge-fixed">始终生效</span>
+        </div>
+        <div class="rule-row">
+            <div><span class="rule-name">班级冲突</span><span class="rule-desc">同一班级同一时间不能有两节课</span></div>
+            <span class="badge badge-fixed">始终生效</span>
+        </div>
+        
+        <div class="rule-row">
+            <div><span class="rule-name">每天每科一节</span><span class="rule-desc">同一班级同一课程每天最多1节（连排除外）</span></div>
+            <label class="switch"><input type="checkbox" id="dailyCourseLimit" checked><span class="slider"></span></label>
+        </div>
+        
+        <div class="rule-row">
+            <div><span class="rule-name">教师每日课时上限</span><span class="rule-desc">教师每天最多上N节课</span></div>
+            <span class="badge badge-config">在下方配置</span>
+        </div>
+        <div class="rule-row">
+            <div><span class="rule-name">教师同节次次数限制</span><span class="rule-desc">同一教师在同一节次一周最多排N次</span></div>
+            <span class="badge badge-config">在下方配置</span>
+        </div>
+
+        <!-- ========== 三、软约束 ========== -->
+        <h3>📊 三、软约束（尽量满足）</h3>
+        
+        <div class="rule-row">
+            <div><span class="rule-name">主课优先</span><span class="rule-desc">语数英等主课优先排</span></div>
+            <label class="switch"><input type="checkbox" id="mainCoursePriority" checked><span class="slider"></span></label>
+        </div>
+        <div class="rule-row">
+            <div><span class="rule-name">剩余课时多优先</span><span class="rule-desc">剩余课时多的先排</span></div>
+            <label class="switch"><input type="checkbox" id="remainingHoursPriority" checked><span class="slider"></span></label>
+        </div>
+        <div class="rule-row">
+            <div><span class="rule-name">教师时间偏好</span><span class="rule-desc">教师希望某时间上课</span></div>
+            <label class="switch"><input type="checkbox" id="teacherPreference"><span class="slider"></span></label>
+        </div>
+
+        <!-- ========== 四、禁排时间配置 ========== -->
+        <h3>🚫 四、禁排时间配置</h3>
+        
+        <h4>教师禁排</h4>
+        <table class="config-table" id="teacherFreeTable">
+            <thead><tr><th>教师</th><th>星期</th><th>节次</th><th>原因</th><th>操作</th></tr></thead>
+            <tbody id="teacherFreeList"></tbody>
+        </table>
+        <button class="btn-add" id="addTeacherFree">+ 添加教师禁排</button>
+        
+        <h4 style="margin-top: 15px;">教师组禁排</h4>
+        <table class="config-table" id="groupFreeTable">
+            <thead><tr><th>教师组</th><th>星期</th><th>节次</th><th>原因</th><th>操作</th> </thead>
+            <tbody id="groupFreeList"></tbody>
+        </table>
+        <button class="btn-add" id="addGroupFree">+ 添加教师组禁排</button>
+        
+        <h4 style="margin-top: 15px;">全校禁排</h4>
+        <table class="config-table" id="schoolFreeTable">
+            <thead><tr><th>星期</th><th>节次</th><th>原因</th><th>操作</th> </thead>
+            <tbody id="schoolFreeList"></tbody>
+        </table>
+        <button class="btn-add" id="addSchoolFree">+ 添加全校禁排</button>
+
+        <!-- ========== 五、课程时间限制 ========== -->
+        <h3>⏰ 五、课程时间限制</h3>
+        
+        <h4>禁止时间</h4>
+        <table class="config-table" id="courseCannotTable">
+            <thead><tr><th>课程</th><th>禁止节次</th><th>操作</th> </thead>
+            <tbody id="courseCannotList"></tbody>
+        </table>
+        <button class="btn-add" id="addCourseCannot">+ 添加禁止时间</button>
+        
+        <h4 style="margin-top: 15px;">必须时间</h4>
+        <table class="config-table" id="courseMustTable">
+            <thead><tr><th>课程</th><th>必须节次</th><th>操作</th> </thead>
+            <tbody id="courseMustList"></tbody>
+        </table>
+        <button class="btn-add" id="addCourseMust">+ 添加必须时间</button>
+
+        <!-- ========== 六、课程互斥配置 ========== -->
+        <h3>🔀 六、课程互斥配置</h3>
+        <div class="info-box">互斥组内的任意两门课程不能在同一个班级的**同一天**出现</div>
+        <div id="mutexGroupsList"></div>
+        <button class="btn-add" id="addMutexGroup">+ 添加互斥组</button>
+
+        <!-- ========== 七、课时限制配置 ========== -->
+        <h3>📏 七、课时限制配置</h3>
+        
+        <h4>教师每日上限</h4>
+        <table class="config-table" id="teacherDailyLimitTable">
+            <thead><tr><th>教师</th><th>上限（节/天）</th><th>操作</th> </thead>
+            <tbody id="teacherDailyLimitList"></tbody>
+        </table>
+        <button class="btn-add" id="addTeacherDailyLimit">+ 添加教师上限</button>
+        
+        <h4 style="margin-top: 15px;">教师同节次上限</h4>
+        <table class="config-table" id="teacherPeriodLimitTable">
+            <thead><tr><th>节次</th><th>上限（次/周）</th><th>说明</th><th>操作</th> </thead>
+            <tbody id="teacherPeriodLimitList"></tbody>
+        </table>
+        <button class="btn-add" id="addTeacherPeriodLimit">+ 添加节次限制</button>
+
+        <!-- ========== 按钮 ========== -->
+        <div class="toolbar">
+            <button id="resetBtn" class="secondary">恢复默认</button>
+            <button id="saveBtn">保存配置</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const RULES_KEY = "pk_scheduleRules";
+    const TEACHERS_KEY = "pk_teachers";
+    const COURSES_KEY = "pk_courses";
+    const GROUPS_KEY = "pk_teacherGroups";
+    const SCHEDULE_CONFIG_KEY = "pk_scheduleConfig";
+    
+    let rules = {};
+    let teachers = [];
+    let courses = [];
+    let groups = [];
+    
+    let weekdays = ["星期一", "星期二", "星期三", "星期四", "星期五"];
+    let periods = ["第1节", "第2节", "第3节", "第4节", "第5节", "第6节"];
+    
+    // 获取实际节次列表
+    function getActualPeriods() {
+        let sc = localStorage.getItem(SCHEDULE_CONFIG_KEY);
+        if (sc) {
+            try {
+                let config = JSON.parse(sc);
+                let dayPeriods = config.dayPeriods || 6;
+                let periodsList = [];
+                for (let i = 1; i <= dayPeriods; i++) {
+                    periodsList.push("第" + i + "节");
+                }
+                return periodsList;
+            } catch(e) {}
+        }
+        return periods;
+    }
+    
+    // 默认规则
+    function getDefaultRules() {
+        let actualPeriods = getActualPeriods();
+        let stage1Pairs = [];
+        let stage2Pairs = [];
+        
+        for (let i = 0; i < actualPeriods.length - 1; i++) {
+            stage1Pairs.push([actualPeriods[i], actualPeriods[i+1]]);
+        }
+        for (let i = 0; i < actualPeriods.length - 2; i++) {
+            stage2Pairs.push([actualPeriods[i], actualPeriods[i+2]]);
+        }
+        
+        return {
+            consecutiveRules: {
+                stage1: { enabled: true, pairs: stage1Pairs },
+                stage2: { enabled: true, pairs: stage2Pairs }
+            },
+            mainCoursePriority: true,
+            remainingHoursPriority: true,
+            teacherPreference: false,
+            dailyCourseLimit: true,
+            teacherFreeTimes: [],
+            groupFreeTimes: [],
+            schoolFreeTimes: [],
+            courseCannotTimes: [],
+            courseMustTimes: [],
+            courseMutexGroups: [],
+            teacherDailyLimits: [],
+            teacherPeriodLimits: []
+        };
+    }
+    
+    function loadData() {
+        let teachersData = localStorage.getItem(TEACHERS_KEY);
+        if (teachersData) teachers = JSON.parse(teachersData);
+        else teachers = [];
+        
+        let coursesData = localStorage.getItem(COURSES_KEY);
+        if (coursesData) courses = JSON.parse(coursesData);
+        else courses = [];
+        
+        let groupsData = localStorage.getItem(GROUPS_KEY);
+        if (groupsData) groups = JSON.parse(groupsData);
+        else groups = [];
+        
+        let rulesData = localStorage.getItem(RULES_KEY);
+        if (rulesData) {
+            rules = JSON.parse(rulesData);
+        } else {
+            rules = getDefaultRules();
+        }
+        
+        renderAll();
+    }
+    
+    function renderPairs(containerId, pairs) {
+        let container = document.getElementById(containerId);
+        container.innerHTML = "";
+        if (!pairs || pairs.length === 0) {
+            container.innerHTML = '<div style="color:#999;">暂无节次组合</div>';
+            return;
+        }
+        for (let i = 0; i < pairs.length; i++) {
+            let pair = pairs[i];
+            let span = document.createElement("span");
+            span.className = "period-pair";
+            span.innerHTML = pair[0] + " ↔ " + pair[1] + 
+                ' <button class="btn-delete" style="margin-left:5px;" onclick="deletePair(\'' + containerId + '\', ' + i + ')">✖</button>';
+            container.appendChild(span);
+        }
+    }
+    
+    window.deletePair = function(containerId, index) {
+        let pairs = containerId === "stage1Pairs" ? 
+            (rules.consecutiveRules?.stage1?.pairs || []) : 
+            (rules.consecutiveRules?.stage2?.pairs || []);
+        pairs.splice(index, 1);
+        renderPairs(containerId, pairs);
+    };
+    
+    function addPair(stage) {
+        let actualPeriods = getActualPeriods();
+        let period1 = prompt("请输入第一节（如：第1节）", actualPeriods[0] || "第1节");
+        let period2 = prompt("请输入第二节（如：第2节）", actualPeriods[1] || "第2节");
+        if (!period1 || !period2) return;
+        let pair = [period1, period2];
+        if (stage === 1) {
+            if (!rules.consecutiveRules) rules.consecutiveRules = {};
+            if (!rules.consecutiveRules.stage1) rules.consecutiveRules.stage1 = { pairs: [] };
+            rules.consecutiveRules.stage1.pairs.push(pair);
+            renderPairs("stage1Pairs", rules.consecutiveRules.stage1.pairs);
+        } else {
+            if (!rules.consecutiveRules) rules.consecutiveRules = {};
+            if (!rules.consecutiveRules.stage2) rules.consecutiveRules.stage2 = { pairs: [] };
+            rules.consecutiveRules.stage2.pairs.push(pair);
+            renderPairs("stage2Pairs", rules.consecutiveRules.stage2.pairs);
+        }
+        showToast("✅ 已添加节次组合");
+    }
+    
+    // 通用弹窗
+    function showModal(title, fields, onConfirm) {
+        let modal = document.createElement('div');
+        modal.className = 'modal';
+        let html = `<div class="modal-content"><h4>${title}</h4>`;
+        for (let field of fields) {
+            if (field.type === 'select') {
+                html += `<label>${field.label}</label><select id="${field.id}">`;
+                for (let opt of field.options) {
+                    html += `<option value="${opt}">${opt}</option>`;
+                }
+                html += `</select>`;
+            } else if (field.type === 'checkbox-group') {
+                html += `<label>${field.label}</label><div class="checkbox-group" id="${field.id}">`;
+                for (let opt of field.options) {
+                    html += `<label><input type="checkbox" value="${opt}"> ${opt}</label>`;
+                }
+                html += `</div>`;
+            } else if (field.type === 'multiselect') {
+                html += `<label>${field.label}</label><select id="${field.id}" multiple size="5" style="height:120px;">`;
+                for (let opt of field.options) {
+                    html += `<option value="${opt.value}">${opt.label}</option>`;
+                }
+                html += `</select>`;
+            } else {
+                html += `<label>${field.label}</label><input type="${field.type || 'text'}" id="${field.id}" placeholder="${field.placeholder || ''}">`;
+            }
+        }
+        html += `<div class="modal-buttons"><button id="confirmBtn">确定</button><button id="cancelBtn">取消</button></div></div>`;
+        modal.innerHTML = html;
+        document.body.appendChild(modal);
+        
+        modal.querySelector('#confirmBtn').onclick = () => {
+            let result = {};
+            for (let field of fields) {
+                if (field.type === 'checkbox-group') {
+                    let checkboxes = modal.querySelectorAll(`#${field.id} input:checked`);
+                    result[field.id] = Array.from(checkboxes).map(cb => cb.value);
+                } else if (field.type === 'multiselect') {
+                    let selects = modal.querySelector(`#${field.id}`);
+                    result[field.id] = Array.from(selects.selectedOptions).map(opt => opt.value);
+                } else {
+                    result[field.id] = modal.querySelector(`#${field.id}`).value;
+                }
+            }
+            onConfirm(result);
+            document.body.removeChild(modal);
+        };
+        modal.querySelector('#cancelBtn').onclick = () => document.body.removeChild(modal);
+        modal.onclick = (e) => { if (e.target === modal) document.body.removeChild(modal); };
+    }
+    
+    // 教师禁排
+    function renderTeacherFreeList() {
+        let list = rules.teacherFreeTimes || [];
+        let tbody = document.getElementById("teacherFreeList");
+        tbody.innerHTML = "";
+        for (let i = 0; i < list.length; i++) {
+            let item = list[i];
+            let tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${escapeHtml(getTeacherName(item.teacherId))}</div>
+                <td>${item.weekday || ""}</div>
+                <td>${item.period || ""}</div>
+                <td>${item.reason || ""}</div>
+                <td><button class="btn-delete" onclick="deleteTeacherFree(${i})">删除</button></div>
+            `;
+            tbody.appendChild(tr);
+        }
+    }
+    
+    window.deleteTeacherFree = function(index) {
+        rules.teacherFreeTimes.splice(index, 1);
+        renderTeacherFreeList();
+        showToast("✅ 已删除");
+    };
+    
+    function addTeacherFree() {
+        if (teachers.length === 0) {
+            showToast("请先在基础数据中添加教师", true);
+            return;
+        }
+        let actualPeriods = getActualPeriods();
+        showModal('添加教师禁排', [
+            { label: '教师', id: 'teacherId', type: 'select', options: teachers.map(t => t.name + ' (ID:' + t.id + ')') },
+            { label: '星期', id: 'weekday', type: 'select', options: weekdays },
+            { label: '节次', id: 'period', type: 'select', options: actualPeriods },
+            { label: '原因', id: 'reason', type: 'text', placeholder: '如：教研活动' }
+        ], (result) => {
+            let teacherName = result.teacherId;
+            let teacher = teachers.find(t => t.name + ' (ID:' + t.id + ')' === teacherName);
+            if (!teacher) return;
+            if (!rules.teacherFreeTimes) rules.teacherFreeTimes = [];
+            rules.teacherFreeTimes.push({
+                teacherId: teacher.id,
+                weekday: result.weekday,
+                period: result.period,
+                reason: result.reason
+            });
+            renderTeacherFreeList();
+            showToast("✅ 已添加教师禁排");
+        });
+    }
+    
+    // 教师组禁排
+    function renderGroupFreeList() {
+        let list = rules.groupFreeTimes || [];
+        let tbody = document.getElementById("groupFreeList");
+        tbody.innerHTML = "";
+        for (let i = 0; i < list.length; i++) {
+            let item = list[i];
+            let tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${escapeHtml(getGroupName(item.groupId))}</div>
+                <td>${item.weekday || ""}</div>
+                <td>${item.period || ""}</div>
+                <td>${item.reason || ""}</div>
+                <td><button class="btn-delete" onclick="deleteGroupFree(${i})">删除</button></div>
+            `;
+            tbody.appendChild(tr);
+        }
+    }
+    
+    window.deleteGroupFree = function(index) {
+        rules.groupFreeTimes.splice(index, 1);
+        renderGroupFreeList();
+        showToast("✅ 已删除");
+    };
+    
+    function addGroupFree() {
+        if (groups.length === 0) {
+            showToast("请先在基础数据中添加教师组", true);
+            return;
+        }
+        let actualPeriods = getActualPeriods();
+        showModal('添加教师组禁排', [
+            { label: '教师组', id: 'groupId', type: 'select', options: groups.map(g => g.name + ' (ID:' + g.id + ')') },
+            { label: '星期', id: 'weekday', type: 'select', options: weekdays },
+            { label: '节次', id: 'period', type: 'select', options: actualPeriods },
+            { label: '原因', id: 'reason', type: 'text', placeholder: '如：教研活动' }
+        ], (result) => {
+            let groupName = result.groupId;
+            let group = groups.find(g => g.name + ' (ID:' + g.id + ')' === groupName);
+            if (!group) return;
+            if (!rules.groupFreeTimes) rules.groupFreeTimes = [];
+            rules.groupFreeTimes.push({
+                groupId: group.id,
+                weekday: result.weekday,
+                period: result.period,
+                reason: result.reason
+            });
+            renderGroupFreeList();
+            showToast("✅ 已添加教师组禁排");
+        });
+    }
+    
+    // 全校禁排
+    function renderSchoolFreeList() {
+        let list = rules.schoolFreeTimes || [];
+        let tbody = document.getElementById("schoolFreeList");
+        tbody.innerHTML = "";
+        for (let i = 0; i < list.length; i++) {
+            let item = list[i];
+            let tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${item.weekday || ""}</div>
+                <td>${item.period || ""}</div>
+                <td>${item.reason || ""}</div>
+                <td><button class="btn-delete" onclick="deleteSchoolFree(${i})">删除</button></div>
+            `;
+            tbody.appendChild(tr);
+        }
+    }
+    
+    window.deleteSchoolFree = function(index) {
+        rules.schoolFreeTimes.splice(index, 1);
+        renderSchoolFreeList();
+        showToast("✅ 已删除");
+    };
+    
+    function addSchoolFree() {
+        let actualPeriods = getActualPeriods();
+        showModal('添加全校禁排', [
+            { label: '星期', id: 'weekday', type: 'select', options: weekdays },
+            { label: '节次', id: 'period', type: 'select', options: actualPeriods },
+            { label: '原因', id: 'reason', type: 'text', placeholder: '如：升旗仪式' }
+        ], (result) => {
+            if (!rules.schoolFreeTimes) rules.schoolFreeTimes = [];
+            rules.schoolFreeTimes.push({
+                weekday: result.weekday,
+                period: result.period,
+                reason: result.reason
+            });
+            renderSchoolFreeList();
+            showToast("✅ 已添加全校禁排");
+        });
+    }
+    
+    // 课程禁止时间
+    function renderCourseCannotList() {
+        let list = rules.courseCannotTimes || [];
+        let tbody = document.getElementById("courseCannotList");
+        tbody.innerHTML = "";
+        for (let i = 0; i < list.length; i++) {
+            let item = list[i];
+            let tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${escapeHtml(getCourseName(item.courseId))}</div>
+                <td>${(item.periods || []).join(", ")}</div>
+                <td><button class="btn-delete" onclick="deleteCourseCannot(${i})">删除</button></div>
+            `;
+            tbody.appendChild(tr);
+        }
+    }
+    
+    window.deleteCourseCannot = function(index) {
+        rules.courseCannotTimes.splice(index, 1);
+        renderCourseCannotList();
+        showToast("✅ 已删除");
+    };
+    
+    function addCourseCannot() {
+        if (courses.length === 0) {
+            showToast("请先在基础数据中添加课程", true);
+            return;
+        }
+        let actualPeriods = getActualPeriods();
+        showModal('添加课程禁止时间', [
+            { label: '课程', id: 'courseId', type: 'select', options: courses.map(c => c.name + ' (ID:' + c.id + ')') },
+            { label: '禁止节次', id: 'periods', type: 'checkbox-group', options: actualPeriods }
+        ], (result) => {
+            let courseName = result.courseId;
+            let course = courses.find(c => c.name + ' (ID:' + c.id + ')' === courseName);
+            if (!course) return;
+            if (!rules.courseCannotTimes) rules.courseCannotTimes = [];
+            rules.courseCannotTimes.push({
+                courseId: course.id,
+                periods: result.periods || []
+            });
+            renderCourseCannotList();
+            showToast("✅ 已添加课程禁止时间");
+        });
+    }
+    
+    // 课程必须时间
+    function renderCourseMustList() {
+        let list = rules.courseMustTimes || [];
+        let tbody = document.getElementById("courseMustList");
+        tbody.innerHTML = "";
+        for (let i = 0; i < list.length; i++) {
+            let item = list[i];
+            let tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${escapeHtml(getCourseName(item.courseId))}</div>
+                <td>${(item.periods || []).join(", ")}</div>
+                <td><button class="btn-delete" onclick="deleteCourseMust(${i})">删除</button></div>
+            `;
+            tbody.appendChild(tr);
+        }
+    }
+    
+    window.deleteCourseMust = function(index) {
+        rules.courseMustTimes.splice(index, 1);
+        renderCourseMustList();
+        showToast("✅ 已删除");
+    };
+    
+    function addCourseMust() {
+        if (courses.length === 0) {
+            showToast("请先在基础数据中添加课程", true);
+            return;
+        }
+        let actualPeriods = getActualPeriods();
+        showModal('添加课程必须时间', [
+            { label: '课程', id: 'courseId', type: 'select', options: courses.map(c => c.name + ' (ID:' + c.id + ')') },
+            { label: '必须节次', id: 'periods', type: 'checkbox-group', options: actualPeriods }
+        ], (result) => {
+            let courseName = result.courseId;
+            let course = courses.find(c => c.name + ' (ID:' + c.id + ')' === courseName);
+            if (!course) return;
+            if (!rules.courseMustTimes) rules.courseMustTimes = [];
+            rules.courseMustTimes.push({
+                courseId: course.id,
+                periods: result.periods || []
+            });
+            renderCourseMustList();
+            showToast("✅ 已添加课程必须时间");
+        });
+    }
+    
+    // 互斥组
+    function renderMutexGroups() {
+        let groupsList = rules.courseMutexGroups || [];
+        let container = document.getElementById("mutexGroupsList");
+        container.innerHTML = "";
+        for (let i = 0; i < groupsList.length; i++) {
+            let group = groupsList[i];
+            let div = document.createElement("div");
+            div.className = "mutex-group";
+            div.innerHTML = `
+                <div><strong>${escapeHtml(group.name)}</strong></div>
+                <div>课程：${(group.courseIds || []).map(id => getCourseName(id)).join("、")}</div>
+                <button class="btn-delete" onclick="deleteMutexGroup(${i})">删除</button>
+            `;
+            container.appendChild(div);
+        }
+    }
+    
+    window.deleteMutexGroup = function(index) {
+        rules.courseMutexGroups.splice(index, 1);
+        renderMutexGroups();
+        showToast("✅ 已删除");
+    };
+    
+    function addMutexGroup() {
+        if (courses.length === 0) {
+            showToast("请先在基础数据中添加课程", true);
+            return;
+        }
+        showModal('添加互斥组', [
+            { label: '组名称', id: 'name', type: 'text', placeholder: '如：体育艺术组' },
+            { label: '选择课程', id: 'courseIds', type: 'multiselect', options: courses.map(c => ({ value: c.id, label: c.name })) }
+        ], (result) => {
+            if (!result.name || !result.courseIds || result.courseIds.length < 2) {
+                showToast("请填写组名称并至少选择2门课程", true);
+                return;
+            }
+            if (!rules.courseMutexGroups) rules.courseMutexGroups = [];
+            rules.courseMutexGroups.push({
+                name: result.name,
+                courseIds: result.courseIds.map(Number)
+            });
+            renderMutexGroups();
+            showToast("✅ 已添加互斥组");
+        });
+    }
+    
+    // 教师每日上限
+    function renderTeacherDailyLimitList() {
+        let list = rules.teacherDailyLimits || [];
+        let tbody = document.getElementById("teacherDailyLimitList");
+        tbody.innerHTML = "";
+        for (let i = 0; i < list.length; i++) {
+            let item = list[i];
+            let tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${escapeHtml(getTeacherName(item.teacherId))}</div>
+                <td><input type="number" value="${item.maxHoursPerDay}" style="width:60px;" onchange="updateTeacherDailyLimit(${i}, this.value)">节</div>
+                <td><button class="btn-delete" onclick="deleteTeacherDailyLimit(${i})">删除</button></div>
+            `;
+            tbody.appendChild(tr);
+        }
+    }
+    
+    window.updateTeacherDailyLimit = function(index, value) {
+        if (!rules.teacherDailyLimits) rules.teacherDailyLimits = [];
+        rules.teacherDailyLimits[index].maxHoursPerDay = parseInt(value);
+        showToast("✅ 已更新");
+    };
+    
+    window.deleteTeacherDailyLimit = function(index) {
+        rules.teacherDailyLimits.splice(index, 1);
+        renderTeacherDailyLimitList();
+        showToast("✅ 已删除");
+    };
+    
+    function addTeacherDailyLimit() {
+        if (teachers.length === 0) {
+            showToast("请先在基础数据中添加教师", true);
+            return;
+        }
+        showModal('添加教师每日上限', [
+            { label: '教师', id: 'teacherId', type: 'select', options: teachers.map(t => t.name + ' (ID:' + t.id + ')') },
+            { label: '每日上限（节）', id: 'maxHours', type: 'number', placeholder: '如：6' }
+        ], (result) => {
+            let teacherName = result.teacherId;
+            let teacher = teachers.find(t => t.name + ' (ID:' + t.id + ')' === teacherName);
+            if (!teacher) return;
+            if (!rules.teacherDailyLimits) rules.teacherDailyLimits = [];
+            rules.teacherDailyLimits.push({
+                teacherId: teacher.id,
+                maxHoursPerDay: parseInt(result.maxHours)
+            });
+            renderTeacherDailyLimitList();
+            showToast("✅ 已添加教师上限");
+        });
+    }
+    
+    // 教师同节次上限
+    function renderTeacherPeriodLimitList() {
+        let list = rules.teacherPeriodLimits || [];
+        let tbody = document.getElementById("teacherPeriodLimitList");
+        tbody.innerHTML = "";
+        for (let i = 0; i < list.length; i++) {
+            let item = list[i];
+            let tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${item.period || ""}</div>
+                <td><input type="number" value="${item.maxCountPerWeek}" style="width:60px;" onchange="updateTeacherPeriodLimit(${i}, this.value)">次/周</div>
+                <td>${item.description || ""}</div>
+                <td><button class="btn-delete" onclick="deleteTeacherPeriodLimit(${i})">删除</button></div>
+            `;
+            tbody.appendChild(tr);
+        }
+    }
+    
+    window.updateTeacherPeriodLimit = function(index, value) {
+        if (!rules.teacherPeriodLimits) rules.teacherPeriodLimits = [];
+        rules.teacherPeriodLimits[index].maxCountPerWeek = parseInt(value);
+        showToast("✅ 已更新");
+    };
+    
+    window.deleteTeacherPeriodLimit = function(index) {
+        rules.teacherPeriodLimits.splice(index, 1);
+        renderTeacherPeriodLimitList();
+        showToast("✅ 已删除");
+    };
+    
+    function addTeacherPeriodLimit() {
+        let actualPeriods = getActualPeriods();
+        showModal('添加教师同节次上限', [
+            { label: '节次', id: 'period', type: 'select', options: actualPeriods },
+            { label: '每周上限（次）', id: 'maxCount', type: 'number', placeholder: '如：1' },
+            { label: '说明', id: 'description', type: 'text', placeholder: '如：上午最后一节' }
+        ], (result) => {
+            if (!result.period || !result.maxCount) return;
+            if (!rules.teacherPeriodLimits) rules.teacherPeriodLimits = [];
+            rules.teacherPeriodLimits.push({
+                period: result.period,
+                maxCountPerWeek: parseInt(result.maxCount),
+                description: result.description || ''
+            });
+            renderTeacherPeriodLimitList();
+            showToast("✅ 已添加节次限制");
+        });
+    }
+    
+    // 辅助函数
+    function getTeacherName(id) {
+        let t = teachers.find(t => t.id == id);
+        return t ? t.name : "教师" + id;
+    }
+    
+    function getCourseName(id) {
+        let c = courses.find(c => c.id == id);
+        return c ? c.name : "课程" + id;
+    }
+    
+    function getGroupName(id) {
+        let g = groups.find(g => g.id == id);
+        return g ? g.name : "组" + id;
+    }
+    
+    function renderAll() {
+        document.getElementById("stage1Enabled").checked = rules.consecutiveRules?.stage1?.enabled ?? true;
+        document.getElementById("stage2Enabled").checked = rules.consecutiveRules?.stage2?.enabled ?? true;
+        renderPairs("stage1Pairs", rules.consecutiveRules?.stage1?.pairs || []);
+        renderPairs("stage2Pairs", rules.consecutiveRules?.stage2?.pairs || []);
+        
+        document.getElementById("dailyCourseLimit").checked = rules.dailyCourseLimit ?? true;
+        document.getElementById("mainCoursePriority").checked = rules.mainCoursePriority ?? true;
+        document.getElementById("remainingHoursPriority").checked = rules.remainingHoursPriority ?? true;
+        document.getElementById("teacherPreference").checked = rules.teacherPreference ?? false;
+        
+        renderTeacherFreeList();
+        renderGroupFreeList();
+        renderSchoolFreeList();
+        renderCourseCannotList();
+        renderCourseMustList();
+        renderMutexGroups();
+        renderTeacherDailyLimitList();
+        renderTeacherPeriodLimitList();
+    }
+    
+    function saveRules() {
+        if (!rules.consecutiveRules) rules.consecutiveRules = {};
+        if (!rules.consecutiveRules.stage1) rules.consecutiveRules.stage1 = {};
+        if (!rules.consecutiveRules.stage2) rules.consecutiveRules.stage2 = {};
+        rules.consecutiveRules.stage1.enabled = document.getElementById("stage1Enabled").checked;
+        rules.consecutiveRules.stage2.enabled = document.getElementById("stage2Enabled").checked;
+        
+        rules.dailyCourseLimit = document.getElementById("dailyCourseLimit").checked;
+        rules.mainCoursePriority = document.getElementById("mainCoursePriority").checked;
+        rules.remainingHoursPriority = document.getElementById("remainingHoursPriority").checked;
+        rules.teacherPreference = document.getElementById("teacherPreference").checked;
+        
+        localStorage.setItem(RULES_KEY, JSON.stringify(rules));
+        showToast("✅ 规则已保存");
+    }
+    
+    function resetRules() {
+        if (confirm("确定恢复默认规则吗？当前所有配置将被覆盖。")) {
+            rules = getDefaultRules();
+            renderAll();
+            showToast("✅ 已恢复默认规则");
+        }
+    }
+    
+    function showToast(msg, isErr) {
+        let t = document.createElement("div");
+        t.className = "toast" + (isErr ? " error" : "");
+        t.innerText = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 2000);
+    }
+    
+    function escapeHtml(s) {
+        if (!s) return '';
+        return s.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+    
+    function init() {
+        loadData();
+        
+        document.getElementById("addStage1Pair").onclick = () => addPair(1);
+        document.getElementById("addStage2Pair").onclick = () => addPair(2);
+        document.getElementById("addTeacherFree").onclick = addTeacherFree;
+        document.getElementById("addGroupFree").onclick = addGroupFree;
+        document.getElementById("addSchoolFree").onclick = addSchoolFree;
+        document.getElementById("addCourseCannot").onclick = addCourseCannot;
+        document.getElementById("addCourseMust").onclick = addCourseMust;
+        document.getElementById("addMutexGroup").onclick = addMutexGroup;
+        document.getElementById("addTeacherDailyLimit").onclick = addTeacherDailyLimit;
+        document.getElementById("addTeacherPeriodLimit").onclick = addTeacherPeriodLimit;
+        document.getElementById("saveBtn").onclick = saveRules;
+        document.getElementById("resetBtn").onclick = resetRules;
+    }
+    
+    init();
+</script>
+</body>
+</html>
