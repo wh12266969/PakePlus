@@ -1,0 +1,1577 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>手动排课 - 智能排课系统</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 12px;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .container {
+            max-width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 10px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .tab-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .tab-left { display: flex; gap: 8px; }
+        .tab-btn {
+            background: #f0f2f5;
+            color: #333;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .tab-btn.active {
+            background: #1e3c72;
+            color: white;
+        }
+        
+        .split-layout {
+            display: flex;
+            gap: 10px;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .left-panel {
+            width: 220px;
+            flex-shrink: 0;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 8px;
+            overflow-y: auto;
+        }
+        .right-panel {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .left-panel h4 {
+            color: #1e3c72;
+            margin-top: 0;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+        .search-box {
+            width: 100%;
+            padding: 5px 8px;
+            margin-bottom: 8px;
+            border: 1px solid #ddd;
+            border-radius: 15px;
+            font-size: 11px;
+            outline: none;
+        }
+        .list-item {
+            padding: 6px 8px;
+            cursor: pointer;
+            border-radius: 8px;
+            margin-bottom: 4px;
+            background: white;
+            border: 1px solid #eee;
+            font-size: 11px;
+        }
+        .list-item:hover { background: #e8f4fd; }
+        .list-item.active { background: #1e3c72; color: white; }
+        .list-stats { font-size: 9px; margin-top: 2px; color: #666; }
+        .list-item.active .list-stats { color: #ddd; }
+        
+        .timetable-wrapper {
+            overflow-x: auto;
+            overflow-y: auto;
+            flex: 1;
+            border-radius: 8px;
+            background: white;
+        }
+        .timetable {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10px;
+            min-width: 600px;
+        }
+        .timetable th, .timetable td {
+            border: 1px solid #ddd;
+            padding: 4px 3px;
+            text-align: center;
+            vertical-align: middle;
+        }
+        .timetable th {
+            background: #1e3c72;
+            color: white;
+            font-weight: 500;
+            position: sticky;
+            top: 0;
+            padding: 5px 3px;
+        }
+        .timetable .time-cell {
+            background: #f5f5f5;
+            font-weight: bold;
+            position: sticky;
+            left: 0;
+        }
+        .course-cell {
+            background: #e8f4fd;
+            border-radius: 6px;
+            padding: 3px 2px;
+            cursor: pointer;
+            transition: all 0.15s;
+            border: 2px solid transparent;
+        }
+        .course-cell.locked {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            cursor: not-allowed;
+            opacity: 0.85;
+        }
+        .course-cell.locked:hover {
+            background: #d4edda;
+        }
+        .course-cell.locked .delete-course {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .course-cell:hover:not(.locked) {
+            background: #d0e4f5;
+        }
+        .course-cell.selected, .course-cell.highlight {
+            background: #ffeaa7;
+            border: 2px solid #f39c12;
+        }
+        .drop-zone.drop-valid .course-cell {
+            background: #d4edda !important;
+            border: 2px solid #28a745 !important;
+        }
+        .empty-cell {
+            background: #fafafa;
+            cursor: pointer;
+            padding: 6px 2px;
+        }
+        .add-icon {
+            font-size: 14px;
+            color: #28a745;
+            font-weight: bold;
+        }
+        .available-cell {
+            background: #d4edda;
+            cursor: pointer;
+            padding: 6px 2px;
+        }
+        .unavailable-cell {
+            background: #f8d7da;
+            color: #999;
+            padding: 6px 2px;
+        }
+        
+        .stats-area {
+            margin-top: 8px;
+            padding: 6px 8px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            flex-shrink: 0;
+        }
+        .stats-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #1e3c72;
+            font-size: 11px;
+        }
+        .stats-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            max-height: 70px;
+            overflow-y: auto;
+        }
+        .stats-card {
+            background: white;
+            border-radius: 8px;
+            padding: 4px 8px;
+            min-width: 100px;
+            border: 1px solid #ddd;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .stats-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .stats-card.complete {
+            background: #e9ecef;
+            color: #6c757d;
+            cursor: default;
+        }
+        .stats-card.complete:hover { transform: none; box-shadow: none; }
+        .stats-card.partial { color: #856404; }
+        .stats-card.unstarted { color: #28a745; }
+        .stats-card.exceed { color: #dc3545; font-weight: bold; }
+        .stats-card .course-name { font-weight: bold; font-size: 10px; }
+        .stats-card .course-progress { font-size: 9px; margin-top: 2px; }
+        
+        .toolbar {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+            flex-shrink: 0;
+        }
+        button {
+            background: #1e3c72;
+            color: white;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 10px;
+            transition: all 0.2s;
+        }
+        button:hover { background: #2b4c7c; }
+        button.danger { background: #dc3545; }
+        
+        .delete-course {
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 1px 4px;
+            margin-top: 2px;
+            cursor: pointer;
+            font-size: 8px;
+        }
+        .delete-course:hover { background: #c82333; }
+        
+        .toast {
+            position: fixed;
+            bottom: 15px;
+            right: 15px;
+            background: #28a745;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 15px;
+            z-index: 2000;
+            animation: fadeOut 2s ease-in-out;
+            font-size: 11px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        .toast.error { background: #dc3545; }
+        @keyframes fadeOut {
+            0% { opacity: 1; transform: translateY(0); }
+            70% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-10px); visibility: hidden; }
+        }
+        .tip {
+            background: #e7f3ff;
+            border-left: 3px solid #1e3c72;
+            padding: 6px 10px;
+            margin-bottom: 8px;
+            font-size: 11px;
+            border-radius: 6px;
+        }
+        
+        .drag-over {
+            background: #ffd700 !important;
+        }
+        
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 1999;
+        }
+        .course-selector-dialog {
+            position: fixed;
+            background: white;
+            border-radius: 12px;
+            padding: 0;
+            z-index: 2000;
+            width: 90%;
+            max-width: 400px;
+            max-height: 60vh;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .dialog-header {
+            background: #1e3c72;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .dialog-header h3 { margin: 0; font-size: 12px; }
+        .dialog-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+        .dialog-body { padding: 10px; max-height: calc(60vh - 40px); overflow-y: auto; }
+        .course-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .course-card {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 6px 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex: 1 0 auto;
+            min-width: 90px;
+            text-align: center;
+            font-size: 11px;
+        }
+        .course-card:hover {
+            background: #e8f4fd;
+            border-color: #1e3c72;
+        }
+        
+        .locked-badge {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            font-size: 8px;
+            padding: 1px 4px;
+            border-radius: 8px;
+            margin-left: 4px;
+        }
+        
+        /* 教师课表多班级分行显示 */
+        .multi-class-list {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            width: 100%;
+        }
+        .multi-class-item {
+            font-size: 9px;
+            line-height: 1.3;
+            text-align: left;
+            padding: 2px 0;
+            border-bottom: 1px dashed #ccc;
+        }
+        .multi-class-item:last-child {
+            border-bottom: none;
+        }
+        .class-name-badge {
+            display: inline-block;
+            background: #1e3c72;
+            color: white;
+            font-size: 8px;
+            padding: 1px 4px;
+            border-radius: 8px;
+            margin-right: 4px;
+        }
+        
+        .all-school-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 11px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .all-school-btn:hover { background: #218838; }
+    </style>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <div class="tab-buttons">
+            <div class="tab-left">
+                <button class="tab-btn active" data-tab="class">📖 班级课表</button>
+                <button class="tab-btn" data-tab="teacher">👨‍🏫 教师课表</button>
+            </div>
+            <button class="all-school-btn" id="allSchoolBtn">📅 全校课表 →</button>
+        </div>
+
+        <div id="classTab" class="tab-content" style="display: flex; flex-direction: column; height: 100%;">
+            <div class="split-layout">
+                <div class="left-panel">
+                    <h4>🏫 班级列表</h4>
+                    <input type="text" id="classSearchInput" class="search-box" placeholder="🔍 搜索班级...">
+                    <div id="classListContainer"></div>
+                </div>
+                <div class="right-panel">
+                    <div class="timetable-wrapper" id="classTimetableWrapper">
+                        <div id="classTimetableContainer">请选择班级</div>
+                    </div>
+                    <div id="classStatsArea" class="stats-area"></div>
+                    <div class="toolbar">
+                        <button id="clearClassBtn" class="danger">🗑️ 清空当前班级</button>
+                        <button id="exportClassBtn">📄 导出当前班级</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="teacherTab" class="tab-content" style="display: none; flex-direction: column; height: 100%;">
+            <div class="split-layout">
+                <div class="left-panel">
+                    <h4>👨‍🏫 教师列表</h4>
+                    <input type="text" id="teacherSearchInput" class="search-box" placeholder="🔍 搜索教师...">
+                    <div id="teacherListContainer"></div>
+                </div>
+                <div class="right-panel">
+                    <div class="timetable-wrapper" id="teacherTimetableWrapper">
+                        <div id="teacherTimetableContainer">请选择教师</div>
+                    </div>
+                    <div id="teacherStatsArea" class="stats-area"></div>
+                    <div class="toolbar">
+                        <button id="clearTeacherBtn" class="danger">🗑️ 清空当前教师</button>
+                        <button id="exportTeacherBtn">📄 导出当前教师</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ========== 常量定义 ==========
+    const PLANS_KEY = "pk_plans";
+    const CLASSES_KEY = "pk_classes";
+    const COURSES_KEY = "pk_courses";
+    const TEACHERS_KEY = "pk_teachers";
+    const SCHEDULES_KEY = "pk_schedules";
+    const SCHEDULE_CONFIG_KEY = "pk_scheduleConfig";
+    const RULES_KEY = "pk_scheduleRules";
+    const FIXED_RULES_KEY = "pk_fixedRules";
+    
+    let plans = [], classes = [], courses = [], teachers = [], schedules = {}, tempSchedules = {}, scheduleConfig = {}, rules = {}, fixedRules = {};
+    let currentTab = "class";
+    let currentClassId = null;
+    let currentTeacherId = null;
+    let classSearchKeyword = "";
+    let teacherSearchKeyword = "";
+    let highlightCourseId = null;
+    let highlightClassId = null;
+    let highlightTeacherId = null;
+    let selectedSourceCell = null;
+    let validDropTargets = [];
+    
+    let weekdays = ["星期一", "星期二", "星期三", "星期四", "星期五"];
+    let periods = ["第1节", "第2节", "第3节", "第4节", "第5节", "第6节"];
+    
+    const subjectPriority = { "语文": 1, "数学": 2, "英语": 3, "政治": 4, "历史": 5, "地理": 6, "物理": 7, "化学": 8, "生物": 9 };
+    const defaultPriority = 10;
+    function getSubjectPriority(courseName) { return subjectPriority[courseName] || defaultPriority; }
+    
+    let dragSource = null;
+    
+    function showToast(msg, isErr) {
+        var t = document.createElement("div");
+        t.className = "toast" + (isErr ? " error" : "");
+        t.innerText = msg;
+        document.body.appendChild(t);
+        setTimeout(function() { t.remove(); }, 2000);
+    }
+    
+    function autoSave() {
+        schedules = JSON.parse(JSON.stringify(tempSchedules));
+        localStorage.setItem(SCHEDULES_KEY, JSON.stringify(schedules));
+    }
+    
+    // ========== 加载固定排课规则 ==========
+    function loadFixedRules() {
+        var fr = localStorage.getItem(FIXED_RULES_KEY);
+        if (fr) {
+            try {
+                fixedRules = JSON.parse(fr);
+            } catch(e) { fixedRules = {}; }
+        } else {
+            fixedRules = {};
+        }
+        if (!fixedRules.teacherFixed) fixedRules.teacherFixed = [];
+        if (!fixedRules.groupFixed) fixedRules.groupFixed = [];
+        if (!fixedRules.classFixed) fixedRules.classFixed = [];
+        if (!fixedRules.courseFixed) fixedRules.courseFixed = [];
+    }
+    
+    // 检查课程是否被固定规则锁定
+    function isLessonLockedByFixedRule(classId, day, period) {
+        var key = day + "-" + period;
+        var schedule = tempSchedules[classId];
+        if (schedule && schedule[key] && schedule[key].locked === true) {
+            return { locked: true, reason: schedule[key].lockedReason || "固定排课锁定" };
+        }
+        return { locked: false };
+    }
+    
+    function getTeacherFixedLockedReason(teacherId, classId, day, period) {
+        var teacherFixed = fixedRules.teacherFixed || [];
+        for (var i = 0; i < teacherFixed.length; i++) {
+            var rule = teacherFixed[i];
+            if (rule.teacherId == teacherId && rule.classId == classId && rule.type === "must") {
+                var times = rule.times || [];
+                for (var j = 0; j < times.length; j++) {
+                    if (times[j].week === day && times[j].period === period) {
+                        return rule.remark || "教师固定规则";
+                    }
+                }
+            }
+        }
+        return null;
+    }
+    
+    function getClassFixedLockedReason(classId, day, period) {
+        var classFixed = fixedRules.classFixed || [];
+        for (var i = 0; i < classFixed.length; i++) {
+            var rule = classFixed[i];
+            if (rule.classId == classId && rule.type === "must") {
+                var times = rule.times || [];
+                for (var j = 0; j < times.length; j++) {
+                    if (times[j].week === day && times[j].period === period) {
+                        return rule.remark || "班级固定规则";
+                    }
+                }
+            }
+        }
+        return null;
+    }
+    
+    function getCourseFixedLockedReason(courseId, classId, day, period) {
+        var courseFixed = fixedRules.courseFixed || [];
+        for (var i = 0; i < courseFixed.length; i++) {
+            var rule = courseFixed[i];
+            if (rule.courseId == courseId && rule.type === "must") {
+                if (rule.applyClass !== "all" && rule.applyClass != classId) continue;
+                var times = rule.times || [];
+                for (var j = 0; j < times.length; j++) {
+                    if (times[j].week === day && times[j].period === period) {
+                        return rule.remark || "课程固定规则";
+                    }
+                }
+            }
+        }
+        return null;
+    }
+    
+    function isPositionLocked(classId, teacherId, courseId, day, period) {
+        var lessonLocked = isLessonLockedByFixedRule(classId, day, period);
+        if (lessonLocked.locked) return lessonLocked;
+        
+        if (teacherId) {
+            var teacherLocked = getTeacherFixedLockedReason(teacherId, classId, day, period);
+            if (teacherLocked) return { locked: true, reason: teacherLocked };
+        }
+        
+        var classLocked = getClassFixedLockedReason(classId, day, period);
+        if (classLocked) return { locked: true, reason: classLocked };
+        
+        if (courseId) {
+            var courseLocked = getCourseFixedLockedReason(courseId, classId, day, period);
+            if (courseLocked) return { locked: true, reason: courseLocked };
+        }
+        
+        return { locked: false };
+    }
+    
+    function checkTeacherFixedForbidden(teacherId, day, period) {
+        var teacherFixed = fixedRules.teacherFixed || [];
+        for (var i = 0; i < teacherFixed.length; i++) {
+            var rule = teacherFixed[i];
+            if (rule.teacherId == teacherId && rule.type === "forbidden") {
+                var times = rule.times || [];
+                for (var j = 0; j < times.length; j++) {
+                    if (times[j].week === day && times[j].period === period) return true;
+                }
+            }
+        }
+        return false;
+    }
+    
+    function checkClassFixedForbidden(classId, day, period) {
+        var classFixed = fixedRules.classFixed || [];
+        for (var i = 0; i < classFixed.length; i++) {
+            var rule = classFixed[i];
+            if (rule.classId == classId && rule.type === "forbidden") {
+                var times = rule.times || [];
+                for (var j = 0; j < times.length; j++) {
+                    if (times[j].week === day && times[j].period === period) return true;
+                }
+            }
+        }
+        return false;
+    }
+    
+    function checkCourseFixedForbidden(courseId, classId, day, period) {
+        var courseFixed = fixedRules.courseFixed || [];
+        for (var i = 0; i < courseFixed.length; i++) {
+            var rule = courseFixed[i];
+            if (rule.courseId == courseId && rule.type === "forbidden") {
+                if (rule.applyClass !== "all" && rule.applyClass != classId) continue;
+                var times = rule.times || [];
+                for (var j = 0; j < times.length; j++) {
+                    if (times[j].week === day && times[j].period === period) return true;
+                }
+            }
+        }
+        return false;
+    }
+    
+    function loadAllData() {
+        var sc = localStorage.getItem(SCHEDULE_CONFIG_KEY);
+        if (sc) {
+            try {
+                var parsed = JSON.parse(sc);
+                scheduleConfig = parsed;
+                periods = [];
+                for (var i = 1; i <= (parsed.dayPeriods || 6); i++) periods.push("第" + i + "节");
+                weekdays = parsed.selectedWeekdays || ["星期一", "星期二", "星期三", "星期四", "星期五"];
+            } catch(e) {}
+        }
+        
+        var r = localStorage.getItem(RULES_KEY);
+        if (r) { try { rules = JSON.parse(r); } catch(e) {} }
+        if (!rules) rules = {};
+        
+        loadFixedRules();
+        
+        var p = localStorage.getItem(PLANS_KEY); 
+        if (p) plans = JSON.parse(p); 
+        else plans = [];
+        
+        var c = localStorage.getItem(CLASSES_KEY); 
+        if (c) classes = JSON.parse(c); 
+        else classes = [];
+        
+        var cs = localStorage.getItem(COURSES_KEY); 
+        if (cs) courses = JSON.parse(cs); 
+        else courses = [];
+        
+        var t = localStorage.getItem(TEACHERS_KEY); 
+        if (t) teachers = JSON.parse(t); 
+        else teachers = [];
+        
+        var s = localStorage.getItem(SCHEDULES_KEY); 
+        if (s) schedules = JSON.parse(s); 
+        else schedules = {};
+        
+        tempSchedules = JSON.parse(JSON.stringify(schedules));
+        
+        if (classes.length > 0 && !currentClassId) currentClassId = classes[0].id;
+        if (teachers.length > 0 && !currentTeacherId) currentTeacherId = teachers[0].id;
+        
+        renderAll();
+    }
+    
+    function getClassName(id) { 
+        for (var i = 0; i < classes.length; i++) { 
+            if (classes[i].id == id) return classes[i].name; 
+        } 
+        return "未知班级"; 
+    }
+    
+    function getCourseName(id) { 
+        for (var i = 0; i < courses.length; i++) { 
+            if (courses[i].id == id) return courses[i].name; 
+        } 
+        return "未知课程"; 
+    }
+    
+    function getTeacherName(id) { 
+        for (var i = 0; i < teachers.length; i++) { 
+            if (teachers[i].id == id) return teachers[i].name; 
+        } 
+        return "未知教师"; 
+    }
+    
+    function getClassPlans(classId) { 
+        var result = []; 
+        for (var i = 0; i < plans.length; i++) { 
+            if (plans[i].classId == classId) result.push(plans[i]); 
+        } 
+        return result; 
+    }
+    
+    function getTeacherPlans(teacherId) { 
+        var result = []; 
+        for (var i = 0; i < plans.length; i++) { 
+            if (plans[i].teacherId == teacherId) result.push(plans[i]); 
+        } 
+        return result; 
+    }
+    
+    function getScheduledCount(classId, courseId) { 
+        var schedule = tempSchedules[classId] || {}; 
+        var count = 0; 
+        for (var key in schedule) { 
+            if (schedule[key] && schedule[key].courseId == courseId) count++; 
+        } 
+        return count; 
+    }
+    
+    function getCourseStatus(scheduled, required) {
+        if (scheduled === required) return { status: 'complete', display: scheduled + '/' + required + '节 ✓' };
+        else if (scheduled > required) return { status: 'exceed', display: scheduled + '/' + required + '节 ❌ 超出' + (scheduled - required) };
+        else if (scheduled > 0) return { status: 'partial', display: scheduled + '/' + required + '节 ⚠ 缺' + (required - scheduled) };
+        else return { status: 'unstarted', display: scheduled + '/' + required + '节 ○ 未排' };
+    }
+    
+    // ========== 冲突检测 ==========
+    function checkTeacherConflict(teacherId, day, period, excludeClassId) {
+        for (var cid in tempSchedules) {
+            if (excludeClassId && cid == excludeClassId) continue;
+            var sch = tempSchedules[cid];
+            var key = day + "-" + period;
+            if (sch && sch[key] && sch[key].teacherId == teacherId) return true;
+        }
+        return false;
+    }
+    
+    function checkDailyLimit(classId, courseId, day) {
+        var schedule = tempSchedules[classId] || {};
+        for (var pi = 0; pi < periods.length; pi++) {
+            var key = day + "-" + periods[pi];
+            if (schedule[key] && schedule[key].courseId == courseId) return true;
+        }
+        return false;
+    }
+    
+    function checkTeacherFixedFreeTime(teacherId, day, period) {
+        var teacherFreeTimes = rules.teacherFreeTimes || [];
+        for (var i = 0; i < teacherFreeTimes.length; i++) {
+            var ft = teacherFreeTimes[i];
+            if (ft.teacherId == teacherId && ft.weekday == day && ft.period == period) return true;
+        }
+        return false;
+    }
+    
+    function checkTeacherGroupFreeTime(teacherId, day, period) {
+        var groupFreeTimes = rules.groupFreeTimes || [];
+        var teacherGroups = JSON.parse(localStorage.getItem("pk_teacherGroups") || "[]");
+        for (var i = 0; i < groupFreeTimes.length; i++) {
+            var gt = groupFreeTimes[i];
+            for (var j = 0; j < teacherGroups.length; j++) {
+                if (teacherGroups[j].id == gt.groupId) {
+                    var members = teacherGroups[j].members || teacherGroups[j].teacherIds || teacherGroups[j].memberIds || [];
+                    if (members.indexOf(teacherId) !== -1 && gt.weekday == day && gt.period == period) return true;
+                }
+            }
+        }
+        return false;
+    }
+    
+    function checkCourseTimeLimit(courseId, day, period) {
+        var courseLimits = rules.courseTimeLimits || rules.courseCannotTimes || [];
+        for (var i = 0; i < courseLimits.length; i++) {
+            var limit = courseLimits[i];
+            if (limit.courseId == courseId && limit.type == "cannot") {
+                if (limit.periods && limit.periods.indexOf(period) !== -1) return true;
+            } else if (limit.courseId == courseId && limit.periods) {
+                if (limit.periods.indexOf(period) !== -1) return true;
+            }
+        }
+        return false;
+    }
+    
+    function checkSchoolFreeTime(day, period) {
+        var schoolFreeTimes = rules.schoolFreeTimes || [];
+        for (var i = 0; i < schoolFreeTimes.length; i++) {
+            if (schoolFreeTimes[i].weekday == day && schoolFreeTimes[i].period == period) return true;
+        }
+        return false;
+    }
+    
+    function checkTeacherDailyLimit(teacherId, day, additionalHours) {
+        var dailyLimits = rules.teacherDailyLimits || [];
+        var limit = null;
+        for (var i = 0; i < dailyLimits.length; i++) {
+            if (dailyLimits[i].teacherId == teacherId) { limit = dailyLimits[i].maxHoursPerDay; break; }
+        }
+        if (!limit) return true;
+        var currentHours = 0;
+        for (var cid in tempSchedules) {
+            var sch = tempSchedules[cid];
+            for (var key in sch) {
+                if (key.startsWith(day) && sch[key].teacherId == teacherId) currentHours++;
+            }
+        }
+        return (currentHours + additionalHours) <= limit;
+    }
+    
+    function checkAddConflicts(classId, teacherId, courseId, day, period) {
+        var locked = isPositionLocked(classId, teacherId, courseId, day, period);
+        if (locked.locked) return { conflict: true, reason: locked.reason + "（锁定课程，不可修改）" };
+        
+        if (checkSchoolFreeTime(day, period)) return { conflict: true, reason: "全校统一不上课时间" };
+        if (checkTeacherFixedFreeTime(teacherId, day, period)) return { conflict: true, reason: "教师固定无课时间" };
+        if (checkTeacherGroupFreeTime(teacherId, day, period)) return { conflict: true, reason: "教师组固定无课时间" };
+        if (checkTeacherFixedForbidden(teacherId, day, period)) return { conflict: true, reason: "教师固定规则禁止排课" };
+        if (checkClassFixedForbidden(classId, day, period)) return { conflict: true, reason: "班级固定规则禁止排课" };
+        if (checkCourseFixedForbidden(courseId, classId, day, period)) return { conflict: true, reason: "课程固定规则禁止排课" };
+        if (checkCourseTimeLimit(courseId, day, period)) return { conflict: true, reason: "课程时间限制" };
+        if (checkTeacherConflict(teacherId, day, period, classId)) return { conflict: true, reason: "教师时间冲突" };
+        if (checkDailyLimit(classId, courseId, day)) return { conflict: true, reason: "该课程今天已排过课" };
+        if (!checkTeacherDailyLimit(teacherId, day, 1)) return { conflict: true, reason: "教师当日课时已达上限" };
+        return { conflict: false };
+    }
+    
+    function canSwapCourses(sourceClass, sourceDay, sourcePeriod, sourceTeacherId, sourceCourseId,
+                           targetClass, targetDay, targetPeriod, targetTeacherId, targetCourseId) {
+        var sourceLocked = isPositionLocked(sourceClass, sourceTeacherId, sourceCourseId, sourceDay, sourcePeriod);
+        var targetLocked = isPositionLocked(targetClass, targetTeacherId, targetCourseId, targetDay, targetPeriod);
+        if (sourceLocked.locked || targetLocked.locked) return false;
+        var targetToSource = !checkAddConflicts(sourceClass, targetTeacherId, targetCourseId, sourceDay, sourcePeriod).conflict;
+        var sourceToTarget = !checkAddConflicts(targetClass, sourceTeacherId, sourceCourseId, targetDay, targetPeriod).conflict;
+        return targetToSource && sourceToTarget;
+    }
+    
+    function swapCourses(sourceClass, sourceDay, sourcePeriod, targetClass, targetDay, targetPeriod) {
+        var sourceKey = sourceDay + "-" + sourcePeriod, targetKey = targetDay + "-" + targetPeriod;
+        var sourceCourse = tempSchedules[sourceClass]?.[sourceKey], targetCourse = tempSchedules[targetClass]?.[targetKey];
+        if (!sourceCourse || !targetCourse) { showToast("交换失败：课程数据丢失", true); return false; }
+        if (!canSwapCourses(sourceClass, sourceDay, sourcePeriod, sourceCourse.teacherId, sourceCourse.courseId,
+            targetClass, targetDay, targetPeriod, targetCourse.teacherId, targetCourse.courseId)) {
+            showToast("交换失败：交换后违反排课规则或位置被锁定", true); return false;
+        }
+        tempSchedules[sourceClass][sourceKey] = targetCourse;
+        tempSchedules[targetClass][targetKey] = sourceCourse;
+        autoSave(); renderAll(); showToast("✅ 已交换");
+        return true;
+    }
+    
+    function isTeacherPersonallyAvailable(teacherId, day, period) {
+        if (checkSchoolFreeTime(day, period)) return false;
+        if (checkTeacherFixedFreeTime(teacherId, day, period)) return false;
+        if (checkTeacherGroupFreeTime(teacherId, day, period)) return false;
+        if (checkTeacherFixedForbidden(teacherId, day, period)) return false;
+        if (checkTeacherConflict(teacherId, day, period, null)) return false;
+        if (!checkTeacherDailyLimit(teacherId, day, 1)) return false;
+        return true;
+    }
+    
+    function isTeacherTimeAvailableForSchedule(teacherId, day, period) {
+        if (!isTeacherPersonallyAvailable(teacherId, day, period)) return false;
+        var teacherPlans = getTeacherPlans(teacherId);
+        for (var i = 0; i < teacherPlans.length; i++) {
+            var plan = teacherPlans[i];
+            var classId = plan.classId;
+            var schedule = tempSchedules[classId] || {};
+            var key = day + "-" + period;
+            if (!schedule[key] && !checkDailyLimit(classId, plan.courseId, day)) return true;
+        }
+        return false;
+    }
+    
+    function addLesson(classId, teacherId, courseId, day, period, isExceed) {
+        var locked = isPositionLocked(classId, teacherId, courseId, day, period);
+        if (locked.locked) { showToast("❌ " + locked.reason + "，不可修改", true); return false; }
+        if (isExceed && !confirm("⚠️ 该课程已超出应排节数，确定要继续添加吗？")) return false;
+        var conflicts = checkAddConflicts(classId, teacherId, courseId, day, period);
+        if (conflicts.conflict) { showToast("❌ " + conflicts.reason, true); return false; }
+        if (!tempSchedules[classId]) tempSchedules[classId] = {};
+        tempSchedules[classId][day + "-" + period] = { courseId: courseId, teacherId: teacherId, courseName: getCourseName(courseId), teacherName: getTeacherName(teacherId) };
+        autoSave(); renderAll(); showToast("✅ 已添加 " + getCourseName(courseId));
+        return true;
+    }
+    
+    function replaceLesson(targetClassId, targetDay, targetPeriod, newCourseId, newTeacherId, isExceed) {
+        var locked = isPositionLocked(targetClassId, newTeacherId, newCourseId, targetDay, targetPeriod);
+        if (locked.locked) { showToast("❌ " + locked.reason + "，不可修改", true); return false; }
+        if (isExceed && !confirm("⚠️ 该课程已超出应排节数，确定要继续添加吗？")) return false;
+        var conflicts = checkAddConflicts(targetClassId, newTeacherId, newCourseId, targetDay, targetPeriod);
+        if (conflicts.conflict) { showToast("❌ " + conflicts.reason, true); return false; }
+        var targetKey = targetDay + "-" + targetPeriod;
+        if (tempSchedules[targetClassId] && tempSchedules[targetClassId][targetKey]) delete tempSchedules[targetClassId][targetKey];
+        if (!tempSchedules[targetClassId]) tempSchedules[targetClassId] = {};
+        tempSchedules[targetClassId][targetKey] = { courseId: newCourseId, teacherId: newTeacherId, courseName: getCourseName(newCourseId), teacherName: getTeacherName(newTeacherId) };
+        autoSave(); renderAll(); showToast("✅ 已替换为 " + getCourseName(newCourseId));
+        return true;
+    }
+    
+    function deleteLesson(classId, day, period) {
+        var schedule = tempSchedules[classId];
+        if (!schedule) return;
+        var key = day + "-" + period;
+        var lesson = schedule[key];
+        if (!lesson) return;
+        
+        var locked = isPositionLocked(classId, lesson.teacherId, lesson.courseId, day, period);
+        if (locked.locked) { showToast("❌ " + locked.reason + "，不可删除", true); return; }
+        
+        if (confirm("确定删除这节课吗？")) {
+            delete tempSchedules[classId][key];
+            autoSave(); selectedSourceCell = null; validDropTargets = []; renderAll(); showToast("✅ 已删除");
+        }
+    }
+    
+    // ========== 班级列表 ==========
+    function renderClassList() {
+        var container = document.getElementById("classListContainer");
+        var filtered = classes.filter(function(c) { return c.name.toLowerCase().indexOf(classSearchKeyword) !== -1; });
+        container.innerHTML = "";
+        if (filtered.length === 0) {
+            container.innerHTML = '<div style="padding:20px; text-align:center; color:#999;">暂无班级</div>';
+            return;
+        }
+        for (var i = 0; i < filtered.length; i++) {
+            var cls = filtered[i];
+            var stats = getClassTotalStats(cls.id);
+            var div = document.createElement("div");
+            div.className = "list-item" + (currentClassId === cls.id ? " active" : "");
+            div.innerHTML = '<div><strong>' + escapeHtml(cls.name) + '</strong></div><div class="list-stats">' + stats.totalScheduled + '/' + stats.totalRequired + '节</div>';
+            div.onclick = (function(id) { return function() { currentClassId = id; highlightCourseId = null; highlightClassId = null; selectedSourceCell = null; validDropTargets = []; renderAll(); }; })(cls.id);
+            container.appendChild(div);
+        }
+    }
+    
+    function getClassTotalStats(classId) {
+        var classPlans = getClassPlans(classId);
+        var totalRequired = 0, totalScheduled = 0;
+        for (var i = 0; i < classPlans.length; i++) {
+            totalRequired += classPlans[i].hoursPerWeek;
+            totalScheduled += getScheduledCount(classId, classPlans[i].courseId);
+        }
+        return { totalRequired: totalRequired, totalScheduled: totalScheduled };
+    }
+    
+    // ========== 教师列表 ==========
+    function renderTeacherList() {
+        var container = document.getElementById("teacherListContainer");
+        var filtered = teachers.filter(function(t) { return t.name.toLowerCase().indexOf(teacherSearchKeyword) !== -1; });
+        container.innerHTML = "";
+        if (filtered.length === 0) {
+            container.innerHTML = '<div style="padding:20px; text-align:center; color:#999;">暂无教师</div>';
+            return;
+        }
+        for (var i = 0; i < filtered.length; i++) {
+            var teacher = filtered[i];
+            var teacherPlans = getTeacherPlans(teacher.id);
+            var courseNames = [], courseSet = {};
+            for (var j = 0; j < teacherPlans.length; j++) {
+                var courseName = getCourseName(teacherPlans[j].courseId);
+                if (!courseSet[courseName]) { courseSet[courseName] = true; courseNames.push(courseName); }
+            }
+            courseNames.sort(function(a, b) { return getSubjectPriority(a) - getSubjectPriority(b); });
+            var displayText = escapeHtml(teacher.name) + (courseNames.length > 0 ? ' - ' + courseNames.join('-') : '');
+            var div = document.createElement("div");
+            div.className = "list-item" + (currentTeacherId === teacher.id ? " active" : "");
+            div.innerHTML = '<div style="font-weight:bold; font-size:12px;">' + displayText + '</div>';
+            div.onclick = (function(id) { return function() { currentTeacherId = id; highlightCourseId = null; highlightTeacherId = null; selectedSourceCell = null; validDropTargets = []; renderAll(); }; })(teacher.id);
+            container.appendChild(div);
+        }
+    }
+    
+    // ========== 班级课表 ==========
+    function renderClassTimetable() {
+        var container = document.getElementById("classTimetableContainer");
+        if (!currentClassId) { container.innerHTML = '<div class="tip">请从左侧选择班级</div>'; return; }
+        
+        var schedule = tempSchedules[currentClassId] || {};
+        var html = '<table class="timetable" id="classDragTable">';
+        html += '<thead><tr><th>时间/星期</th>';
+        for (var wi = 0; wi < weekdays.length; wi++) html += '<th>' + weekdays[wi] + '</th>';
+        html += '</thead><tbody>';
+        
+        for (var pi = 0; pi < periods.length; pi++) {
+            var period = periods[pi];
+            html += '<tr><td class="time-cell">' + period + '</td>';
+            for (var wi = 0; wi < weekdays.length; wi++) {
+                var day = weekdays[wi];
+                var key = day + "-" + period;
+                var cell = schedule[key];
+                var isHighlight = (highlightCourseId !== null && highlightClassId === currentClassId && cell && cell.courseId === highlightCourseId);
+                var isSelected = (selectedSourceCell && selectedSourceCell.classId === currentClassId && selectedSourceCell.day === day && selectedSourceCell.period === period);
+                var isLocked = cell ? isPositionLocked(currentClassId, cell.teacherId, cell.courseId, day, period).locked : false;
+                var lockedClass = isLocked ? ' locked' : '';
+                
+                if (cell) {
+                    html += '<td class="drop-zone" data-class="' + currentClassId + '" data-day="' + day + '" data-period="' + period + '">' +
+                        '<div class="course-cell ' + (isHighlight ? ' highlight' : '') + (isSelected ? ' selected' : '') + lockedClass + '" ' +
+                        'data-class="' + currentClassId + '" data-day="' + day + '" data-period="' + period + '" ' +
+                        'data-course-id="' + cell.courseId + '" data-teacher-id="' + cell.teacherId + '" ' +
+                        'data-course-name="' + escapeHtml(cell.courseName) + '" data-teacher-name="' + escapeHtml(cell.teacherName) + '" ' +
+                        'data-locked="' + isLocked + '">' +
+                        '<div><strong>' + escapeHtml(cell.courseName) + '</strong>' + (isLocked ? '<span class="locked-badge">🔒</span>' : '') + '</div>' +
+                        '<div style="font-size:9px;">' + escapeHtml(cell.teacherName) + '</div>' +
+                        (isLocked ? '' : '<button class="delete-course" onclick="event.stopPropagation(); window.deleteLesson(' + currentClassId + ', \'' + day + '\', \'' + period + '\')">✖</button>') +
+                        '</div></div>';
+                } else {
+                    html += '<td class="drop-zone empty-cell" data-class="' + currentClassId + '" data-day="' + day + '" data-period="' + period + '" ' +
+                        'onclick="window.showClassCourseSelector(' + currentClassId + ', \'' + day + '\', \'' + period + '\')">' +
+                        '<div class="add-icon">➕</div></td>';
+                }
+            }
+            html += '</tr>';
+        }
+        html += '</tbody></table>';
+        container.innerHTML = html;
+        bindClassCourseClick();
+        initClassDragEvents();
+    }
+    
+    window.showClassCourseSelector = function(classId, day, period) {
+        var classPlans = getClassPlans(classId);
+        var availableCourses = [];
+        for (var i = 0; i < classPlans.length; i++) {
+            var plan = classPlans[i];
+            var scheduled = getScheduledCount(classId, plan.courseId);
+            if (scheduled < plan.hoursPerWeek) {
+                availableCourses.push({ courseId: plan.courseId, teacherId: plan.teacherId, courseName: getCourseName(plan.courseId), scheduled: scheduled, required: plan.hoursPerWeek });
+            }
+        }
+        if (availableCourses.length === 0) { showToast("✅ 该班级所有课程已排完！", false); return; }
+        
+        var overlay = document.createElement("div"); overlay.className = "overlay";
+        var dialog = document.createElement("div"); dialog.className = "course-selector-dialog";
+        var winWidth = window.innerWidth, winHeight = window.innerHeight;
+        var left = Math.max(10, (winWidth - 400) / 2), top = Math.max(10, (winHeight - 350) / 2);
+        dialog.style.cssText = 'position:fixed;background:white;border-radius:12px;z-index:2000;width:400px;box-shadow:0 4px 20px rgba(0,0,0,0.2);left:'+left+'px;top:'+top+'px';
+        var html = '<div class="dialog-header"><h3>📖 选择课程 - ' + escapeHtml(getClassName(classId)) + '  ' + day + ' ' + period + '</h3><button class="dialog-close">×</button></div>';
+        html += '<div class="dialog-body"><div class="course-grid">';
+        for (var i = 0; i < availableCourses.length; i++) {
+            var c = availableCourses[i];
+            html += '<div class="course-card" data-course-id="' + c.courseId + '" data-teacher-id="' + c.teacherId + '">';
+            html += '<div><strong>' + escapeHtml(c.courseName) + '</strong></div><div style="font-size:9px;color:#666;">' + c.scheduled + '/' + c.required + '节</div></div>';
+        }
+        html += '</div></div>';
+        dialog.innerHTML = html;
+        document.body.appendChild(overlay); document.body.appendChild(dialog);
+        
+        dialog.querySelector('.dialog-close').onclick = function() { overlay.remove(); dialog.remove(); };
+        dialog.querySelectorAll('.course-card').forEach(function(card) {
+            card.onclick = function() {
+                var courseId = parseInt(this.getAttribute('data-course-id'));
+                var teacherId = parseInt(this.getAttribute('data-teacher-id'));
+                var courseName = getCourseName(courseId);
+                if (!checkAddConflicts(classId, teacherId, courseId, day, period).conflict) {
+                    if (!tempSchedules[classId]) tempSchedules[classId] = {};
+                    tempSchedules[classId][day + "-" + period] = { courseId: courseId, teacherId: teacherId, courseName: courseName, teacherName: getTeacherName(teacherId) };
+                    autoSave(); selectedSourceCell = null; validDropTargets = []; renderAll(); showToast("✅ 已添加 " + courseName);
+                } else { showToast("❌ 冲突：该时间不可用", true); }
+                overlay.remove(); dialog.remove();
+            };
+        });
+        overlay.onclick = function() { overlay.remove(); dialog.remove(); };
+    };
+    
+    function bindClassCourseClick() {
+        var courseDivs = document.querySelectorAll('#classDragTable .course-cell');
+        for (var i = 0; i < courseDivs.length; i++) {
+            courseDivs[i].removeEventListener('click', handleClassCourseClick);
+            courseDivs[i].addEventListener('click', handleClassCourseClick);
+        }
+    }
+    
+    function handleClassCourseClick(event) {
+        event.stopPropagation();
+        var el = event.target.closest('.course-cell');
+        if (!el) return;
+        var isLocked = el.getAttribute('data-locked') === 'true';
+        if (isLocked) { showToast("🔒 该课程已被锁定，不可交换", true); return; }
+        var classId = parseInt(el.getAttribute('data-class')), day = el.getAttribute('data-day'), period = el.getAttribute('data-period');
+        var teacherId = parseInt(el.getAttribute('data-teacher-id')), courseId = parseInt(el.getAttribute('data-course-id'));
+        var courseName = el.getAttribute('data-course-name'), teacherName = el.getAttribute('data-teacher-name');
+        selectedSourceCell = { classId: classId, day: day, period: period, teacherId: teacherId, courseId: courseId, courseName: courseName, teacherName: teacherName };
+        showToast("👆 已选中 " + teacherName + " 的【" + courseName + "】");
+        highlightExchangeableSpots(classId, day, period, teacherId, courseId);
+    }
+    
+    function highlightExchangeableSpots(sourceClassId, sourceDay, sourcePeriod, sourceTeacherId, sourceCourseId) {
+        clearAllHighlights();
+        var allCells = document.querySelectorAll('#classDragTable .drop-zone');
+        var newValidTargets = [], count = 0;
+        for (var i = 0; i < allCells.length; i++) {
+            var cell = allCells[i];
+            var targetClassId = parseInt(cell.getAttribute('data-class')), targetDay = cell.getAttribute('data-day'), targetPeriod = cell.getAttribute('data-period');
+            if (targetClassId !== sourceClassId) continue;
+            if (targetDay === sourceDay && targetPeriod === sourcePeriod) continue;
+            var targetCourse = tempSchedules[targetClassId] ? tempSchedules[targetClassId][targetDay + "-" + targetPeriod] : null;
+            if (!targetCourse) continue;
+            
+            var targetLocked = isPositionLocked(targetClassId, targetCourse.teacherId, targetCourse.courseId, targetDay, targetPeriod);
+            if (targetLocked.locked) continue;
+            
+            if (canSwapCourses(sourceClassId, sourceDay, sourcePeriod, sourceTeacherId, sourceCourseId,
+                targetClassId, targetDay, targetPeriod, targetCourse.teacherId, targetCourse.courseId)) {
+                cell.classList.add('drop-valid'); newValidTargets.push(cell); count++;
+            }
+        }
+        validDropTargets = newValidTargets;
+        if (count > 0) showToast("✨ 找到 " + count + " 个可以交换的位置，拖拽即可交换");
+        else showToast("⚠️ 没有可以交换的位置", true);
+    }
+    
+    function clearAllHighlights() {
+        var allCells = document.querySelectorAll('.drop-zone');
+        for (var i = 0; i < allCells.length; i++) allCells[i].classList.remove('drop-valid');
+        validDropTargets = [];
+    }
+    
+    function initClassDragEvents() {
+        var container = document.getElementById("classDragTable");
+        if (!container) return;
+        var dragItems = container.querySelectorAll('.course-cell');
+        dragItems.forEach(function(item) {
+            var isLocked = item.getAttribute('data-locked') === 'true';
+            if (isLocked) {
+                item.setAttribute('draggable', 'false');
+                return;
+            }
+            item.setAttribute('draggable', 'true');
+            item.ondragstart = function(e) {
+                dragSource = { type: 'course', classId: parseInt(this.getAttribute('data-class')), day: this.getAttribute('data-day'), period: this.getAttribute('data-period'),
+                    courseId: parseInt(this.getAttribute('data-course-id')), teacherId: parseInt(this.getAttribute('data-teacher-id')), courseName: this.getAttribute('data-course-name') };
+                e.dataTransfer.setData('text/plain', JSON.stringify(dragSource));
+                this.classList.add('dragging');
+            };
+            item.ondragend = function(e) { this.classList.remove('dragging'); document.querySelectorAll('.drag-over').forEach(function(el) { el.classList.remove('drag-over'); }); };
+        });
+        
+        var dropZones = container.querySelectorAll('.drop-zone');
+        dropZones.forEach(function(zone) {
+            zone.ondragover = function(e) { e.preventDefault(); if (validDropTargets.indexOf(zone) !== -1) this.classList.add('drag-over'); };
+            zone.ondragleave = function(e) { this.classList.remove('drag-over'); };
+            zone.ondrop = function(e) {
+                e.preventDefault(); this.classList.remove('drag-over');
+                if (!dragSource) return;
+                var targetClassId = parseInt(this.getAttribute('data-class')), targetDay = this.getAttribute('data-day'), targetPeriod = this.getAttribute('data-period');
+                if (dragSource.type === 'course') {
+                    if (dragSource.classId === targetClassId && dragSource.day === targetDay && dragSource.period === targetPeriod) { dragSource = null; return; }
+                    if (validDropTargets.indexOf(this) === -1) { showToast("❌ 该位置不可交换", true); dragSource = null; return; }
+                    swapCourses(dragSource.classId, dragSource.day, dragSource.period, targetClassId, targetDay, targetPeriod);
+                } else if (dragSource.type === 'stats') {
+                    var existingCourse = tempSchedules[targetClassId]?.[targetDay + "-" + targetPeriod];
+                    if (existingCourse) replaceLesson(targetClassId, targetDay, targetPeriod, dragSource.courseId, dragSource.teacherId, dragSource.isExceed);
+                    else addLesson(targetClassId, dragSource.teacherId, dragSource.courseId, targetDay, targetPeriod, dragSource.isExceed);
+                }
+                dragSource = null; selectedSourceCell = null; clearAllHighlights();
+            };
+        });
+    }
+    
+    function renderClassStats() {
+        var container = document.getElementById("classStatsArea");
+        if (!currentClassId) { container.innerHTML = ""; return; }
+        
+        var classPlans = getClassPlans(currentClassId);
+        if (classPlans.length === 0) {
+            container.innerHTML = '<div class="stats-title">📋 课程统计</div><div style="padding:10px; text-align:center; color:#999;">暂无教学计划</div>';
+            return;
+        }
+        
+        var stats = [];
+        for (var i = 0; i < classPlans.length; i++) {
+            var plan = classPlans[i];
+            var scheduled = getScheduledCount(currentClassId, plan.courseId);
+            var required = plan.hoursPerWeek;
+            var status = getCourseStatus(scheduled, required);
+            stats.push({ courseId: plan.courseId, teacherId: plan.teacherId, courseName: getCourseName(plan.courseId), scheduled: scheduled, required: required, status: status });
+        }
+        stats.sort(function(a, b) {
+            var shortageA = Math.max(0, a.required - a.scheduled), shortageB = Math.max(0, b.required - b.scheduled);
+            if (shortageA !== shortageB) return shortageB - shortageA;
+            return getSubjectPriority(a.courseName) - getSubjectPriority(b.courseName);
+        });
+        
+        var html = '<div class="stats-title">📋 课程统计（点击高亮课表中课程）</div>';
+        html += '<div class="stats-grid" id="classStatsGrid">';
+        for (var i = 0; i < stats.length; i++) {
+            var s = stats[i];
+            html += '<div class="stats-card ' + s.status.status + '" ' +
+                'data-course-id="' + s.courseId + '" ' +
+                'data-course-name="' + escapeHtml(s.courseName) + '">' +
+                '<div class="course-name">' + escapeHtml(s.courseName) + '</div>' +
+                '<div class="course-progress">' + s.status.display + '</div></div>';
+        }
+        html += '</div>';
+        container.innerHTML = html;
+        
+        var statsGrid = document.getElementById("classStatsGrid");
+        if (statsGrid) {
+            statsGrid.querySelectorAll('.stats-card').forEach(function(card) {
+                if (!card.classList.contains('complete')) {
+                    card.onclick = function(e) {
+                        e.stopPropagation();
+                        var courseId = parseInt(this.getAttribute('data-course-id'));
+                        if (highlightCourseId === courseId && highlightClassId === currentClassId) {
+                            highlightCourseId = null; highlightClassId = null;
+                            showToast("取消高亮", false);
+                        } else {
+                            highlightCourseId = courseId; highlightClassId = currentClassId;
+                            var courseName = this.getAttribute('data-course-name');
+                            showToast("🔍 高亮课程：【" + courseName + "】", false);
+                        }
+                        renderClassTimetable();
+                        renderClassStats();
+                    };
+                }
+            });
+        }
+    }
+    
+    // ========== 教师课表 ==========
+    function renderTeacherTimetable() {
+        var container = document.getElementById("teacherTimetableContainer");
+        if (!currentTeacherId) { container.innerHTML = '<div class="tip">请从左侧选择教师</div>'; return; }
+        
+        var html = '<table class="timetable" id="teacherDragTable">';
+        html += '<thead><tr><th>时间/星期</th>';
+        for (var wi = 0; wi < weekdays.length; wi++) html += '<th>' + weekdays[wi] + '</th>';
+        html += '</thead><tbody>';
+        
+        for (var pi = 0; pi < periods.length; pi++) {
+            var period = periods[pi];
+            html += '<tr><td class="time-cell">' + period + '</div>';
+            for (var wi = 0; wi < weekdays.length; wi++) {
+                var day = weekdays[wi];
+                var coursesAtTime = [];
+                for (var cid in tempSchedules) {
+                    var sch = tempSchedules[cid];
+                    var key = day + "-" + period;
+                    if (sch && sch[key] && sch[key].teacherId == currentTeacherId) {
+                        coursesAtTime.push({
+                            classId: cid,
+                            className: getClassName(cid),
+                            courseId: sch[key].courseId,
+                            courseName: sch[key].courseName,
+                            locked: sch[key].locked === true
+                        });
+                    }
+                }
+                
+                if (coursesAtTime.length > 0) {
+                    html += '<td class="drop-zone">';
+                    html += '<div class="course-cell" style="cursor:default; background:#e8f4fd;">';
+                    html += '<div class="multi-class-list">';
+                    for (var ci = 0; ci < coursesAtTime.length; ci++) {
+                        var c = coursesAtTime[ci];
+                        var isHighlight = (highlightCourseId !== null && highlightTeacherId === currentTeacherId && c.courseId === highlightCourseId);
+                        var lockedClass = c.locked ? ' locked' : '';
+                        html += '<div class="multi-class-item' + (isHighlight ? ' highlight' : '') + lockedClass + '" ' +
+                            'data-class-id="' + c.classId + '" data-day="' + day + '" data-period="' + period + '" ' +
+                            'data-course-id="' + c.courseId + '" data-course-name="' + escapeHtml(c.courseName) + '" ' +
+                            'data-locked="' + c.locked + '">' +
+                            '<span class="class-name-badge">' + escapeHtml(c.className) + '</span>' +
+                            '<strong>' + escapeHtml(c.courseName) + '</strong>' +
+                            (c.locked ? '<span class="locked-badge">🔒</span>' : '') +
+                            (c.locked ? '' : '<button class="delete-course" style="float:right;" onclick="event.stopPropagation(); window.deleteLesson(' + c.classId + ', \'' + day + '\', \'' + period + '\')">✖</button>') +
+                            '</div>';
+                    }
+                    html += '</div></div></div>';
+                } else {
+                    var isAvailable = isTeacherTimeAvailableForSchedule(currentTeacherId, day, period);
+                    if (isAvailable) {
+                        html += '<td class="available-cell" data-day="' + day + '" data-period="' + period + '" ' +
+                            'onclick="window.showTeacherCourseSelector(' + currentTeacherId + ', \'' + day + '\', \'' + period + '\')">' +
+                            '<div class="add-icon">➕</div></td>';
+                    } else {
+                        html += '<td class="unavailable-cell">❌ 不可用</div>';
+                    }
+                }
+            }
+            html += '</tr>';
+        }
+        html += '</tbody></table>';
+        container.innerHTML = html;
+        
+        container.querySelectorAll('.multi-class-item').forEach(function(item) {
+            item.addEventListener('click', function(e) {
+                if (e.target.classList && e.target.classList.contains('delete-course')) return;
+                var courseId = parseInt(this.getAttribute('data-course-id'));
+                var isLocked = this.getAttribute('data-locked') === 'true';
+                if (isLocked) { showToast("🔒 该课程已被锁定", true); return; }
+                if (highlightCourseId === courseId && highlightTeacherId === currentTeacherId) {
+                    highlightCourseId = null; highlightTeacherId = null;
+                } else {
+                    highlightCourseId = courseId; highlightTeacherId = currentTeacherId;
+                }
+                renderTeacherTimetable(); renderTeacherStats();
+            });
+        });
+    }
+    
+    window.showTeacherCourseSelector = function(teacherId, day, period) {
+        var teacherPlans = getTeacherPlans(teacherId);
+        var availableCourses = [];
+        for (var i = 0; i < teacherPlans.length; i++) {
+            var plan = teacherPlans[i];
+            var scheduled = getScheduledCount(plan.classId, plan.courseId);
+            if (scheduled < plan.hoursPerWeek) {
+                var locked = isPositionLocked(plan.classId, teacherId, plan.courseId, day, period);
+                if (!locked.locked) {
+                    availableCourses.push({ classId: plan.classId, className: getClassName(plan.classId), courseId: plan.courseId, teacherId: plan.teacherId, courseName: getCourseName(plan.courseId), scheduled: scheduled, required: plan.hoursPerWeek });
+                }
+            }
+        }
+        if (availableCourses.length === 0) { showToast("✅ 该教师所有课程已排完或位置被锁定！", false); return; }
+        
+        var overlay = document.createElement("div"); overlay.className = "overlay";
+        var dialog = document.createElement("div"); dialog.className = "course-selector-dialog";
+        var winWidth = window.innerWidth, winHeight = window.innerHeight;
+        var left = Math.max(10, (winWidth - 400) / 2), top = Math.max(10, (winHeight - 350) / 2);
+        dialog.style.cssText = 'position:fixed;background:white;border-radius:12px;z-index:2000;width:400px;box-shadow:0 4px 20px rgba(0,0,0,0.2);left:'+left+'px;top:'+top+'px';
+        var html = '<div class="dialog-header"><h3>📖 选择课程 - ' + escapeHtml(getTeacherName(teacherId)) + '  ' + day + ' ' + period + '</h3><button class="dialog-close">×</button></div>';
+        html += '<div class="dialog-body"><div class="course-grid">';
+        for (var i = 0; i < availableCourses.length; i++) {
+            var c = availableCourses[i];
+            html += '<div class="course-card" data-class-id="' + c.classId + '" data-course-id="' + c.courseId + '" data-teacher-id="' + c.teacherId + '">';
+            html += '<div><strong>' + escapeHtml(c.className) + ' - ' + escapeHtml(c.courseName) + '</strong></div><div style="font-size:9px;color:#666;">' + c.scheduled + '/' + c.required + '节</div></div>';
+        }
+        html += '</div></div>';
+        dialog.innerHTML = html;
+        document.body.appendChild(overlay); document.body.appendChild(dialog);
+        
+        dialog.querySelector('.dialog-close').onclick = function() { overlay.remove(); dialog.remove(); };
+        dialog.querySelectorAll('.course-card').forEach(function(card) {
+            card.onclick = function() {
+                var classId = parseInt(this.getAttribute('data-class-id')), courseId = parseInt(this.getAttribute('data-course-id')), teacherId2 = parseInt(this.getAttribute('data-teacher-id'));
+                var courseName = getCourseName(courseId);
+                if (!checkAddConflicts(classId, teacherId2, courseId, day, period).conflict) {
+                    if (!tempSchedules[classId]) tempSchedules[classId] = {};
+                    tempSchedules[classId][day + "-" + period] = { courseId: courseId, teacherId: teacherId2, courseName: courseName, teacherName: getTeacherName(teacherId2) };
+                    autoSave(); renderTeacherTimetable(); renderTeacherStats(); showToast("✅ 已添加 " + courseName);
+                } else { showToast("❌ 冲突：该时间不可用", true); }
+                overlay.remove(); dialog.remove();
+            };
+        });
+        overlay.onclick = function() { overlay.remove(); dialog.remove(); };
+    };
+    
+    function renderTeacherStats() {
+        var container = document.getElementById("teacherStatsArea");
+        if (!currentTeacherId) { container.innerHTML = ""; return; }
+        
+        var teacherPlans = getTeacherPlans(currentTeacherId);
+        if (teacherPlans.length === 0) {
+            container.innerHTML = '<div class="stats-title">📋 课程统计</div><div style="padding:10px; text-align:center; color:#999;">暂无教学计划</div>';
+            return;
+        }
+        
+        var stats = [];
+        for (var i = 0; i < teacherPlans.length; i++) {
+            var plan = teacherPlans[i];
+            var scheduled = getScheduledCount(plan.classId, plan.courseId);
+            var required = plan.hoursPerWeek;
+            var status = getCourseStatus(scheduled, required);
+            stats.push({ classId: plan.classId, className: getClassName(plan.classId), courseId: plan.courseId, courseName: getCourseName(plan.courseId), scheduled: scheduled, required: required, status: status });
+        }
+        stats.sort(function(a, b) {
+            var shortageA = Math.max(0, a.required - a.scheduled), shortageB = Math.max(0, b.required - b.scheduled);
+            if (shortageA !== shortageB) return shortageB - shortageA;
+            return getSubjectPriority(a.courseName) - getSubjectPriority(b.courseName);
+        });
+        
+        var html = '<div class="stats-title">📋 课程统计</div>';
+        html += '<div class="stats-grid" id="teacherStatsGrid">';
+        for (var i = 0; i < stats.length; i++) {
+            var s = stats[i];
+            html += '<div class="stats-card ' + s.status.status + '" ' +
+                'data-class-id="' + s.classId + '" data-course-id="' + s.courseId + '" ' +
+                'data-course-name="' + escapeHtml(s.courseName) + '">' +
+                '<div class="course-name">' + escapeHtml(s.className) + ' - ' + escapeHtml(s.courseName) + '</div>' +
+                '<div class="course-progress">' + s.status.display + '</div></div>';
+        }
+        html += '</div>';
+        container.innerHTML = html;
+    }
+    
+    function clearClassTimetable() {
+        if (!currentClassId) { showToast("请先选择班级", true); return; }
+        if (confirm("确定清空该班级的课表吗？注意：锁定课程不会被清空")) {
+            var schedule = tempSchedules[currentClassId] || {};
+            var newSchedule = {};
+            for (var key in schedule) {
+                if (schedule[key] && schedule[key].locked === true) {
+                    newSchedule[key] = schedule[key];
+                }
+            }
+            if (Object.keys(newSchedule).length === 0) {
+                delete tempSchedules[currentClassId];
+            } else {
+                tempSchedules[currentClassId] = newSchedule;
+            }
+            autoSave(); selectedSourceCell = null; validDropTargets = []; renderAll(); showToast("✅ 已清空（锁定课程已保留）");
+        }
+    }
+    
+    function clearTeacherTimetable() {
+        if (!currentTeacherId) { showToast("请先选择教师", true); return; }
+        if (confirm("确定清空该教师的所有课程吗？注意：锁定课程不会被清空")) {
+            for (var cid in tempSchedules) {
+                var sch = tempSchedules[cid];
+                for (var key in sch) {
+                    if (sch[key] && sch[key].teacherId == currentTeacherId && sch[key].locked !== true) {
+                        delete sch[key];
+                    }
+                }
+            }
+            autoSave(); selectedSourceCell = null; validDropTargets = []; renderAll(); showToast("✅ 已清空（锁定课程已保留）");
+        }
+    }
+    
+    function exportClassTimetable() {
+        if (!currentClassId) { showToast("请先选择班级", true); return; }
+        var schedule = tempSchedules[currentClassId] || {}, data = [["星期", "节次", "课程", "教师", "锁定状态"]];
+        for (var wi = 0; wi < weekdays.length; wi++) {
+            for (var pi = 0; pi < periods.length; pi++) {
+                var key = weekdays[wi] + "-" + periods[pi], cell = schedule[key];
+                data.push([weekdays[wi], periods[pi], cell ? cell.courseName : "", cell ? cell.teacherName : "", cell && cell.locked ? "锁定" : ""]);
+            }
+        }
+        var ws = XLSX.utils.aoa_to_sheet(data), wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, getClassName(currentClassId) + "课表");
+        XLSX.writeFile(wb, getClassName(currentClassId) + "_课表.xlsx");
+        showToast("导出成功");
+    }
+    
+    function exportTeacherTimetable() {
+        if (!currentTeacherId) { showToast("请先选择教师", true); return; }
+        var data = [["星期", "节次", "班级", "课程", "锁定状态"]];
+        for (var wi = 0; wi < weekdays.length; wi++) {
+            for (var pi = 0; pi < periods.length; pi++) {
+                var day = weekdays[wi], period = periods[pi];
+                for (var cid in tempSchedules) {
+                    var sch = tempSchedules[cid], key = day + "-" + period;
+                    if (sch && sch[key] && sch[key].teacherId == currentTeacherId) {
+                        data.push([day, period, getClassName(cid), sch[key].courseName, sch[key].locked ? "锁定" : ""]);
+                    }
+                }
+            }
+        }
+        if (data.length === 1) data.push(["无课程", "", "", "", ""]);
+        var ws = XLSX.utils.aoa_to_sheet(data), wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, getTeacherName(currentTeacherId) + "课表");
+        XLSX.writeFile(wb, getTeacherName(currentTeacherId) + "_课表.xlsx");
+        showToast("导出成功");
+    }
+    
+    function switchTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('.tab-btn').forEach(function(btn) { btn.classList.remove('active'); });
+        document.querySelector('.tab-btn[data-tab="' + tab + '"]').classList.add('active');
+        var classDiv = document.getElementById("classTab");
+        var teacherDiv = document.getElementById("teacherTab");
+        if (tab === "class") {
+            classDiv.style.display = "flex";
+            teacherDiv.style.display = "none";
+            renderClassList();
+            renderClassTimetable();
+            renderClassStats();
+        } else {
+            classDiv.style.display = "none";
+            teacherDiv.style.display = "flex";
+            renderTeacherList();
+            renderTeacherTimetable();
+            renderTeacherStats();
+        }
+        highlightCourseId = null; selectedSourceCell = null; validDropTargets = [];
+    }
+    
+    function renderAll() {
+        if (currentTab === "class") { 
+            renderClassList(); 
+            renderClassTimetable(); 
+            renderClassStats(); 
+        } else { 
+            renderTeacherList(); 
+            renderTeacherTimetable(); 
+            renderTeacherStats(); 
+        }
+    }
+    
+    function escapeHtml(s) { 
+        if (!s) return ''; 
+        return s.replace(/[&<>]/g, function(m) { 
+            if (m === '&') return '&amp;'; 
+            if (m === '<') return '&lt;'; 
+            if (m === '>') return '&gt;'; 
+            return m; 
+        }); 
+    }
+    
+    function goBack() { 
+        window.location.href = "02-目录.html";
+    }
+    
+    function logout() { 
+        localStorage.removeItem("currentUser"); 
+        window.location.href = "01-登录.html"; 
+    }
+    
+    function displayCurrentUser() {
+        var user = localStorage.getItem("currentUser");
+        if (user) { 
+            try { 
+                var u = JSON.parse(user); 
+                document.getElementById("userNameDisplay").innerText = u.name + " (" + u.roleName + ")"; 
+            } catch(e) {} 
+        }
+    }
+    
+    window.deleteLesson = deleteLesson;
+    window.showClassCourseSelector = showClassCourseSelector;
+    window.showTeacherCourseSelector = showTeacherCourseSelector;
+    
+    function init() {
+        displayCurrentUser(); 
+        loadAllData();
+        
+        document.getElementById("classSearchInput").oninput = function() { 
+            classSearchKeyword = this.value.toLowerCase(); 
+            renderClassList(); 
+        };
+        document.getElementById("teacherSearchInput").oninput = function() { 
+            teacherSearchKeyword = this.value.toLowerCase(); 
+            renderTeacherList(); 
+        };
+        document.getElementById("clearClassBtn").onclick = clearClassTimetable;
+        document.getElementById("exportClassBtn").onclick = exportClassTimetable;
+        document.getElementById("clearTeacherBtn").onclick = clearTeacherTimetable;
+        document.getElementById("exportTeacherBtn").onclick = exportTeacherTimetable;
+        document.getElementById("allSchoolBtn").onclick = function() { window.location.href = "05-全校课表.html"; };
+        
+        document.querySelectorAll('.tab-btn').forEach(function(btn) { 
+            btn.onclick = function() { 
+                switchTab(btn.getAttribute('data-tab')); 
+            }; 
+        });
+    }
+    init();
+</script>
+</body>
+</html>
