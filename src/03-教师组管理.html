@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教师组管理 - 智能排课系统</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card h3 {
+            color: #1e3c72;
+            margin-top: 0;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #1e3c72;
+            padding-bottom: 8px;
+        }
+        
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            background: #1e3c72;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn:hover { background: #2b4c7c; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-warning { background: #ffc107; color: #333; }
+        .btn-warning:hover { background: #e0a800; }
+        .btn-info { background: #17a2b8; }
+        .btn-info:hover { background: #138496; }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        .data-table th, .data-table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        .data-table th {
+            background: #1e3c72;
+            color: white;
+        }
+        .data-table tr:hover { background: #f5f5f5; }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            width: 500px;
+            max-width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-content h4 {
+            margin-top: 0;
+            color: #1e3c72;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .search-box {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .list-container {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+        }
+        .member-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .member-item:last-child { border-bottom: none; }
+        .remove-member {
+            color: #dc3545;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .teacher-option {
+            display: flex;
+            align-items: center;
+            padding: 5px;
+            cursor: pointer;
+        }
+        .teacher-option:hover { background: #e8f4fd; }
+        .teacher-option input { margin-right: 8px; }
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 2000;
+            animation: fadeOut 2s ease-in-out;
+        }
+        .toast.error { background: #dc3545; }
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; visibility: hidden; }
+        }
+        
+        .debug-info {
+            background: #f0f0f0;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 12px;
+            border-radius: 6px;
+            display: none;
+        }
+    </style>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <h3>👥 教师组管理</h3>
+        
+        <div class="toolbar">
+            <button id="autoGenerateBtn" class="btn btn-info">⚡ 按科目自动生成</button>
+            <button id="genHeadTeacherGroupBtn" class="btn btn-info">👥 生成班主任组</button>
+            <button id="genFromPlansBtn" class="btn btn-info">📋 从教学计划生成</button>
+            <button id="addBtn" class="btn btn-success">+ 添加教师组</button>
+            <button id="importBtn" class="btn">📥 导入Excel</button>
+            <button id="exportBtn" class="btn">📤 导出Excel</button>
+            <button id="downloadTemplateBtn" class="btn btn-warning">📎 下载模板</button>
+            <button id="debugBtn" class="btn">🔍 调试</button>
+        </div>
+        
+        <div id="debugInfo" class="debug-info"></div>
+        
+        <table class="data-table" id="dataTable">
+            <thead>
+                <tr><th>ID</th><th>组名称</th><th>成员</th><th>操作</th> </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 编辑模态框 -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <h4 id="modalTitle">添加教师组</h4>
+        <div class="form-group">
+            <label>组名称</label>
+            <input type="text" id="groupName" placeholder="如：数学组">
+        </div>
+        <div class="form-group">
+            <label>选择教师（可多选）</label>
+            <input type="text" id="teacherSearch" class="search-box" placeholder="🔍 搜索教师...">
+            <div id="teacherList" class="list-container"></div>
+        </div>
+        <div class="form-group">
+            <label>已选成员</label>
+            <div id="selectedMembers" class="list-container"></div>
+        </div>
+        <div class="modal-buttons">
+            <button id="cancelBtn" class="btn btn-danger">取消</button>
+            <button id="saveBtn" class="btn btn-success">保存</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ========== 存储KEY ==========
+    const GROUP_KEY = "pk_teacherGroups";
+    const TEACHER_KEY = "pk_teachers";
+    const CLASSES_KEY = "pk_classes";
+    const PLANS_KEY = "pk_plans";
+    const COURSES_KEY = "pk_courses";
+    
+    let groups = [];
+    let teachers = [];
+    let classes = [];
+    let plans = [];
+    let courses = [];
+    let editingId = null;
+    let selectedTeacherIds = [];
+    
+    // ========== 加载数据 ==========
+    function loadData() {
+        let stored = localStorage.getItem(GROUP_KEY);
+        if (stored) {
+            groups = JSON.parse(stored);
+            console.log("加载教师组数据:", groups);
+        } else {
+            groups = [];
+        }
+        
+        let teacherStored = localStorage.getItem(TEACHER_KEY);
+        if (teacherStored) {
+            teachers = JSON.parse(teacherStored);
+            console.log("加载教师数据:", teachers);
+        } else {
+            teachers = [];
+        }
+        
+        let classesStored = localStorage.getItem(CLASSES_KEY);
+        if (classesStored) classes = JSON.parse(classesStored);
+        else classes = [];
+        
+        let plansStored = localStorage.getItem(PLANS_KEY);
+        if (plansStored) plans = JSON.parse(plansStored);
+        else plans = [];
+        
+        let coursesStored = localStorage.getItem(COURSES_KEY);
+        if (coursesStored) courses = JSON.parse(coursesStored);
+        else courses = [];
+        
+        renderTable();
+    }
+    
+    function saveData() {
+        localStorage.setItem(GROUP_KEY, JSON.stringify(groups));
+        console.log("保存教师组数据:", groups);
+        renderTable();
+    }
+    
+    function getTeacherName(id) {
+        let t = teachers.find(t => t.id == id);
+        return t ? t.name : "未知(ID:" + id + ")";
+    }
+    
+    function getCourseNameById(courseId) {
+        let course = courses.find(c => c.id == courseId);
+        return course ? course.name : "未知课程";
+    }
+    
+    // ========== 渲染表格 ==========
+    function renderTable() {
+        let tbody = document.getElementById("tableBody");
+        tbody.innerHTML = "";
+        for (let item of groups) {
+            let memberNames = (item.memberIds || []).map(id => getTeacherName(id)).join("、");
+            let row = tbody.insertRow();
+            row.insertCell(0).innerText = item.id;
+            row.insertCell(1).innerText = item.name;
+            row.insertCell(2).innerHTML = memberNames || "无成员";
+            let actionCell = row.insertCell(3);
+            actionCell.innerHTML = `<button class="edit-btn" data-id="${item.id}" style="background:#ffc107; color:#333; border:none; padding:4px 10px; border-radius:4px; margin-right:5px; cursor:pointer;">编辑</button>
+                                    <button class="delete-btn" data-id="${item.id}" style="background:#dc3545; color:white; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;">删除</button>`;
+        }
+        
+        document.querySelectorAll('.edit-btn').forEach(btn => {
+            btn.onclick = () => openEditModal(parseInt(btn.dataset.id));
+        });
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.onclick = () => {
+                if (confirm("确定删除吗？")) {
+                    groups = groups.filter(i => i.id !== parseInt(btn.dataset.id));
+                    saveData();
+                    showToast("已删除");
+                }
+            };
+        });
+    }
+    
+    // ========== 教师选择器 ==========
+    function renderTeacherSelector(filter = "") {
+        let container = document.getElementById("teacherList");
+        let filtered = teachers.filter(t => t.name.toLowerCase().includes(filter.toLowerCase()));
+        container.innerHTML = "";
+        if (filtered.length === 0) {
+            container.innerHTML = '<div style="color:#999; text-align:center; padding:10px;">暂无教师</div>';
+            return;
+        }
+        for (let teacher of filtered) {
+            let checked = selectedTeacherIds.includes(teacher.id);
+            let div = document.createElement("div");
+            div.className = "teacher-option";
+            div.innerHTML = `<input type="checkbox" value="${teacher.id}" ${checked ? 'checked' : ''}> ${teacher.name}`;
+            container.appendChild(div);
+        }
+        container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.onchange = () => {
+                let id = parseInt(cb.value);
+                if (cb.checked) {
+                    if (!selectedTeacherIds.includes(id)) selectedTeacherIds.push(id);
+                } else {
+                    selectedTeacherIds = selectedTeacherIds.filter(i => i !== id);
+                }
+                renderSelectedMembers();
+            };
+        });
+    }
+    
+    function renderSelectedMembers() {
+        let container = document.getElementById("selectedMembers");
+        if (selectedTeacherIds.length === 0) {
+            container.innerHTML = '<div style="color:#999; text-align:center; padding:10px;">暂无成员</div>';
+            return;
+        }
+        container.innerHTML = "";
+        for (let id of selectedTeacherIds) {
+            let name = getTeacherName(id);
+            let div = document.createElement("div");
+            div.className = "member-item";
+            div.innerHTML = `
+                <span>${name}</span>
+                <span class="remove-member" data-id="${id}">✖ 移除</span>
+            `;
+            container.appendChild(div);
+        }
+        container.querySelectorAll('.remove-member').forEach(btn => {
+            btn.onclick = () => {
+                let id = parseInt(btn.dataset.id);
+                selectedTeacherIds = selectedTeacherIds.filter(i => i !== id);
+                renderTeacherSelector(document.getElementById("teacherSearch").value);
+                renderSelectedMembers();
+            };
+        });
+    }
+    
+    // ========== 打开编辑模态框 ==========
+    function openEditModal(id) {
+        editingId = id;
+        selectedTeacherIds = [];
+        if (id) {
+            let item = groups.find(i => i.id === id);
+            if (item) {
+                document.getElementById("modalTitle").innerText = "编辑教师组";
+                document.getElementById("groupName").value = item.name;
+                selectedTeacherIds = [...(item.memberIds || [])];
+            }
+        } else {
+            document.getElementById("modalTitle").innerText = "添加教师组";
+            document.getElementById("groupName").value = "";
+        }
+        renderTeacherSelector("");
+        renderSelectedMembers();
+        document.getElementById("editModal").style.display = "flex";
+    }
+    
+    function saveGroup() {
+        let name = document.getElementById("groupName").value.trim();
+        if (!name) { showToast("请输入组名称", true); return; }
+        
+        if (editingId) {
+            let index = groups.findIndex(i => i.id === editingId);
+            if (index !== -1) {
+                groups[index] = { id: editingId, name, memberIds: selectedTeacherIds };
+                showToast("已更新");
+            } else {
+                showToast("未找到要编辑的教师组", true);
+                return;
+            }
+        } else {
+            let newId = Math.max(0, ...groups.map(i => i.id), 0) + 1;
+            groups.push({ id: newId, name, memberIds: selectedTeacherIds });
+            showToast("已添加");
+        }
+        saveData();
+        closeModal();
+    }
+    
+    function closeModal() {
+        document.getElementById("editModal").style.display = "none";
+        editingId = null;
+    }
+    
+    // ========== 自动生成功能 ==========
+    
+    // 1. 按科目自动生成教师组
+    function autoGenerateBySubject() {
+        if (teachers.length === 0) {
+            showToast("暂无教师数据，请先在教师管理中录入教师", true);
+            return;
+        }
+        if (confirm("将根据教师所教课程自动生成教师组，现有教师组将被覆盖，是否继续？")) {
+            let courseMap = new Map();
+            for (let teacher of teachers) {
+                for (let courseId of teacher.courseIds || []) {
+                    let courseName = getCourseNameById(courseId);
+                    if (courseName && courseName !== "未知课程") {
+                        if (!courseMap.has(courseName)) courseMap.set(courseName, []);
+                        if (!courseMap.get(courseName).includes(teacher.id)) {
+                            courseMap.get(courseName).push(teacher.id);
+                        }
+                    }
+                }
+            }
+            let newGroups = [];
+            let id = 1;
+            for (let [courseName, teacherIds] of courseMap) {
+                if (teacherIds.length > 0) {
+                    newGroups.push({ id: id++, name: courseName + "组", memberIds: teacherIds });
+                }
+            }
+            groups = newGroups;
+            saveData();
+            showToast(`自动生成完成，共 ${groups.length} 个教师组`);
+        }
+    }
+    
+    // 2. 生成班主任组
+    function generateHeadTeacherGroup() {
+        if (classes.length === 0) {
+            showToast("暂无班级数据，请先在班级管理中录入班级和班主任", true);
+            return;
+        }
+        
+        let headTeacherNames = [];
+        for (let cls of classes) {
+            if (cls.teacher && cls.teacher.trim() !== "") {
+                if (!headTeacherNames.includes(cls.teacher)) {
+                    headTeacherNames.push(cls.teacher);
+                }
+            }
+        }
+        
+        if (headTeacherNames.length === 0) {
+            showToast("班级管理中未设置班主任，请先在班级管理中录入班主任", true);
+            return;
+        }
+        
+        let headTeacherIds = [];
+        for (let name of headTeacherNames) {
+            let teacher = teachers.find(t => t.name === name);
+            if (teacher) {
+                headTeacherIds.push(teacher.id);
+            } else {
+                console.warn(`教师 ${name} 不在教师管理中`);
+            }
+        }
+        
+        if (headTeacherIds.length === 0) {
+            showToast("班主任不在教师管理中，请先在教师管理中录入", true);
+            return;
+        }
+        
+        if (confirm(`将从班级管理中提取 ${headTeacherNames.length} 位班主任生成班主任组，现有班主任组将被覆盖，是否继续？`)) {
+            groups = groups.filter(g => g.name !== "班主任组");
+            let newId = Math.max(0, ...groups.map(g => g.id), 0) + 1;
+            groups.push({ id: newId, name: "班主任组", memberIds: headTeacherIds });
+            saveData();
+            showToast(`班主任组生成完成，共 ${headTeacherIds.length} 位班主任`);
+        }
+    }
+    
+    // 3. 从教学计划生成教师组
+    function generateFromPlans() {
+        if (plans.length === 0) {
+            showToast("暂无教学计划数据", true);
+            return;
+        }
+        if (confirm("将从教学计划中提取任课教师，按科目生成教师组，现有教师组将被覆盖，是否继续？")) {
+            let courseTeacherMap = new Map();
+            for (let plan of plans) {
+                let courseId = plan.courseId;
+                let teacherId = plan.teacherId;
+                if (!courseId || !teacherId) continue;
+                let courseName = getCourseNameById(courseId);
+                if (courseName && courseName !== "未知课程") {
+                    if (!courseTeacherMap.has(courseName)) courseTeacherMap.set(courseName, []);
+                    if (!courseTeacherMap.get(courseName).includes(teacherId)) {
+                        courseTeacherMap.get(courseName).push(teacherId);
+                    }
+                }
+            }
+            let newGroups = [];
+            let id = 1;
+            for (let [courseName, teacherIds] of courseTeacherMap) {
+                if (teacherIds.length > 0) {
+                    newGroups.push({ id: id++, name: courseName + "组", memberIds: teacherIds });
+                }
+            }
+            groups = newGroups;
+            saveData();
+            showToast(`从教学计划生成完成，共 ${groups.length} 个教师组`);
+        }
+    }
+    
+    // ========== 导入导出 ==========
+    function exportData() {
+        let wsData = [["ID", "组名称", "成员ID", "成员姓名"]];
+        for (let item of groups) {
+            let memberIds = (item.memberIds || []).join("、");
+            let memberNames = (item.memberIds || []).map(id => getTeacherName(id)).join("、");
+            wsData.push([item.id, item.name, memberIds, memberNames]);
+        }
+        let ws = XLSX.utils.aoa_to_sheet(wsData);
+        let wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "教师组管理");
+        XLSX.writeFile(wb, "教师组管理.xlsx");
+        showToast("导出成功");
+    }
+    
+    function downloadTemplate() {
+        let wsData = [["组名称", "成员ID", "成员姓名"], ["数学组", "1,2", "张老师,李老师"], ["语文组", "3,4", "王老师,赵老师"]];
+        let ws = XLSX.utils.aoa_to_sheet(wsData);
+        let wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "教师组模板");
+        XLSX.writeFile(wb, "教师组模板.xlsx");
+        showToast("模板下载成功");
+    }
+    
+    function importExcel(file) {
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            let workbook = XLSX.read(e.target.result, { type: 'array' });
+            let sheet = workbook.Sheets[workbook.SheetNames[0]];
+            let rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+            if (!rows || rows.length < 2) { showToast("文件至少需要两行", true); return; }
+            let newCount = 0;
+            let maxId = Math.max(0, ...groups.map(i => i.id), 0);
+            for (let i = 1; i < rows.length; i++) {
+                let row = rows[i];
+                if (!row[0] || !row[0].toString().trim()) continue;
+                let name = row[0].toString().trim();
+                let memberIds = [];
+                if (row[1] && row[1].toString().trim()) {
+                    let ids = row[1].toString().split(/[,，、]+/).map(s => parseInt(s.trim())).filter(id => !isNaN(id));
+                    memberIds = ids;
+                } else if (row[2] && row[2].toString().trim()) {
+                    let names = row[2].toString().split(/[,，、]+/).map(s => s.trim());
+                    for (let mn of names) {
+                        let teacher = teachers.find(t => t.name === mn);
+                        if (teacher) memberIds.push(teacher.id);
+                    }
+                }
+                if (!groups.some(g => g.name === name)) {
+                    maxId++;
+                    groups.push({ id: maxId, name, memberIds });
+                    newCount++;
+                }
+            }
+            saveData();
+            showToast(`导入完成，新增 ${newCount} 条`);
+        };
+        reader.readAsArrayBuffer(file);
+    }
+    
+    // ========== 调试功能 ==========
+    function showDebug() {
+        let debugDiv = document.getElementById("debugInfo");
+        debugDiv.innerHTML = `
+            <strong>📊 数据调试信息</strong><br>
+            教师组数量: ${groups.length}<br>
+            教师数量: ${teachers.length}<br>
+            班级数量: ${classes.length}<br>
+            教学计划数量: ${plans.length}<br>
+            课程数量: ${courses.length}<br>
+            <br>
+            <strong>教师组详情:</strong><br>
+            ${JSON.stringify(groups, null, 2)}
+        `;
+        debugDiv.style.display = debugDiv.style.display === "none" ? "block" : "none";
+    }
+    
+    function showToast(msg, isErr) {
+        let t = document.createElement("div");
+        t.className = "toast" + (isErr ? " error" : "");
+        t.innerText = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 3000);
+    }
+    
+    // ========== 初始化 ==========
+    function init() {
+        loadData();
+        
+        document.getElementById("autoGenerateBtn").onclick = autoGenerateBySubject;
+        document.getElementById("genHeadTeacherGroupBtn").onclick = generateHeadTeacherGroup;
+        document.getElementById("genFromPlansBtn").onclick = generateFromPlans;
+        document.getElementById("addBtn").onclick = () => openEditModal(null);
+        document.getElementById("cancelBtn").onclick = closeModal;
+        document.getElementById("saveBtn").onclick = saveGroup;
+        document.getElementById("exportBtn").onclick = exportData;
+        document.getElementById("downloadTemplateBtn").onclick = downloadTemplate;
+        document.getElementById("importBtn").onclick = () => {
+            let input = document.createElement("input");
+            input.type = "file";
+            input.accept = ".xlsx, .xls";
+            input.onchange = e => { if (e.target.files[0]) importExcel(e.target.files[0]); };
+            input.click();
+        };
+        document.getElementById("debugBtn").onclick = showDebug;
+        document.getElementById("teacherSearch").oninput = (e) => {
+            renderTeacherSelector(e.target.value);
+        };
+        window.onclick = e => { if (e.target === document.getElementById("editModal")) closeModal(); };
+    }
+    init();
+</script>
+</body>
+</html>
