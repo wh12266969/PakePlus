@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教学时间设置 - 智能排课系统</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card h3 {
+            color: #1e3c72;
+            margin-top: 0;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #1e3c72;
+            padding-bottom: 8px;
+        }
+        .card h4 {
+            color: #1e3c72;
+            margin-top: 15px;
+            margin-bottom: 10px;
+        }
+        .form-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+        .form-group {
+            flex: 1;
+            min-width: 120px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        button {
+            background: #1e3c72;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #2b4c7c;
+        }
+        button.success {
+            background: #28a745;
+        }
+        
+        /* 星期选择 */
+        .week-selector {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .week-day {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            padding: 8px 12px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.3s;
+            border: 2px solid transparent;
+        }
+        .week-day.selected {
+            background: #1e3c72;
+            color: white;
+            border-color: #ffd700;
+        }
+        .week-day input {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        .week-day span {
+            font-size: 14px;
+        }
+        
+        /* 时段设置 */
+        .period-config {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .period-item {
+            flex: 1;
+            min-width: 100px;
+        }
+        .period-item label {
+            display: block;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .period-item input {
+            width: 100%;
+            padding: 8px;
+            text-align: center;
+        }
+        
+        /* 时间表格 */
+        .time-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 13px;
+        }
+        .time-table th, .time-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+            vertical-align: middle;
+        }
+        .time-table th {
+            background: #1e3c72;
+            color: white;
+            position: sticky;
+            top: 0;
+        }
+        .time-table .time-col {
+            background: #f5f5f5;
+            font-weight: bold;
+            position: sticky;
+            left: 0;
+        }
+        .time-table .disabled-slot {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .time-table .disabled-slot .slot-checkbox {
+            background: #dc3545;
+        }
+        .slot-checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        .slot-label {
+            font-size: 11px;
+            margin-left: 5px;
+        }
+        
+        .tip {
+            background: #e7f3ff;
+            border-left: 4px solid #1e3c72;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            border-radius: 6px;
+        }
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 2000;
+            animation: fadeOut 2s ease-in-out;
+        }
+        .toast.error {
+            background: #dc3545;
+        }
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; visibility: hidden; }
+        }
+        
+        .stats {
+            background: #e8f4fd;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 13px;
+        }
+        .stats span {
+            font-weight: bold;
+            color: #1e3c72;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <h3>⏰ 教学时间配置</h3>
+        
+        <!-- 每周上课天数选择 -->
+        <h4>📅 每周上课天数</h4>
+        <div class="week-selector" id="weekSelector">
+            <div class="week-day" data-day="星期一">
+                <span>一</span>
+                <input type="checkbox" value="星期一">
+            </div>
+            <div class="week-day" data-day="星期二">
+                <span>二</span>
+                <input type="checkbox" value="星期二">
+            </div>
+            <div class="week-day" data-day="星期三">
+                <span>三</span>
+                <input type="checkbox" value="星期三">
+            </div>
+            <div class="week-day" data-day="星期四">
+                <span>四</span>
+                <input type="checkbox" value="星期四">
+            </div>
+            <div class="week-day" data-day="星期五">
+                <span>五</span>
+                <input type="checkbox" value="星期五">
+            </div>
+            <div class="week-day" data-day="星期六">
+                <span>六</span>
+                <input type="checkbox" value="星期六">
+            </div>
+            <div class="week-day" data-day="星期日">
+                <span>日</span>
+                <input type="checkbox" value="星期日">
+            </div>
+        </div>
+        
+        <!-- 每天各时段节数 -->
+        <h4>📖 每天各时段节数</h4>
+        <div class="period-config">
+            <div class="period-item">
+                <label>🌅 早读</label>
+                <input type="number" id="morningRead" value="1" min="0" max="5">
+            </div>
+            <div class="period-item">
+                <label>☀️ 上午</label>
+                <input type="number" id="morning" value="4" min="0" max="8">
+            </div>
+            <div class="period-item">
+                <label>🌙 下午</label>
+                <input type="number" id="afternoon" value="2" min="0" max="6">
+            </div>
+            <div class="period-item">
+                <label>⭐ 晚上</label>
+                <input type="number" id="evening" value="2" min="0" max="6">
+            </div>
+            <div class="period-item">
+                <button id="applyPeriodBtn" class="success">应用时段设置</button>
+            </div>
+        </div>
+        
+        <!-- 时间表格 -->
+        <h4>📋 上课时间表（勾选不上课的时间段）</h4>
+        <div class="tip">
+            💡 说明：勾选表示该时间段不上课，排课系统会自动跳过。<br>
+            • 排课时不会在这些时间段安排课程<br>
+            • 请根据学校实际情况设置
+        </div>
+        <div id="timeTableContainer" style="overflow-x: auto;"></div>
+        
+        <!-- 统计信息 -->
+        <div id="statsInfo" class="stats"></div>
+        
+        <div class="form-row" style="margin-top: 20px;">
+            <button id="saveBtn" class="success">💾 保存设置</button>
+            <button id="resetBtn">🔄 重置默认</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 时段配置
+    let periodConfig = {
+        morningRead: 1,
+        morning: 4,
+        afternoon: 2,
+        evening: 2
+    };
+    
+    // 选中的星期
+    let selectedWeekdays = ["星期一", "星期二", "星期三", "星期四", "星期五"];
+    
+    // 不上课的时间段 { "星期一-早读1": true, ... }
+    let disabledSlots = {};
+    
+    // 所有时段列表
+    let allSlots = [];
+    
+    function loadData() {
+        let saved = localStorage.getItem("pk_scheduleConfig");
+        if (saved) {
+            try {
+                let config = JSON.parse(saved);
+                periodConfig.morningRead = config.morningRead || 1;
+                periodConfig.morning = config.morning || 4;
+                periodConfig.afternoon = config.afternoon || 2;
+                periodConfig.evening = config.evening || 2;
+                selectedWeekdays = config.selectedWeekdays || ["星期一", "星期二", "星期三", "星期四", "星期五"];
+                disabledSlots = config.disabledSlots || {};
+            } catch(e) {}
+        }
+        
+        document.getElementById("morningRead").value = periodConfig.morningRead;
+        document.getElementById("morning").value = periodConfig.morning;
+        document.getElementById("afternoon").value = periodConfig.afternoon;
+        document.getElementById("evening").value = periodConfig.evening;
+        
+        updateWeekSelector();
+        generateSlots();
+        renderTimeTable();
+        updateStats();
+    }
+    
+    function updateWeekSelector() {
+        let weekDivs = document.querySelectorAll('.week-day');
+        weekDivs.forEach(div => {
+            let day = div.getAttribute('data-day');
+            let checkbox = div.querySelector('input');
+            checkbox.checked = selectedWeekdays.includes(day);
+            if (checkbox.checked) {
+                div.classList.add('selected');
+            } else {
+                div.classList.remove('selected');
+            }
+            
+            checkbox.onchange = function() {
+                if (this.checked) {
+                    if (!selectedWeekdays.includes(day)) {
+                        selectedWeekdays.push(day);
+                    }
+                } else {
+                    selectedWeekdays = selectedWeekdays.filter(d => d !== day);
+                }
+                updateWeekSelector();
+                generateSlots();
+                renderTimeTable();
+                updateStats();
+            };
+        });
+    }
+    
+    function applyPeriodConfig() {
+        periodConfig.morningRead = parseInt(document.getElementById("morningRead").value) || 0;
+        periodConfig.morning = parseInt(document.getElementById("morning").value) || 0;
+        periodConfig.afternoon = parseInt(document.getElementById("afternoon").value) || 0;
+        periodConfig.evening = parseInt(document.getElementById("evening").value) || 0;
+        
+        generateSlots();
+        renderTimeTable();
+        updateStats();
+        showToast("时段设置已应用");
+    }
+    
+    function generateSlots() {
+        allSlots = [];
+        
+        // 早读
+        for (let i = 1; i <= periodConfig.morningRead; i++) {
+            allSlots.push({ name: `早读${i}`, type: "morningRead", order: i });
+        }
+        // 上午
+        for (let i = 1; i <= periodConfig.morning; i++) {
+            allSlots.push({ name: `上午第${i}节`, type: "morning", order: i });
+        }
+        // 下午
+        for (let i = 1; i <= periodConfig.afternoon; i++) {
+            allSlots.push({ name: `下午第${i}节`, type: "afternoon", order: i });
+        }
+        // 晚上
+        for (let i = 1; i <= periodConfig.evening; i++) {
+            allSlots.push({ name: `晚上第${i}节`, type: "evening", order: i });
+        }
+    }
+    
+    function renderTimeTable() {
+        let container = document.getElementById("timeTableContainer");
+        if (!container) return;
+        
+        if (selectedWeekdays.length === 0) {
+            container.innerHTML = '<div class="tip">请至少选择一天上课</div>';
+            return;
+        }
+        
+        let html = '<table class="time-table"><thead>';
+        html += '<tr><th>时间段</th>';
+        for (let day of selectedWeekdays) {
+            html += `<th>${day}</th>`;
+        }
+        html += '</tr></thead><tbody>';
+        
+        for (let slot of allSlots) {
+            html += '<tr>';
+            html += `<td class="time-col">${slot.name}</td>`;
+            for (let day of selectedWeekdays) {
+                let slotKey = `${day}-${slot.name}`;
+                let isDisabled = disabledSlots[slotKey] === true;
+                html += `<td class="${isDisabled ? 'disabled-slot' : ''}">
+                            <input type="checkbox" class="slot-checkbox" data-day="${day}" data-slot="${slot.name}" ${isDisabled ? 'checked' : ''}>
+                            <span class="slot-label">不上课</span>
+                          </div>`;
+            }
+            html += '</tr>';
+        }
+        html += '</tbody></table>';
+        container.innerHTML = html;
+        
+        // 绑定复选框事件
+        document.querySelectorAll('.slot-checkbox').forEach(cb => {
+            cb.addEventListener('change', function() {
+                let day = this.getAttribute('data-day');
+                let slot = this.getAttribute('data-slot');
+                let slotKey = `${day}-${slot}`;
+                if (this.checked) {
+                    disabledSlots[slotKey] = true;
+                    this.closest('td').classList.add('disabled-slot');
+                } else {
+                    delete disabledSlots[slotKey];
+                    this.closest('td').classList.remove('disabled-slot');
+                }
+                updateStats();
+            });
+        });
+    }
+    
+    function updateStats() {
+        let totalSelectedDays = selectedWeekdays.length;
+        let totalSlotsPerDay = allSlots.length;
+        let totalAvailableSlots = totalSelectedDays * totalSlotsPerDay;
+        let totalDisabled = Object.keys(disabledSlots).length;
+        let totalEnabled = totalAvailableSlots - totalDisabled;
+        
+        let statsDiv = document.getElementById("statsInfo");
+        statsDiv.innerHTML = `
+            📊 统计信息<br>
+            • 每周上课天数：<span>${totalSelectedDays}</span> 天<br>
+            • 每天节数：<span>${totalSlotsPerDay}</span> 节（早读${periodConfig.morningRead} + 上午${periodConfig.morning} + 下午${periodConfig.afternoon} + 晚上${periodConfig.evening}）<br>
+            • 每周总节数：<span>${totalAvailableSlots}</span> 节<br>
+            • 已禁用节数：<span>${totalDisabled}</span> 节<br>
+            • 可用排课节数：<span>${totalEnabled}</span> 节
+        `;
+    }
+    
+    function saveConfig() {
+        let config = {
+            morningRead: periodConfig.morningRead,
+            morning: periodConfig.morning,
+            afternoon: periodConfig.afternoon,
+            evening: periodConfig.evening,
+            selectedWeekdays: selectedWeekdays,
+            disabledSlots: disabledSlots,
+            weekDays: selectedWeekdays.length,
+            dayPeriods: allSlots.length
+        };
+        localStorage.setItem("pk_scheduleConfig", JSON.stringify(config));
+        showToast("✅ 教学时间设置已保存");
+    }
+    
+    function resetConfig() {
+        if (confirm("确定重置所有设置为默认值吗？")) {
+            periodConfig = { morningRead: 1, morning: 4, afternoon: 2, evening: 2 };
+            selectedWeekdays = ["星期一", "星期二", "星期三", "星期四", "星期五"];
+            disabledSlots = {};
+            
+            document.getElementById("morningRead").value = periodConfig.morningRead;
+            document.getElementById("morning").value = periodConfig.morning;
+            document.getElementById("afternoon").value = periodConfig.afternoon;
+            document.getElementById("evening").value = periodConfig.evening;
+            
+            updateWeekSelector();
+            generateSlots();
+            renderTimeTable();
+            updateStats();
+            showToast("已重置为默认设置");
+        }
+    }
+    
+    function showToast(message, isError = false) {
+        let toast = document.createElement("div");
+        toast.className = "toast" + (isError ? " error" : "");
+        toast.innerText = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2000);
+    }
+    
+    function init() {
+        loadData();
+        
+        document.getElementById("applyPeriodBtn").onclick = applyPeriodConfig;
+        document.getElementById("saveBtn").onclick = saveConfig;
+        document.getElementById("resetBtn").onclick = resetConfig;
+    }
+    
+    init();
+</script>
+</body>
+</html>
