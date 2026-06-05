@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教学计划管理 - 智能排课系统</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card h3 {
+            color: #1e3c72;
+            margin-top: 0;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #1e3c72;
+            padding-bottom: 8px;
+        }
+        
+        .toolbar-top {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .btn {
+            background: #1e3c72;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn:hover { background: #2b4c7c; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
+        .btn-warning { background: #ffc107; color: #333; }
+        .btn-warning:hover { background: #e0a800; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-info { background: #17a2b8; }
+        .btn-info:hover { background: #138496; }
+        
+        .tip {
+            background: #e7f3ff;
+            border-left: 4px solid #1e3c72;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            border-radius: 6px;
+        }
+        
+        .config-info {
+            background: #e8f4fd;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .split-layout {
+            display: flex;
+            gap: 20px;
+            min-height: 500px;
+        }
+        .left-panel {
+            width: 320px;
+            flex-shrink: 0;
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+        .right-panel {
+            flex: 1;
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            overflow-x: auto;
+        }
+        .left-panel h4 {
+            color: #1e3c72;
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        
+        .class-list {
+            flex: 1;
+            overflow-y: auto;
+            max-height: 450px;
+        }
+        .class-item {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .class-item:hover {
+            background: #e8f4fd;
+            border-color: #1e3c72;
+        }
+        .class-item.active {
+            background: #1e3c72;
+            color: white;
+            border-color: #1e3c72;
+        }
+        .class-checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        .class-name {
+            font-weight: bold;
+            font-size: 14px;
+            flex: 1;
+        }
+        .class-progress {
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .class-progress.complete { color: #28a745; }
+        .class-progress.exceed { color: #dc3545; }
+        .class-item.active .class-progress { color: #ffd700; }
+        
+        .plan-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .plan-title { font-size: 16px; font-weight: bold; color: #1e3c72; }
+        .plan-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            min-width: 800px;
+        }
+        .plan-table th, .plan-table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+            vertical-align: middle;
+        }
+        .plan-table th {
+            background: #1e3c72;
+            color: white;
+        }
+        .plan-table tr:hover { background: #f5f5f5; }
+        .action-buttons { display: flex; gap: 8px; }
+        .edit-btn { background: #ffc107; color: #333; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; }
+        .delete-btn { background: #dc3545; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; }
+        
+        .batch-bar {
+            margin-top: 15px;
+            padding-top: 12px;
+            border-top: 1px solid #ddd;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            width: 500px;
+            max-width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+        .modal-content h3 { color: #1e3c72; margin-top: 0; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-weight: 500; margin-bottom: 5px; font-size: 13px; }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .form-row { display: flex; gap: 15px; }
+        .form-row .form-group { flex: 1; }
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .search-select { position: relative; }
+        .search-select input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        .search-select-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+        }
+        .search-select-dropdown div { padding: 8px; cursor: pointer; }
+        .search-select-dropdown div:hover { background: #e8f4fd; }
+        
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 2000;
+            animation: fadeOut 2s ease-in-out;
+        }
+        .toast.error { background: #dc3545; }
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; visibility: hidden; }
+        }
+        
+        .no-class-tip {
+            text-align: center;
+            padding: 50px 20px;
+            color: #999;
+            font-size: 14px;
+        }
+        
+        .class-stats {
+            margin-top: 15px;
+            padding: 10px;
+            background: #e7f3ff;
+            border-radius: 8px;
+            font-size: 12px;
+            text-align: center;
+        }
+        
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+        .badge-main { background: #d4edda; color: #155724; }
+        .badge-sub { background: #fff3cd; color: #856404; }
+    </style>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <h3>📋 教学计划管理</h3>
+        
+        <div class="toolbar-top">
+            <input type="file" id="excelFile" accept=".xlsx, .xls" style="display:none;">
+            <button id="importBtn" class="btn btn-success">📥 导入Excel</button>
+            <button id="downloadTemplateBtn" class="btn btn-warning">📎 下载模板</button>
+            <button id="exportBtn" class="btn">📤 导出Excel</button>
+            <button id="addClassBtn" class="btn btn-info">+ 添加班级</button>
+        </div>
+        
+        <div class="config-info" id="configInfo">
+            <span>📅 加载中...</span>
+            <button id="refreshConfigBtn" class="btn-info" style="padding:4px 12px;">🔄 刷新</button>
+        </div>
+        
+        <div class="tip">
+            💡 说明：点击班级查看该班的教学计划，支持增、删、改操作。<br>
+            📊 进度显示：<span style="color:#28a745;">绿色=已完成</span>，<span style="color:#dc3545;">红色=超出</span>，黑色=未完成<br>
+            🔗 连排规则：连排次数 × 连排节数 = 连排总课时<br>
+            📥 导入Excel时会自动创建不存在的班级、课程、教师
+        </div>
+        
+        <div class="split-layout">
+            <div class="left-panel">
+                <h4>🏫 班级列表</h4>
+                <div class="class-list" id="classList"></div>
+                <div class="batch-bar">
+                    <button id="deleteSelectedBtn" class="btn btn-danger" style="width:100%;">🗑️ 删除选中班级</button>
+                </div>
+            </div>
+            
+            <div class="right-panel">
+                <div id="planSection" style="display: none;">
+                    <div class="plan-header">
+                        <span class="plan-title" id="planTitle">📖 教学计划</span>
+                        <button id="addPlanBtn" class="btn btn-success">➕ 添加课程</button>
+                    </div>
+                    <div id="planTableContainer"></div>
+                    <div id="classStats" class="class-stats"></div>
+                </div>
+                <div id="noClassTip" class="no-class-tip">
+                    请从左侧选择一个班级
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加/编辑教学计划模态框 -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <h3 id="modalTitle">添加教学计划</h3>
+        <div class="form-group">
+            <label>课程</label>
+            <div class="search-select">
+                <input type="text" id="editCourseSearch" placeholder="搜索课程...">
+                <div id="editCourseDropdown" class="search-select-dropdown"></div>
+                <input type="hidden" id="editCourseId">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>教师</label>
+            <div class="search-select">
+                <input type="text" id="editTeacherSearch" placeholder="搜索教师...">
+                <div id="editTeacherDropdown" class="search-select-dropdown"></div>
+                <input type="hidden" id="editTeacherId">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>类型</label>
+            <select id="editType">
+                <option value="主课">主课</option>
+                <option value="副课">副课</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>周课时</label>
+            <input type="number" id="editHours" value="4" min="1" max="30">
+        </div>
+        <div class="form-group">
+            <label>是否连排</label>
+            <select id="editConsecutiveEnabled">
+                <option value="false">否</option>
+                <option value="true">是</option>
+            </select>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>连排节数</label>
+                <select id="editConsecutiveSize">
+                    <option value="2">2节连排</option>
+                    <option value="3">3节连排</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>连排次数</label>
+                <input type="number" id="editConsecutiveCount" value="0" min="0" max="10">
+            </div>
+        </div>
+        <div class="modal-buttons">
+            <button id="cancelBtn" class="btn btn-danger">取消</button>
+            <button id="saveBtn" class="btn btn-success">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- 添加班级模态框 -->
+<div id="addClassModal" class="modal">
+    <div class="modal-content">
+        <h3>添加班级</h3>
+        <div class="form-group">
+            <label>班级名称</label>
+            <input type="text" id="newClassName" placeholder="如：高一1班">
+        </div>
+        <div class="form-group">
+            <label>年级</label>
+            <input type="text" id="newClassGrade" placeholder="如：高一">
+        </div>
+        <div class="modal-buttons">
+            <button id="cancelAddClassBtn" class="btn btn-danger">取消</button>
+            <button id="confirmAddClassBtn" class="btn btn-success">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑班级模态框 -->
+<div id="editClassModal" class="modal">
+    <div class="modal-content">
+        <h3>编辑班级</h3>
+        <div class="form-group">
+            <label>班级名称</label>
+            <input type="text" id="editClassName" placeholder="如：高一1班">
+        </div>
+        <div class="form-group">
+            <label>年级</label>
+            <input type="text" id="editClassGrade" placeholder="如：高一">
+        </div>
+        <div class="modal-buttons">
+            <button id="cancelEditClassBtn" class="btn btn-danger">取消</button>
+            <button id="confirmEditClassBtn" class="btn btn-success">保存</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ========== 存储KEY ==========
+    var PLANS_KEY = "pk_plans";
+    var CLASSES_KEY = "pk_classes";
+    var COURSES_KEY = "pk_courses";
+    var TEACHERS_KEY = "pk_teachers";
+    var SCHEDULE_CONFIG_KEY = "pk_scheduleConfig";
+    
+    // ========== 全局变量 ==========
+    var plans = [];
+    var classes = [];
+    var courses = [];
+    var teachers = [];
+    var scheduleConfig = { weekDays: 5, dayPeriods: 6 };
+    var currentClassId = null;
+    var editingId = null;
+    var editingClassId = null;
+    var selectedClassIds = [];
+    
+    // ========== 工具函数 ==========
+    function showToast(message, isError) {
+        var toast = document.createElement("div");
+        toast.className = "toast" + (isError ? " error" : "");
+        toast.innerText = message;
+        document.body.appendChild(toast);
+        setTimeout(function() { toast.remove(); }, 2000);
+    }
+    
+    function getAvailableTotalPeriods() {
+        return (scheduleConfig.weekDays || 5) * (scheduleConfig.dayPeriods || 6);
+    }
+    
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+    
+    function getCourseName(courseId) {
+        var course = courses.find(function(c) { return c.id == courseId; });
+        return course ? course.name : "未知课程";
+    }
+    
+    function getTeacherName(teacherId) {
+        var teacher = teachers.find(function(t) { return t.id == teacherId; });
+        return teacher ? teacher.name : "未知教师";
+    }
+    
+    function getClassName(classId) {
+        var cls = classes.find(function(c) { return c.id == classId; });
+        return cls ? cls.name : "未知班级";
+    }
+    
+    // ========== 班级课时统计 ==========
+    function getClassTotalHours(classId) {
+        var total = 0;
+        for (var i = 0; i < plans.length; i++) {
+            if (plans[i].classId == classId) total += plans[i].hoursPerWeek;
+        }
+        return total;
+    }
+    
+    function getClassProgress(classId) {
+        var totalHours = getClassTotalHours(classId);
+        var availableTotal = getAvailableTotalPeriods();
+        return { current: totalHours, required: availableTotal };
+    }
+    
+    // ========== 加载配置 ==========
+    function loadScheduleConfig() {
+        try {
+            var sc = localStorage.getItem(SCHEDULE_CONFIG_KEY);
+            if (sc) {
+                var parsed = JSON.parse(sc);
+                scheduleConfig.weekDays = parsed.weekDays || 5;
+                scheduleConfig.dayPeriods = parsed.dayPeriods || 6;
+            }
+        } catch(e) {}
+        updateConfigInfo();
+    }
+    
+    function updateConfigInfo() {
+        var totalPeriods = getAvailableTotalPeriods();
+        var infoDiv = document.getElementById("configInfo");
+        infoDiv.innerHTML = '<span>📅 教学时间：每周 ' + scheduleConfig.weekDays + ' 天 × ' + scheduleConfig.dayPeriods + ' 节 = <strong>' + totalPeriods + '</strong> 节（每班应排课时）</span>' +
+            '<button id="refreshConfigBtn" class="btn-info" style="padding:4px 12px;">🔄 刷新</button>';
+        document.getElementById("refreshConfigBtn").onclick = function() {
+            loadScheduleConfig();
+            renderClassList();
+            if (currentClassId) renderPlanTable();
+            showToast("已刷新教学时间配置", false);
+        };
+    }
+    
+    // ========== 数据加载与保存 ==========
+    function loadAllData() {
+        loadScheduleConfig();
+        
+        var c = localStorage.getItem(CLASSES_KEY);
+        if (c) classes = JSON.parse(c);
+        if (!classes || classes.length === 0) {
+            classes = [
+                { id: 1, name: "高一1班", grade: "高一" },
+                { id: 2, name: "高一2班", grade: "高一" },
+                { id: 3, name: "高二1班", grade: "高二" }
+            ];
+            localStorage.setItem(CLASSES_KEY, JSON.stringify(classes));
+        }
+        
+        var cs = localStorage.getItem(COURSES_KEY);
+        if (cs) courses = JSON.parse(cs);
+        if (!courses || courses.length === 0) {
+            courses = [
+                { id: 1, name: "数学" }, { id: 2, name: "语文" },
+                { id: 3, name: "英语" }, { id: 4, name: "体育" },
+                { id: 5, name: "物理" }, { id: 6, name: "化学" }
+            ];
+            localStorage.setItem(COURSES_KEY, JSON.stringify(courses));
+        }
+        
+        var t = localStorage.getItem(TEACHERS_KEY);
+        if (t) teachers = JSON.parse(t);
+        if (!teachers || teachers.length === 0) {
+            teachers = [
+                { id: 1, name: "张老师" }, { id: 2, name: "李老师" },
+                { id: 3, name: "王老师" }, { id: 4, name: "赵老师" }
+            ];
+            localStorage.setItem(TEACHERS_KEY, JSON.stringify(teachers));
+        }
+        
+        var p = localStorage.getItem(PLANS_KEY);
+        if (p) plans = JSON.parse(p);
+        if (!plans) plans = [];
+        
+        renderClassList();
+        if (classes.length > 0 && currentClassId === null) {
+            currentClassId = classes[0].id;
+            renderPlanTable();
+            document.getElementById("planSection").style.display = "block";
+            document.getElementById("noClassTip").style.display = "none";
+            document.getElementById("planTitle").innerHTML = "📖 " + escapeHtml(classes[0].name) + " 教学计划";
+        }
+    }
+    
+    function saveAllData() {
+        localStorage.setItem(CLASSES_KEY, JSON.stringify(classes));
+        localStorage.setItem(COURSES_KEY, JSON.stringify(courses));
+        localStorage.setItem(TEACHERS_KEY, JSON.stringify(teachers));
+        localStorage.setItem(PLANS_KEY, JSON.stringify(plans));
+    }
+    
+    // ========== 渲染班级列表 ==========
+    function renderClassList() {
+        var container = document.getElementById("classList");
+        var availableTotal = getAvailableTotalPeriods();
+        container.innerHTML = "";
+        
+        if (classes.length === 0) {
+            container.innerHTML = '<div style="text-align:center; padding:20px; color:#999;">暂无班级<br>点击「添加班级」</div>';
+            return;
+        }
+        
+        for (var i = 0; i < classes.length; i++) {
+            var cls = classes[i];
+            var progress = getClassProgress(cls.id);
+            var isSelected = selectedClassIds.includes(cls.id);
+            var isActive = currentClassId === cls.id;
+            var progressClass = progress.current > progress.required ? "exceed" : (progress.current === progress.required ? "complete" : "");
+            var progressText = progress.current + "/" + progress.required + "节";
+            
+            var div = document.createElement("div");
+            div.className = "class-item" + (isActive ? " active" : "");
+            div.innerHTML = '<input type="checkbox" class="class-checkbox" data-id="' + cls.id + '" ' + (isSelected ? 'checked' : '') + '>' +
+                '<span class="class-name">' + escapeHtml(cls.name) + '</span>' +
+                '<span class="class-progress ' + progressClass + '">' + progressText + '</span>';
+            
+            div.querySelector('.class-checkbox').onclick = function(e) {
+                e.stopPropagation();
+                var id = parseInt(this.getAttribute('data-id'));
+                if (this.checked) {
+                    if (!selectedClassIds.includes(id)) selectedClassIds.push(id);
+                } else {
+                    selectedClassIds = selectedClassIds.filter(function(cid) { return cid !== id; });
+                }
+            };
+            
+            (function(currentCls) {
+                div.onclick = function(e) {
+                    if (e.target.type !== 'checkbox') {
+                        currentClassId = currentCls.id;
+                        renderClassList();
+                        renderPlanTable();
+                        document.getElementById("planSection").style.display = "block";
+                        document.getElementById("noClassTip").style.display = "none";
+                        document.getElementById("planTitle").innerHTML = "📖 " + escapeHtml(currentCls.name) + " 教学计划";
+                    }
+                };
+            })(cls);
+            
+            container.appendChild(div);
+        }
+    }
+    
+    // ========== 渲染教学计划表格（8列） ==========
+    function renderPlanTable() {
+        var container = document.getElementById("planTableContainer");
+        var statsContainer = document.getElementById("classStats");
+        if (!currentClassId) { 
+            container.innerHTML = ""; 
+            statsContainer.innerHTML = "";
+            return; 
+        }
+        
+        var classPlans = plans.filter(function(p) { return p.classId == currentClassId; });
+        if (classPlans.length === 0) {
+            container.innerHTML = '<div style="text-align:center; padding:30px; color:#999;">暂无教学计划，请点击「添加课程」</div>';
+            statsContainer.innerHTML = "";
+            return;
+        }
+        
+        var totalHours = classPlans.reduce(function(sum, p) { return sum + p.hoursPerWeek; }, 0);
+        var requiredHours = getAvailableTotalPeriods();
+        var remainingHours = requiredHours - totalHours;
+        var statsHtml = '📊 班级统计：共 ' + classPlans.length + ' 门课，总课时 ' + totalHours + ' 节，应排 ' + requiredHours + ' 节，' +
+            (remainingHours > 0 ? '缺 ' + remainingHours + ' 节' : (remainingHours < 0 ? '超 ' + (-remainingHours) + ' 节' : '已完成'));
+        statsContainer.innerHTML = statsHtml;
+        
+        var html = '<table class="plan-table"><thead><tr>' +
+            '<th>课程</th><th>教师</th><th>类型</th><th>周课时</th><th>是否连排</th><th>连排节数</th><th>连排次数</th><th>操作</th>' +
+            '</tr></thead><tbody>';
+        
+        for (var i = 0; i < classPlans.length; i++) {
+            var plan = classPlans[i];
+            var consecutiveEnabled = plan.consecutiveEnabled || false;
+            var consecutiveSize = plan.consecutiveSize || 2;
+            var consecutiveCount = plan.consecutiveCount || 0;
+            var isConsecutive = consecutiveEnabled && consecutiveCount > 0;
+            
+            html += '<tr>' +
+                '<td>' + escapeHtml(getCourseName(plan.courseId)) + '</td>' +
+                '<td>' + escapeHtml(getTeacherName(plan.teacherId)) + '</td>' +
+                '<td>' + (plan.type || "主课") + '</td>' +
+                '<td>' + plan.hoursPerWeek + '节</div>' +
+                '<td>' + (isConsecutive ? '是' : '否') + '</div>' +
+                '<td>' + (isConsecutive ? consecutiveSize + '节' : '-') + '</div>' +
+                '<td>' + (isConsecutive ? consecutiveCount + '次' : '-') + '</div>' +
+                '<td class="action-buttons">' +
+                '<button class="edit-plan-btn" data-id="' + plan.id + '" class="edit-btn">✏️ 编辑</button>' +
+                '<button class="delete-plan-btn" data-id="' + plan.id + '" class="delete-btn">🗑️ 删除</button>' +
+                '</div>' +
+                '</tr>';
+        }
+        html += '</tbody><table>';
+        container.innerHTML = html;
+        
+        document.querySelectorAll('.edit-plan-btn').forEach(function(btn) {
+            btn.onclick = function() { openEditModal(parseInt(this.getAttribute('data-id'))); };
+        });
+        document.querySelectorAll('.delete-plan-btn').forEach(function(btn) {
+            btn.onclick = function() {
+                if (confirm("确定删除这条教学计划吗？")) {
+                    var id = parseInt(this.getAttribute('data-id'));
+                    plans = plans.filter(function(p) { return p.id !== id; });
+                    saveAllData();
+                    renderPlanTable();
+                    renderClassList();
+                    showToast("已删除", false);
+                }
+            };
+        });
+    }
+    
+    // ========== 教学计划弹窗 ==========
+    function setupSearchSelect(inputId, dropdownId, items, onSelect) {
+        var input = document.getElementById(inputId);
+        var dropdown = document.getElementById(dropdownId);
+        input.oninput = function() {
+            var keyword = this.value.toLowerCase();
+            var filtered = items.filter(function(i) { return i.name.toLowerCase().indexOf(keyword) !== -1; });
+            if (filtered.length > 0 && keyword) {
+                dropdown.innerHTML = filtered.map(function(i) { return '<div data-id="' + i.id + '">' + escapeHtml(i.name) + '</div>'; }).join('');
+                dropdown.style.display = 'block';
+                dropdown.querySelectorAll('div').forEach(function(div) {
+                    div.onclick = function() {
+                        var id = parseInt(this.getAttribute('data-id'));
+                        var item = items.find(function(i) { return i.id == id; });
+                        if (item) onSelect(item);
+                        dropdown.style.display = 'none';
+                    };
+                });
+            } else {
+                dropdown.style.display = 'none';
+            }
+        };
+        input.onclick = function() {
+            var keyword = this.value.toLowerCase();
+            var filtered = items.filter(function(i) { return i.name.toLowerCase().indexOf(keyword) !== -1; });
+            if (filtered.length > 0) {
+                dropdown.innerHTML = filtered.map(function(i) { return '<div data-id="' + i.id + '">' + escapeHtml(i.name) + '</div>'; }).join('');
+                dropdown.style.display = 'block';
+            }
+        };
+    }
+    
+    function openEditModal(id) {
+        editingId = id;
+        var isEdit = (id !== null && id !== undefined);
+        document.getElementById("modalTitle").innerText = isEdit ? "编辑教学计划" : "添加教学计划";
+        
+        document.getElementById("editCourseSearch").value = "";
+        document.getElementById("editCourseId").value = "";
+        document.getElementById("editTeacherSearch").value = "";
+        document.getElementById("editTeacherId").value = "";
+        document.getElementById("editType").value = "主课";
+        document.getElementById("editHours").value = "4";
+        document.getElementById("editConsecutiveEnabled").value = "false";
+        document.getElementById("editConsecutiveSize").value = "2";
+        document.getElementById("editConsecutiveCount").value = "0";
+        
+        setupSearchSelect("editCourseSearch", "editCourseDropdown", courses, function(course) {
+            document.getElementById("editCourseSearch").value = course.name;
+            document.getElementById("editCourseId").value = course.id;
+        });
+        setupSearchSelect("editTeacherSearch", "editTeacherDropdown", teachers, function(teacher) {
+            document.getElementById("editTeacherSearch").value = teacher.name;
+            document.getElementById("editTeacherId").value = teacher.id;
+        });
+        
+        if (isEdit) {
+            var plan = plans.find(function(p) { return p.id == id; });
+            if (plan) {
+                document.getElementById("editCourseSearch").value = getCourseName(plan.courseId);
+                document.getElementById("editCourseId").value = plan.courseId;
+                document.getElementById("editTeacherSearch").value = getTeacherName(plan.teacherId);
+                document.getElementById("editTeacherId").value = plan.teacherId;
+                document.getElementById("editType").value = plan.type || "主课";
+                document.getElementById("editHours").value = plan.hoursPerWeek;
+                document.getElementById("editConsecutiveEnabled").value = plan.consecutiveEnabled ? "true" : "false";
+                document.getElementById("editConsecutiveSize").value = plan.consecutiveSize || 2;
+                document.getElementById("editConsecutiveCount").value = plan.consecutiveCount || 0;
+            }
+        }
+        document.getElementById("editModal").style.display = "flex";
+    }
+    
+    function closeModal() {
+        document.getElementById("editModal").style.display = "none";
+        editingId = null;
+    }
+    
+    function savePlan() {
+        var courseId = document.getElementById("editCourseId").value;
+        var teacherId = document.getElementById("editTeacherId").value;
+        var type = document.getElementById("editType").value;
+        var hours = parseInt(document.getElementById("editHours").value);
+        var consecutiveEnabled = document.getElementById("editConsecutiveEnabled").value === "true";
+        var consecutiveSize = parseInt(document.getElementById("editConsecutiveSize").value);
+        var consecutiveCount = parseInt(document.getElementById("editConsecutiveCount").value);
+        
+        if (!courseId) { showToast("请选择课程", true); return; }
+        if (!teacherId) { showToast("请选择教师", true); return; }
+        if (isNaN(hours) || hours < 1) { showToast("周课时必须大于0", true); return; }
+        
+        if (!consecutiveEnabled) consecutiveCount = 0;
+        
+        if (consecutiveCount * consecutiveSize > hours) {
+            showToast("连排总课时(" + (consecutiveCount * consecutiveSize) + "节)超过周课时(" + hours + "节)", true);
+            return;
+        }
+        
+        var exists = plans.some(function(p) {
+            return p.classId === currentClassId && p.courseId == courseId && (editingId === null || p.id !== editingId);
+        });
+        if (exists) { showToast("该班级已安排此课程", true); return; }
+        
+        if (editingId === null) {
+            plans.push({
+                id: Date.now(),
+                classId: currentClassId,
+                courseId: parseInt(courseId),
+                teacherId: parseInt(teacherId),
+                type: type,
+                hoursPerWeek: hours,
+                consecutiveEnabled: consecutiveEnabled,
+                consecutiveSize: consecutiveSize,
+                consecutiveCount: consecutiveCount
+            });
+            showToast("✅ 教学计划已添加", false);
+        } else {
+            var index = plans.findIndex(function(p) { return p.id === editingId; });
+            if (index !== -1) {
+                plans[index] = {
+                    id: editingId,
+                    classId: currentClassId,
+                    courseId: parseInt(courseId),
+                    teacherId: parseInt(teacherId),
+                    type: type,
+                    hoursPerWeek: hours,
+                    consecutiveEnabled: consecutiveEnabled,
+                    consecutiveSize: consecutiveSize,
+                    consecutiveCount: consecutiveCount
+                };
+                showToast("✅ 教学计划已更新", false);
+            }
+        }
+        saveAllData();
+        closeModal();
+        renderPlanTable();
+        renderClassList();
+    }
+    
+    function addPlan() {
+        if (!currentClassId) {
+            showToast("请先选择一个班级", true);
+            return;
+        }
+        openEditModal(null);
+    }
+    
+    // ========== 班级管理 ==========
+    function addClass() {
+        document.getElementById("newClassName").value = "";
+        document.getElementById("newClassGrade").value = "";
+        document.getElementById("addClassModal").style.display = "flex";
+    }
+    
+    function confirmAddClass() {
+        var name = document.getElementById("newClassName").value.trim();
+        var grade = document.getElementById("newClassGrade").value.trim();
+        if (!name) { showToast("请输入班级名称", true); return; }
+        
+        var newId = Math.max(0, ...classes.map(function(c) { return c.id; }), 0) + 1;
+        classes.push({ id: newId, name: name, grade: grade || "" });
+        saveAllData();
+        
+        currentClassId = newId;
+        selectedClassIds = [];
+        renderClassList();
+        renderPlanTable();
+        document.getElementById("planSection").style.display = "block";
+        document.getElementById("noClassTip").style.display = "none";
+        document.getElementById("planTitle").innerHTML = "📖 " + escapeHtml(name) + " 教学计划";
+        
+        document.getElementById("addClassModal").style.display = "none";
+        showToast("✅ 班级已添加", false);
+    }
+    
+    function editClass(classId) {
+        var cls = classes.find(function(c) { return c.id == classId; });
+        if (!cls) return;
+        editingClassId = classId;
+        document.getElementById("editClassName").value = cls.name;
+        document.getElementById("editClassGrade").value = cls.grade || "";
+        document.getElementById("editClassModal").style.display = "flex";
+    }
+    
+    function confirmEditClass() {
+        var name = document.getElementById("editClassName").value.trim();
+        var grade = document.getElementById("editClassGrade").value.trim();
+        if (!name) { showToast("请输入班级名称", true); return; }
+        
+        var cls = classes.find(function(c) { return c.id == editingClassId; });
+        if (cls) {
+            cls.name = name;
+            cls.grade = grade;
+            saveAllData();
+            renderClassList();
+            if (currentClassId === editingClassId) {
+                document.getElementById("planTitle").innerHTML = "📖 " + escapeHtml(name) + " 教学计划";
+            }
+            showToast("✅ 班级已更新", false);
+        }
+        document.getElementById("editClassModal").style.display = "none";
+        editingClassId = null;
+    }
+    
+    function deleteSelectedClasses() {
+        if (selectedClassIds.length === 0) {
+            showToast("请先勾选要删除的班级", true);
+            return;
+        }
+        if (confirm("确定删除选中的 " + selectedClassIds.length + " 个班级吗？\n\n删除后将同时清空这些班级的教学计划和课表！")) {
+            plans = plans.filter(function(p) { return !selectedClassIds.includes(p.classId); });
+            classes = classes.filter(function(c) { return !selectedClassIds.includes(c.id); });
+            
+            var schedules = JSON.parse(localStorage.getItem("pk_schedules") || "{}");
+            for (var i = 0; i < selectedClassIds.length; i++) {
+                delete schedules[selectedClassIds[i]];
+            }
+            localStorage.setItem("pk_schedules", JSON.stringify(schedules));
+            
+            saveAllData();
+            
+            if (currentClassId && selectedClassIds.includes(currentClassId)) {
+                currentClassId = classes.length > 0 ? classes[0].id : null;
+                if (currentClassId) {
+                    renderPlanTable();
+                    document.getElementById("planSection").style.display = "block";
+                    document.getElementById("noClassTip").style.display = "none";
+                    document.getElementById("planTitle").innerHTML = "📖 " + escapeHtml(getClassName(currentClassId)) + " 教学计划";
+                } else {
+                    document.getElementById("planSection").style.display = "none";
+                    document.getElementById("noClassTip").style.display = "block";
+                }
+            }
+            selectedClassIds = [];
+            renderClassList();
+            showToast("✅ 已删除选中班级", false);
+        }
+    }
+    
+    // ========== 导入导出（8列模板，同步到所有模块） ==========
+    function importPlans(file) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var data = new Uint8Array(e.target.result);
+            var workbook = XLSX.read(data, { type: 'array' });
+            var sheet = workbook.Sheets[workbook.SheetNames[0]];
+            var rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+            
+            if (!rows || rows.length < 2) {
+                showToast("文件至少需要两行数据", true);
+                return;
+            }
+            
+            classes = JSON.parse(localStorage.getItem(CLASSES_KEY) || "[]");
+            courses = JSON.parse(localStorage.getItem(COURSES_KEY) || "[]");
+            teachers = JSON.parse(localStorage.getItem(TEACHERS_KEY) || "[]");
+            plans = JSON.parse(localStorage.getItem(PLANS_KEY) || "[]");
+            
+            var headers = rows[0];
+            var colIndex = { 
+                班级: -1, 课程: -1, 教师: -1, 类型: -1, 
+                周课时: -1, 是否连排: -1, 连排节数: -1, 连排次数: -1 
+            };
+            
+            for (var i = 0; i < headers.length; i++) {
+                var h = String(headers[i]).trim();
+                if (h.indexOf("班级") !== -1) colIndex.班级 = i;
+                else if (h.indexOf("课程") !== -1) colIndex.课程 = i;
+                else if (h.indexOf("教师") !== -1) colIndex.教师 = i;
+                else if (h.indexOf("类型") !== -1) colIndex.类型 = i;
+                else if (h.indexOf("周课时") !== -1 || h.indexOf("课时") !== -1) colIndex.周课时 = i;
+                else if (h.indexOf("是否连排") !== -1) colIndex.是否连排 = i;
+                else if (h.indexOf("连排节数") !== -1) colIndex.连排节数 = i;
+                else if (h.indexOf("连排次数") !== -1) colIndex.连排次数 = i;
+            }
+            
+            var newCount = 0, updateCount = 0, errorCount = 0;
+            
+            for (var i = 1; i < rows.length; i++) {
+                var row = rows[i];
+                if (!row || row.length === 0) continue;
+                
+                var className = colIndex.班级 !== -1 ? (row[colIndex.班级] ? String(row[colIndex.班级]).trim() : "") : "";
+                var courseName = colIndex.课程 !== -1 ? (row[colIndex.课程] ? String(row[colIndex.课程]).trim() : "") : "";
+                var teacherName = colIndex.教师 !== -1 ? (row[colIndex.教师] ? String(row[colIndex.教师]).trim() : "") : "";
+                var type = colIndex.类型 !== -1 ? (row[colIndex.类型] ? String(row[colIndex.类型]).trim() : "主课") : "主课";
+                
+                var hours = 4;
+                if (colIndex.周课时 !== -1 && row[colIndex.周课时]) {
+                    var hoursVal = parseInt(row[colIndex.周课时]);
+                    if (!isNaN(hoursVal) && hoursVal > 0) hours = hoursVal;
+                }
+                
+                var consecutiveEnabled = false;
+                if (colIndex.是否连排 !== -1 && row[colIndex.是否连排]) {
+                    var ceVal = String(row[colIndex.是否连排]).trim();
+                    consecutiveEnabled = (ceVal === "是" || ceVal === "true" || ceVal === "1");
+                }
+                
+                var consecutiveSize = 2;
+                if (colIndex.连排节数 !== -1 && row[colIndex.连排节数]) {
+                    var csVal = parseInt(row[colIndex.连排节数]);
+                    if (!isNaN(csVal) && csVal > 0) consecutiveSize = csVal;
+                }
+                
+                var consecutiveCount = 0;
+                if (colIndex.连排次数 !== -1 && row[colIndex.连排次数]) {
+                    var ccVal = parseInt(row[colIndex.连排次数]);
+                    if (!isNaN(ccVal) && ccVal >= 0) consecutiveCount = ccVal;
+                }
+                
+                if (!consecutiveEnabled) consecutiveCount = 0;
+                
+                if (consecutiveCount * consecutiveSize > hours) {
+                    errorCount++;
+                    continue;
+                }
+                
+                if (!className || !courseName || !teacherName) {
+                    errorCount++;
+                    continue;
+                }
+                
+                var cls = classes.find(function(c) { return c.name === className; });
+                if (!cls) {
+                    var newClassId = Math.max(0, ...classes.map(function(c) { return c.id; }), 0) + 1;
+                    cls = { id: newClassId, name: className, grade: "" };
+                    classes.push(cls);
+                }
+                
+                var course = courses.find(function(c) { return c.name === courseName; });
+                if (!course) {
+                    var newCourseId = Math.max(0, ...courses.map(function(c) { return c.id; }), 0) + 1;
+                    course = { id: newCourseId, name: courseName };
+                    courses.push(course);
+                }
+                
+                var teacher = teachers.find(function(t) { return t.name === teacherName; });
+                if (!teacher) {
+                    var newTeacherId = Math.max(0, ...teachers.map(function(t) { return t.id; }), 0) + 1;
+                    teacher = { id: newTeacherId, name: teacherName };
+                    teachers.push(teacher);
+                }
+                
+                var existing = plans.find(function(p) {
+                    return p.classId === cls.id && p.courseId === course.id;
+                });
+                
+                if (existing) {
+                    existing.teacherId = teacher.id;
+                    existing.type = type;
+                    existing.hoursPerWeek = hours;
+                    existing.consecutiveEnabled = consecutiveEnabled;
+                    existing.consecutiveSize = consecutiveSize;
+                    existing.consecutiveCount = consecutiveCount;
+                    updateCount++;
+                } else {
+                    plans.push({
+                        id: Date.now() + i,
+                        classId: cls.id,
+                        courseId: course.id,
+                        teacherId: teacher.id,
+                        type: type,
+                        hoursPerWeek: hours,
+                        consecutiveEnabled: consecutiveEnabled,
+                        consecutiveSize: consecutiveSize,
+                        consecutiveCount: consecutiveCount
+                    });
+                    newCount++;
+                }
+            }
+            
+            saveAllData();
+            
+            renderClassList();
+            if (currentClassId) renderPlanTable();
+            
+            showToast("✅ 导入完成！新增 " + newCount + " 条教学计划，更新 " + updateCount + " 条，失败 " + errorCount + " 条", false);
+        };
+        reader.onerror = function() { showToast("文件读取失败", true); };
+        reader.readAsArrayBuffer(file);
+    }
+    
+    function exportAllPlans() {
+        if (plans.length === 0) { showToast("没有数据可导出", true); return; }
+        var data = [["班级", "课程", "教师", "类型", "周课时", "是否连排", "连排节数", "连排次数"]];
+        for (var i = 0; i < plans.length; i++) {
+            var p = plans[i];
+            var isConsecutive = p.consecutiveEnabled && p.consecutiveCount > 0;
+            data.push([
+                getClassName(p.classId), 
+                getCourseName(p.courseId), 
+                getTeacherName(p.teacherId), 
+                p.type || "主课", 
+                p.hoursPerWeek,
+                isConsecutive ? "是" : "否",
+                isConsecutive ? (p.consecutiveSize || 2) + "节" : "",
+                isConsecutive ? (p.consecutiveCount || 0) + "次" : ""
+            ]);
+        }
+        var ws = XLSX.utils.aoa_to_sheet(data);
+        ws['!cols'] = [{wch:12}, {wch:12}, {wch:10}, {wch:8}, {wch:8}, {wch:10}, {wch:10}, {wch:10}];
+        var wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "教学计划");
+        XLSX.writeFile(wb, "教学计划.xlsx");
+        showToast("导出成功", false);
+    }
+    
+    function downloadTemplate() {
+        var template = [
+            ["班级", "课程", "教师", "类型", "周课时", "是否连排", "连排节数", "连排次数"],
+            ["高一1班", "语文", "张老师", "主课", "6", "是", "2", "3"],
+            ["高一1班", "数学", "李老师", "主课", "5", "是", "2", "2"],
+            ["高一1班", "英语", "王老师", "主课", "4", "否", "2", "0"],
+            ["高一1班", "体育", "刘老师", "副课", "2", "否", "2", "0"],
+            ["高一2班", "物理", "赵老师", "主课", "4", "是", "2", "2"]
+        ];
+        var ws = XLSX.utils.aoa_to_sheet(template);
+        ws['!cols'] = [{wch:12}, {wch:12}, {wch:10}, {wch:8}, {wch:8}, {wch:10}, {wch:10}, {wch:10}];
+        var wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "教学计划模板");
+        XLSX.writeFile(wb, "教学计划模板.xlsx");
+        showToast("模板下载成功", false);
+    }
+    
+    // ========== 初始化 ==========
+    function init() {
+        loadAllData();
+        
+        document.getElementById("importBtn").onclick = function() {
+            var fileInput = document.getElementById("excelFile");
+            fileInput.value = "";
+            fileInput.onchange = function(e) { if (e.target.files[0]) importPlans(e.target.files[0]); };
+            fileInput.click();
+        };
+        document.getElementById("downloadTemplateBtn").onclick = downloadTemplate;
+        document.getElementById("exportBtn").onclick = exportAllPlans;
+        document.getElementById("addClassBtn").onclick = addClass;
+        document.getElementById("deleteSelectedBtn").onclick = deleteSelectedClasses;
+        document.getElementById("addPlanBtn").onclick = addPlan;
+        document.getElementById("cancelBtn").onclick = closeModal;
+        document.getElementById("saveBtn").onclick = savePlan;
+        document.getElementById("cancelAddClassBtn").onclick = function() {
+            document.getElementById("addClassModal").style.display = "none";
+        };
+        document.getElementById("confirmAddClassBtn").onclick = confirmAddClass;
+        document.getElementById("cancelEditClassBtn").onclick = function() {
+            document.getElementById("editClassModal").style.display = "none";
+        };
+        document.getElementById("confirmEditClassBtn").onclick = confirmEditClass;
+        
+        window.onclick = function(e) {
+            if (e.target === document.getElementById("editModal")) closeModal();
+            if (e.target === document.getElementById("addClassModal")) {
+                document.getElementById("addClassModal").style.display = "none";
+            }
+            if (e.target === document.getElementById("editClassModal")) {
+                document.getElementById("editClassModal").style.display = "none";
+            }
+        };
+    }
+    init();
+</script>
+</body>
+</html>
