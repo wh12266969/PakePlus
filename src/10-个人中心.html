@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人中心 - 智能排课系统</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .top-bar {
+            background: linear-gradient(135deg, #1e3c72 0%, #2b4c7c 100%);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .logo { font-size: 24px; font-weight: bold; }
+        .logo span { color: #ffd700; }
+        .user-info { display: flex; align-items: center; gap: 15px; }
+        .user-name { background: rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 20px; font-size: 14px; }
+        .back-btn, .logout-btn { background: rgba(255,255,255,0.2); color: white; border: none; padding: 6px 16px; border-radius: 20px; cursor: pointer; }
+        .back-btn:hover, .logout-btn:hover { background: #dc3545; }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card h3 {
+            color: #1e3c72;
+            margin-top: 0;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #1e3c72;
+            padding-bottom: 8px;
+        }
+        
+        .info-row {
+            display: flex;
+            margin-bottom: 15px;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .info-label {
+            width: 100px;
+            font-weight: bold;
+            color: #666;
+        }
+        .info-value {
+            flex: 1;
+            color: #333;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .btn {
+            background: #1e3c72;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn:hover { background: #2b4c7c; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
+        .btn-warning { background: #ffc107; color: #333; }
+        
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 2000;
+            animation: fadeOut 2s ease-in-out;
+        }
+        .toast.error { background: #dc3545; }
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; visibility: hidden; }
+        }
+        
+        .password-section {
+            margin-top: 25px;
+            padding-top: 15px;
+            border-top: 2px solid #eee;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="top-bar">
+        <div class="logo">智能<span>排课系统</span> - 个人中心</div>
+        <div class="user-info">
+            <span class="user-name" id="userNameDisplay"></span>
+            <button class="back-btn" id="backBtn">← 返回目录</button>
+            <button class="logout-btn" id="logoutBtn">退出登录</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>📋 个人信息</h3>
+        
+        <div class="info-row">
+            <div class="info-label">用户名：</div>
+            <div class="info-value" id="displayUsername"></div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">角色：</div>
+            <div class="info-value" id="displayRole"></div>
+        </div>
+        <div class="form-group">
+            <label>姓名</label>
+            <input type="text" id="fullname" placeholder="真实姓名">
+        </div>
+        <div class="form-group">
+            <label>邮箱</label>
+            <input type="email" id="email" placeholder="邮箱">
+        </div>
+        <div class="form-group">
+            <label>电话</label>
+            <input type="tel" id="phone" placeholder="电话">
+        </div>
+        
+        <div class="form-row">
+            <button id="saveInfoBtn" class="btn btn-success">💾 保存个人信息</button>
+        </div>
+        
+        <div class="password-section">
+            <h3>🔒 修改密码</h3>
+            <div class="form-group">
+                <label>旧密码</label>
+                <input type="password" id="oldPassword" placeholder="请输入旧密码">
+            </div>
+            <div class="form-group">
+                <label>新密码</label>
+                <input type="password" id="newPassword" placeholder="请输入新密码">
+            </div>
+            <div class="form-group">
+                <label>确认新密码</label>
+                <input type="password" id="confirmPassword" placeholder="请再次输入新密码">
+            </div>
+            <div class="form-row">
+                <button id="changePwdBtn" class="btn btn-warning">🔑 修改密码</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const USERS_KEY = "pk_users";
+    const CURRENT_USER_KEY = "currentUser";
+    
+    let currentUser = null;
+    let users = [];
+    
+    function showToast(msg, isErr) {
+        let t = document.createElement("div");
+        t.className = "toast" + (isErr ? " error" : "");
+        t.innerText = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 2000);
+    }
+    
+    function loadData() {
+        let userStr = localStorage.getItem(CURRENT_USER_KEY);
+        if (!userStr) {
+            window.location.href = "01-登录.html";
+            return;
+        }
+        currentUser = JSON.parse(userStr);
+        
+        let usersStr = localStorage.getItem(USERS_KEY);
+        if (usersStr) {
+            users = JSON.parse(usersStr);
+        } else {
+            users = [];
+        }
+        
+        displayUserInfo();
+    }
+    
+    function displayUserInfo() {
+        document.getElementById("displayUsername").innerText = currentUser.username;
+        document.getElementById("displayRole").innerText = currentUser.roleName || "未知";
+        document.getElementById("fullname").value = currentUser.name || "";
+        document.getElementById("email").value = currentUser.email || "";
+        document.getElementById("phone").value = currentUser.phone || "";
+        document.getElementById("userNameDisplay").innerText = currentUser.name + " (" + currentUser.roleName + ")";
+    }
+    
+    function saveUserInfo() {
+        let fullname = document.getElementById("fullname").value.trim();
+        let email = document.getElementById("email").value.trim();
+        let phone = document.getElementById("phone").value.trim();
+        
+        if (!fullname) {
+            showToast("请输入姓名", true);
+            return;
+        }
+        
+        // 更新当前用户
+        currentUser.name = fullname;
+        currentUser.email = email;
+        currentUser.phone = phone;
+        
+        // 更新 users 列表中的用户信息
+        let userIndex = users.findIndex(u => u.id == currentUser.id);
+        if (userIndex !== -1) {
+            users[userIndex].fullname = fullname;
+            users[userIndex].email = email;
+            users[userIndex].phone = phone;
+            localStorage.setItem(USERS_KEY, JSON.stringify(users));
+        }
+        
+        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(currentUser));
+        
+        showToast("✅ 个人信息已保存");
+        displayUserInfo();
+    }
+    
+    function changePassword() {
+        let oldPassword = document.getElementById("oldPassword").value;
+        let newPassword = document.getElementById("newPassword").value;
+        let confirmPassword = document.getElementById("confirmPassword").value;
+        
+        if (!oldPassword || !newPassword || !confirmPassword) {
+            showToast("请填写完整的密码信息", true);
+            return;
+        }
+        
+        // 从 users 中获取当前用户的真实密码（因为有可能是从其他方式修改过）
+        let userInList = users.find(u => u.id == currentUser.id);
+        let realPassword = userInList ? userInList.password : currentUser.password;
+        
+        if (realPassword !== oldPassword) {
+            showToast("旧密码错误", true);
+            return;
+        }
+        
+        if (newPassword !== confirmPassword) {
+            showToast("两次输入的新密码不一致", true);
+            return;
+        }
+        
+        if (newPassword.length < 4) {
+            showToast("新密码长度不能少于4位", true);
+            return;
+        }
+        
+        // 更新密码
+        currentUser.password = newPassword;
+        
+        // 更新 users 列表中的密码
+        let userIndex = users.findIndex(u => u.id == currentUser.id);
+        if (userIndex !== -1) {
+            users[userIndex].password = newPassword;
+            localStorage.setItem(USERS_KEY, JSON.stringify(users));
+        }
+        
+        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(currentUser));
+        
+        // 清空密码输入框
+        document.getElementById("oldPassword").value = "";
+        document.getElementById("newPassword").value = "";
+        document.getElementById("confirmPassword").value = "";
+        
+        showToast("✅ 密码已修改，请记住新密码");
+    }
+    
+    function goBack() { window.location.href = "02-目录.html"; }
+    function logout() { 
+        localStorage.removeItem(CURRENT_USER_KEY); 
+        window.location.href = "01-登录.html"; 
+    }
+    
+    function init() {
+        loadData();
+        
+        document.getElementById("saveInfoBtn").onclick = saveUserInfo;
+        document.getElementById("changePwdBtn").onclick = changePassword;
+        document.getElementById("backBtn").onclick = goBack;
+        document.getElementById("logoutBtn").onclick = logout;
+    }
+    
+    init();
+</script>
+</body>
+</html>
