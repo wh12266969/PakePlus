@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>课程管理 - 智能排课系统</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card h3 {
+            color: #1e3c72;
+            margin-top: 0;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #1e3c72;
+            padding-bottom: 8px;
+        }
+        
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            background: #1e3c72;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn:hover { background: #2b4c7c; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-warning { background: #ffc107; color: #333; }
+        .btn-warning:hover { background: #e0a800; }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        .data-table th, .data-table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        .data-table th {
+            background: #1e3c72;
+            color: white;
+        }
+        .data-table tr:hover { background: #f5f5f5; }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            width: 450px;
+            max-width: 90%;
+        }
+        .modal-content h4 {
+            margin-top: 0;
+            color: #1e3c72;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 2000;
+            animation: fadeOut 2s ease-in-out;
+        }
+        .toast.error { background: #dc3545; }
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; visibility: hidden; }
+        }
+    </style>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <h3>📚 课程管理</h3>
+        
+        <div class="toolbar">
+            <button id="addBtn" class="btn btn-success">+ 添加课程</button>
+            <button id="importBtn" class="btn">📥 导入Excel</button>
+            <button id="exportBtn" class="btn">📤 导出Excel</button>
+            <button id="downloadTemplateBtn" class="btn btn-warning">📎 下载模板</button>
+        </div>
+        
+        <table class="data-table" id="dataTable">
+            <thead>
+                <tr><th>ID</th><th>课程名称</th><th>简称</th><th>科目类别</th><th>排序</th><th>操作</th> </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 编辑模态框 -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <h4 id="modalTitle">添加课程</h4>
+        <div class="form-group">
+            <label>课程名称</label>
+            <input type="text" id="courseName" placeholder="如：计算机应用基础">
+        </div>
+        <div class="form-group">
+            <label>简称</label>
+            <input type="text" id="shortName" placeholder="如：计基">
+        </div>
+        <div class="form-group">
+            <label>科目类别</label>
+            <select id="courseType">
+                <option value="主课">主课</option>
+                <option value="副课">副课</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>排序</label>
+            <input type="number" id="sortOrder" value="0" placeholder="数字越小越靠前">
+        </div>
+        <div class="modal-buttons">
+            <button id="cancelBtn" class="btn btn-danger">取消</button>
+            <button id="saveBtn" class="btn btn-success">保存</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const STORAGE_KEY = "pk_courses";
+    let data = [];
+    let editingId = null;
+    
+    function loadData() {
+        let stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) data = JSON.parse(stored);
+        else data = [];
+        renderTable();
+    }
+    
+    function saveData() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        renderTable();
+    }
+    
+    function renderTable() {
+        let tbody = document.getElementById("tableBody");
+        tbody.innerHTML = "";
+        let sorted = [...data].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+        for (let item of sorted) {
+            let row = tbody.insertRow();
+            row.insertCell(0).innerText = item.id;
+            row.insertCell(1).innerText = item.name;
+            row.insertCell(2).innerText = item.shortName || "";
+            row.insertCell(3).innerText = item.type || "主课";
+            row.insertCell(4).innerText = item.sortOrder || 0;
+            let actionCell = row.insertCell(5);
+            actionCell.innerHTML = `<button class="edit-btn" data-id="${item.id}" style="background:#ffc107; color:#333; border:none; padding:4px 10px; border-radius:4px; margin-right:5px; cursor:pointer;">编辑</button>
+                                    <button class="delete-btn" data-id="${item.id}" style="background:#dc3545; color:white; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;">删除</button>`;
+        }
+        
+        document.querySelectorAll('.edit-btn').forEach(btn => {
+            btn.onclick = () => openEditModal(parseInt(btn.dataset.id));
+        });
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.onclick = () => {
+                if (confirm("确定删除吗？")) {
+                    data = data.filter(i => i.id !== parseInt(btn.dataset.id));
+                    saveData();
+                    showToast("已删除");
+                }
+            };
+        });
+    }
+    
+    function openEditModal(id) {
+        editingId = id;
+        if (id) {
+            let item = data.find(i => i.id === id);
+            document.getElementById("modalTitle").innerText = "编辑课程";
+            document.getElementById("courseName").value = item.name;
+            document.getElementById("shortName").value = item.shortName || "";
+            document.getElementById("courseType").value = item.type || "主课";
+            document.getElementById("sortOrder").value = item.sortOrder || 0;
+        } else {
+            document.getElementById("modalTitle").innerText = "添加课程";
+            document.getElementById("courseName").value = "";
+            document.getElementById("shortName").value = "";
+            document.getElementById("courseType").value = "主课";
+            document.getElementById("sortOrder").value = 0;
+        }
+        document.getElementById("editModal").style.display = "flex";
+    }
+    
+    function saveCourse() {
+        let name = document.getElementById("courseName").value.trim();
+        if (!name) { showToast("请输入课程名称", true); return; }
+        let shortName = document.getElementById("shortName").value.trim();
+        let type = document.getElementById("courseType").value;
+        let sortOrder = parseInt(document.getElementById("sortOrder").value) || 0;
+        
+        if (editingId) {
+            let index = data.findIndex(i => i.id === editingId);
+            if (index !== -1) {
+                data[index] = { ...data[index], name, shortName, type, sortOrder };
+            }
+            showToast("已更新");
+        } else {
+            let newId = Math.max(0, ...data.map(i => i.id), 0) + 1;
+            data.push({ id: newId, name, shortName, type, sortOrder });
+            showToast("已添加");
+        }
+        saveData();
+        closeModal();
+    }
+    
+    function closeModal() {
+        document.getElementById("editModal").style.display = "none";
+        editingId = null;
+    }
+    
+    function exportData() {
+        let wsData = [["ID", "课程名称", "简称", "科目类别", "排序"]];
+        for (let item of data) {
+            wsData.push([item.id, item.name, item.shortName || "", item.type || "主课", item.sortOrder || 0]);
+        }
+        let ws = XLSX.utils.aoa_to_sheet(wsData);
+        let wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "课程管理");
+        XLSX.writeFile(wb, "课程管理.xlsx");
+        showToast("导出成功");
+    }
+    
+    function downloadTemplate() {
+        let wsData = [["课程名称", "简称", "科目类别", "排序"], ["数学", "数", "主课", "1"], ["语文", "语", "主课", "2"]];
+        let ws = XLSX.utils.aoa_to_sheet(wsData);
+        let wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "课程模板");
+        XLSX.writeFile(wb, "课程模板.xlsx");
+        showToast("模板下载成功");
+    }
+    
+    function importExcel(file) {
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            let workbook = XLSX.read(e.target.result, { type: 'array' });
+            let sheet = workbook.Sheets[workbook.SheetNames[0]];
+            let rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+            if (!rows || rows.length < 2) { showToast("文件至少需要两行", true); return; }
+            let newCount = 0;
+            let maxId = Math.max(0, ...data.map(i => i.id), 0);
+            for (let i = 1; i < rows.length; i++) {
+                let row = rows[i];
+                if (!row[0] || !row[0].toString().trim()) continue;
+                let name = row[0].toString().trim();
+                let shortName = row[1] ? row[1].toString().trim() : "";
+                let type = row[2] && row[2].toString().trim() === "副课" ? "副课" : "主课";
+                let sortOrder = parseInt(row[3]) || 0;
+                if (!data.some(c => c.name === name)) {
+                    maxId++;
+                    data.push({ id: maxId, name, shortName, type, sortOrder });
+                    newCount++;
+                }
+            }
+            saveData();
+            showToast(`导入完成，新增 ${newCount} 条`);
+        };
+        reader.readAsArrayBuffer(file);
+    }
+    
+    function showToast(msg, isErr) {
+        let t = document.createElement("div");
+        t.className = "toast" + (isErr ? " error" : "");
+        t.innerText = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 2000);
+    }
+    
+    function init() {
+        loadData();
+        document.getElementById("addBtn").onclick = () => openEditModal(null);
+        document.getElementById("cancelBtn").onclick = closeModal;
+        document.getElementById("saveBtn").onclick = saveCourse;
+        document.getElementById("exportBtn").onclick = exportData;
+        document.getElementById("downloadTemplateBtn").onclick = downloadTemplate;
+        document.getElementById("importBtn").onclick = () => {
+            let input = document.createElement("input");
+            input.type = "file";
+            input.accept = ".xlsx, .xls";
+            input.onchange = e => { if (e.target.files[0]) importExcel(e.target.files[0]); };
+            input.click();
+        };
+        window.onclick = e => { if (e.target === document.getElementById("editModal")) closeModal(); };
+    }
+    init();
+</script>
+</body>
+</html>
