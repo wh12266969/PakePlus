@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>成绩分析系统 | 科目满分可配置 | Excel导入教师/班主任</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #eef2f7;
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            padding: 24px 20px;
+            color: #1e293b;
+        }
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 20px 28px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin-bottom: 24px;
+        }
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+        .sub {
+            color: #475569;
+            border-left: 3px solid #3b82f6;
+            padding-left: 14px;
+            margin-top: 8px;
+            font-size: 0.9rem;
+        }
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+            margin: 16px 0 12px;
+        }
+        .btn {
+            background: #3b82f6;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 40px;
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .btn-outline {
+            background: white;
+            border: 1px solid #cbd5e1;
+            color: #1e293b;
+        }
+        .btn-outline:hover { background: #f1f5f9; }
+        .btn-sm {
+            padding: 5px 14px;
+            font-size: 0.75rem;
+        }
+        .file-label {
+            background: #1e3a5f;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .status {
+            font-size: 0.8rem;
+            background: #e0f2e0;
+            padding: 5px 14px;
+            border-radius: 30px;
+            color: #2c6e2c;
+        }
+        .config-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 16px;
+            font-weight: 600;
+            border-bottom: 1px dashed #e2e8f0;
+            padding-bottom: 8px;
+        }
+        .subject-score-wrap {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+        }
+        .score-item {
+            background: #f8fafc;
+            border-radius: 32px;
+            padding: 5px 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            border: 1px solid #e2e8f0;
+        }
+        .score-item input {
+            width: 70px;
+            padding: 4px 8px;
+            border-radius: 24px;
+            border: 1px solid #cbd5e1;
+            text-align: center;
+        }
+        .badge {
+            background: #e2e8f0;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+        }
+        .info-box {
+            background: #f1f5f9;
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 12px;
+            font-size: 0.75rem;
+            color: #475569;
+        }
+        .table-wrapper {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+            overflow-x: auto;
+            border: 1px solid #e9edf2;
+        }
+        .analysis-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            min-width: 900px;
+        }
+        .analysis-table th, .analysis-table td {
+            border: 1px solid #e2e8f0;
+            padding: 8px 6px;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .analysis-table th {
+            background: #1e3a5f;
+            color: white;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .analysis-table td:first-child {
+            background: #f9fafb;
+            font-weight: 600;
+            position: sticky;
+            left: 0;
+            z-index: 5;
+            text-align: left;
+            background-color: #f8fafc;
+        }
+        .null-data { color: #94a3b8; font-style: italic; }
+        .template-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 12px;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 16px;
+        }
+        .mini-btn {
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            border-radius: 30px;
+            padding: 4px 12px;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+        .import-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- 头部 -->
+    <div class="card">
+        <h1>📊 成绩分析系统</h1>
+        <div class="sub">导入原始成绩明细 → 自动识别科目（自动排除“排名”列）→ 班级平均分 = Σ各科平均分</div>
+        <div class="toolbar">
+            <label class="file-label">
+                📂 选择成绩Excel
+                <input type="file" id="gradeFileInput" accept=".xlsx, .xls, .csv">
+            </label>
+            <button class="btn" id="analyzeBtn">🔄 导入并分析</button>
+            <button class="btn btn-outline" id="exportBtn">📎 导出分析表格</button>
+            <div id="statusMsg" class="status">⚡ 等待导入Excel</div>
+        </div>
+        <div class="template-group">
+            <span style="font-size:0.75rem; color:#475569;">📥 模板下载：</span>
+            <button id="downloadGradeTemplate" class="mini-btn">📝 成绩明细模板</button>
+            <button id="downloadTeacherTemplate" class="mini-btn">👩‍🏫 任课教师模板</button>
+            <button id="downloadHeadTeacherTemplate" class="mini-btn">🏫 班主任模板</button>
+        </div>
+    </div>
+
+    <!-- 科目满分设置 -->
+    <div class="card" id="subjectScorePanel" style="display: none;">
+        <div class="config-header">
+            <span>📐 科目满分设置（及格线 = 满分 × 60%）</span>
+            <button id="recalcByScoreBtn" class="btn-outline btn-sm">✅ 重新计算及格人数/平均分</button>
+        </div>
+        <div id="subjectScoreContainer" class="subject-score-wrap"></div>
+    </div>
+
+    <!-- 任课教师导入区（纯导入，无输入框） -->
+    <div class="card" id="teacherConfigPanel" style="display: none;">
+        <div class="config-header">
+            <span>👩‍🏫 任课教师配置（通过Excel导入）</span>
+            <label class="file-label" style="background: #4b5563; padding: 6px 16px; font-size:12px;">
+                📥 导入教师Excel
+                <input type="file" id="teacherExcelInput" accept=".xlsx, .xls, .csv" style="display:none;">
+            </label>
+        </div>
+        <div id="teacherInfoDisplay" class="info-box">
+            💡 未导入教师数据时显示“—”，请下载模板填写后导入
+        </div>
+        <div class="config-header" style="margin-top: 12px;">
+            <span>🏅 班主任配置（通过Excel导入）</span>
+            <label class="file-label" style="background: #4b5563; padding: 6px 16px; font-size:12px;">
+                📥 导入班主任Excel
+                <input type="file" id="headTeacherExcelInput" accept=".xlsx, .xls, .csv" style="display:none;">
+            </label>
+        </div>
+        <div id="headTeacherInfoDisplay" class="info-box">
+            💡 未导入班主任时显示“—”
+        </div>
+    </div>
+
+    <!-- 隐藏开关工具栏 -->
+    <div class="toolbar" id="hideToolbar" style="display: none; margin: 0 0 12px 0;">
+        <button id="toggleHideZeroSubjectsBtn" class="btn-outline btn-sm">📚 隐藏全零科目</button>
+        <button id="toggleHideZeroClassesBtn" class="btn-outline btn-sm">🏫 隐藏全零班级</button>
+        <span id="hideStatus" style="font-size:12px; color:#475569;"></span>
+    </div>
+
+    <!-- 表格展示区 -->
+    <div class="table-wrapper" id="tableContainer">
+        <div style="padding: 40px; text-align: center; color: #64748b;">👈 请先导入成绩Excel，系统自动生成汇总表</div>
+    </div>
+    <div style="margin-top: 16px; text-align: right; font-size:11px; color:#6c757d;">
+        班级平均分(保留两位小数) = 各科班级平均分之和 | 支持隐藏全零行列 | 科目自动排除含“排名”的列
+    </div>
+</div>
+
+<script>
+    // ------------------- 全局变量 --------------------
+    let rawStudents = [];
+    let subjects = [];              // 真正的科目（不含排名列）
+    let classList = [];
+    let teacherMap = new Map();     // key "班级|科目" -> 教师
+    let headTeacherMap = new Map(); // key 班级 -> 班主任
+    let subjectFullScore = new Map();
+    
+    let hideZeroSubjects = false;
+    let hideZeroClasses = false;
+    let currentAggregates = null;
+    
+    // DOM 元素
+    const gradeFileInput = document.getElementById('gradeFileInput');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const statusDiv = document.getElementById('statusMsg');
+    const subjectScorePanel = document.getElementById('subjectScorePanel');
+    const subjectScoreContainer = document.getElementById('subjectScoreContainer');
+    const recalcBtn = document.getElementById('recalcByScoreBtn');
+    const teacherConfigPanel = document.getElementById('teacherConfigPanel');
+    const teacherExcelInput = document.getElementById('teacherExcelInput');
+    const headTeacherExcelInput = document.getElementById('headTeacherExcelInput');
+    const teacherInfoDisplay = document.getElementById('teacherInfoDisplay');
+    const headTeacherInfoDisplay = document.getElementById('headTeacherInfoDisplay');
+    const tableContainer = document.getElementById('tableContainer');
+    const hideToolbar = document.getElementById('hideToolbar');
+    const toggleHideZeroSubjectsBtn = document.getElementById('toggleHideZeroSubjectsBtn');
+    const toggleHideZeroClassesBtn = document.getElementById('toggleHideZeroClassesBtn');
+    const hideStatusSpan = document.getElementById('hideStatus');
+    
+    function showStatus(msg, isError = false) {
+        statusDiv.textContent = msg;
+        statusDiv.style.background = isError ? '#ffe0e0' : '#e0f2e0';
+        statusDiv.style.color = isError ? '#b91c1c' : '#2c6e2c';
+        setTimeout(() => {
+            if(statusDiv.textContent === msg) {
+                statusDiv.style.background = '#e0f2e0';
+                statusDiv.style.color = '#2c6e2c';
+            }
+        }, 3000);
+    }
+    
+    function parseExcelToJson(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const json = XLSX.utils.sheet_to_json(firstSheet);
+                resolve(json);
+            };
+            reader.onerror = reject;
+            reader.readAsArrayBuffer(file);
+        });
+    }
+    
+    // 存储加载
+    function saveTeacherMap() { const obj = {}; for(let [k,v] of teacherMap.entries()) obj[k]=v; localStorage.setItem('teacherMap',JSON.stringify(obj)); }
+    function loadTeacherMap() { const stored = localStorage.getItem('teacherMap'); if(stored){ const obj=JSON.parse(stored); for(let k in obj) teacherMap.set(k,obj[k]); } updateTeacherDisplay(); }
+    function saveHeadTeacherMap() { const obj={}; for(let [k,v] of headTeacherMap.entries()) obj[k]=v; localStorage.setItem('headTeacherMap',JSON.stringify(obj)); }
+    function loadHeadTeacherMap() { const stored = localStorage.getItem('headTeacherMap'); if(stored){ const obj=JSON.parse(stored); for(let k in obj) headTeacherMap.set(k,obj[k]); } updateHeadTeacherDisplay(); }
+    
+    function updateTeacherDisplay() {
+        if(!classList.length) { teacherInfoDisplay.innerHTML = '💡 请先导入成绩数据'; return; }
+        let count = 0;
+        for(let cls of classList) {
+            for(let sub of subjects) {
+                if(teacherMap.has(`${cls}|${sub}`)) count++;
+            }
+        }
+        teacherInfoDisplay.innerHTML = `✅ 已配置 ${count} 条教师记录（共 ${classList.length * subjects.length} 个班级-科目组合）<br>📌 如需修改，请重新导入教师Excel`;
+    }
+    
+    function updateHeadTeacherDisplay() {
+        if(!classList.length) { headTeacherInfoDisplay.innerHTML = '💡 请先导入成绩数据'; return; }
+        let configured = 0;
+        for(let cls of classList) if(headTeacherMap.has(cls)) configured++;
+        headTeacherInfoDisplay.innerHTML = `✅ 已配置 ${configured} / ${classList.length} 个班级的班主任<br>📌 如需修改，请重新导入班主任Excel`;
+    }
+    
+    // 科目满分UI
+    function renderSubjectScoreUI() {
+        subjectScoreContainer.innerHTML = '';
+        subjects.forEach(sub => {
+            let score = subjectFullScore.get(sub) || 100;
+            const passLine = (score * 0.6).toFixed(1);
+            const div = document.createElement('div');
+            div.className = 'score-item';
+            div.innerHTML = `
+                <strong>${sub}</strong>
+                <input type="number" class="sub-score-input" data-sub="${sub}" value="${score}" step="1" style="width:70px"> 分
+                <span style="font-size:11px; color:#16a34a;">及格 ≥ ${passLine}</span>
+            `;
+            subjectScoreContainer.appendChild(div);
+        });
+        document.querySelectorAll('.sub-score-input').forEach(inp => {
+            inp.addEventListener('change', (e) => {
+                const sub = inp.dataset.sub;
+                let val = parseFloat(inp.value);
+                if(isNaN(val) || val<=0) val = 100;
+                subjectFullScore.set(sub, val);
+                const span = inp.parentElement.querySelector('span');
+                if(span) span.innerText = `及格 ≥ ${(val*0.6).toFixed(1)}`;
+            });
+        });
+    }
+    
+    // 核心汇总计算
+    function computeAggregates() {
+        if(!rawStudents.length) return null;
+        // 总分排名分布（基于总分排名列）
+        const totalRankList = rawStudents.map(s => ({ class: s.class, rank: s.totalRank })).filter(s => s.rank && !isNaN(s.rank));
+        const getRankCount = (limit) => {
+            const map = new Map(); classList.forEach(c => map.set(c,0));
+            totalRankList.forEach(s => { if(s.rank <= limit) map.set(s.class, (map.get(s.class)||0)+1); });
+            return map;
+        };
+        const totalPre50 = getRankCount(50);
+        const totalPre100 = getRankCount(100);
+        const totalPre200 = getRankCount(200);
+        
+        const subjectStats = {};
+        subjects.forEach(sub => {
+            const full = subjectFullScore.get(sub) || 100;
+            const passScore = full * 0.6;
+            const scoresByClass = new Map();
+            classList.forEach(c => scoresByClass.set(c, []));
+            rawStudents.forEach(s => {
+                let score = s[sub] !== undefined ? Number(s[sub]) : 0;
+                if(isNaN(score)) score = 0;
+                scoresByClass.get(s.class).push(score);
+            });
+            // 全校排名
+            const allScores = rawStudents.map(s => ({ class: s.class, score: Number(s[sub]) || 0 }));
+            const sortedAll = [...allScores].sort((a,b)=>b.score - a.score);
+            const rankMap = (limit) => {
+                const cnt = new Map(); classList.forEach(c => cnt.set(c,0));
+                for(let i=0; i<Math.min(limit, sortedAll.length); i++) {
+                    const cls = sortedAll[i].class;
+                    cnt.set(cls, (cnt.get(cls)||0)+1);
+                }
+                return cnt;
+            };
+            const pre50 = rankMap(50), pre100 = rankMap(100), pre200 = rankMap(200);
+            const passMap = new Map(); const avgMap = new Map();
+            classList.forEach(c => {
+                const arr = scoresByClass.get(c).filter(v=>!isNaN(v));
+                const pass = arr.filter(v => v >= passScore).length;
+                passMap.set(c, pass);
+                const avg = arr.length ? (arr.reduce((a,b)=>a+b,0)/arr.length) : 0;
+                avgMap.set(c, avg);
+            });
+            subjectStats[sub] = { pre50, pre100, pre200, passMap, avgMap };
+        });
+        
+        // 班级平均分之和
+        const classAvgSum = new Map();
+        classList.forEach(cls => {
+            let sum = 0;
+            subjects.forEach(sub => { sum += parseFloat(subjectStats[sub].avgMap.get(cls) || 0); });
+            classAvgSum.set(cls, sum);
+        });
+        
+        return { totalPre50, totalPre100, totalPre200, subjectStats, classAvgSum };
+    }
+    
+    function buildRows(agg) {
+        const rows = [];
+        for(let sub of subjects) {
+            const stat = agg.subjectStats[sub];
+            rows.push({ type: 'title', label: `📖 ${sub}`, isTitle: true });
+            rows.push({ type: 'metric', label: '前50名', dataMap: stat.pre50 });
+            rows.push({ type: 'metric', label: '前100名', dataMap: stat.pre100 });
+            rows.push({ type: 'metric', label: '前200名', dataMap: stat.pre200 });
+            rows.push({ type: 'metric', label: '及格人数', dataMap: stat.passMap });
+            rows.push({ type: 'metric', label: '平均分', dataMap: stat.avgMap, isAvg: true });
+            rows.push({ type: 'teacher', label: `${sub} 任课教师`, subject: sub });
+        }
+        rows.push({ type: 'title', label: '🏆 总分排名', isTitle: true });
+        rows.push({ type: 'metric', label: '总分前50名', dataMap: agg.totalPre50 });
+        rows.push({ type: 'metric', label: '总分前100名', dataMap: agg.totalPre100 });
+        rows.push({ type: 'metric', label: '总分前200名', dataMap: agg.totalPre200 });
+        rows.push({ type: 'metric', label: '班级平均分（各科和）', dataMap: agg.classAvgSum, isAvg: true });
+        rows.push({ type: 'headteacher', label: '班主任', isText: true });
+        return rows;
+    }
+    
+    function renderFullTable() {
+        if(!rawStudents.length) return;
+        const agg = computeAggregates();
+        if(!agg) return;
+        currentAggregates = agg;
+        let rows = buildRows(agg);
+        // 隐藏全零科目
+        if(hideZeroSubjects) {
+            const zeroSubjectsSet = new Set();
+            for(let sub of subjects) {
+                let allZero = true;
+                for(let cls of classList) {
+                    const stat = agg.subjectStats[sub];
+                    if(stat.pre50.get(cls) !==0 || stat.pre100.get(cls)!==0 || stat.pre200.get(cls)!==0 || stat.passMap.get(cls)!==0 || Math.abs(stat.avgMap.get(cls))>0.01) {
+                        allZero = false; break;
+                    }
+                }
+                if(allZero) zeroSubjectsSet.add(sub);
+            }
+            rows = rows.filter(row => !(row.subject && zeroSubjectsSet.has(row.subject)) && !(row.type==='title' && row.label && zeroSubjectsSet.has(row.label.replace('📖 ',''))));
+        }
+        let displayClasses = [...classList];
+        if(hideZeroClasses) {
+            const nonZero = new Set();
+            for(let cls of classList) {
+                let has = false;
+                for(let row of rows) {
+                    if(row.dataMap && (row.dataMap.get(cls) || 0) != 0) { has=true; break; }
+                    if(row.type==='teacher' && teacherMap.get(`${cls}|${row.subject}`)) { has=true; break; }
+                    if(row.type==='headteacher' && headTeacherMap.get(cls)) { has=true; break; }
+                }
+                if(has) nonZero.add(cls);
+            }
+            displayClasses = displayClasses.filter(c => nonZero.has(c));
+        }
+        const tableHtml = generateTableHtml(rows, displayClasses);
+        tableContainer.innerHTML = tableHtml;
+        hideStatusSpan.innerText = `${hideZeroSubjects ? '已隐藏全零科目' : '显示全零科目'} | ${hideZeroClasses ? '已隐藏全零班级' : '显示全零班级'}`;
+    }
+    
+    function generateTableHtml(rows, displayClasses) {
+        if(displayClasses.length===0) return '<div style="padding:20px;text-align:center">无数据显示</div>';
+        let thead = `<thead><tr><th>指标</th>${displayClasses.map(c=>`<th>${c}</th>`).join('')}</tr></thead>`;
+        let tbody = '';
+        for(let row of rows) {
+            let firstCol = row.label;
+            let cells = `<td style="text-align:left;font-weight:500;">${firstCol}</td>`;
+            for(let cls of displayClasses) {
+                let val = '';
+                if(row.type === 'teacher') {
+                    const key = `${cls}|${row.subject}`;
+                    val = teacherMap.get(key) || '—';
+                    cells += `<td>${val}</td>`;
+                } else if(row.type === 'headteacher') {
+                    val = headTeacherMap.get(cls) || '—';
+                    cells += `<td>${val}</td>`;
+                } else if(row.dataMap) {
+                    let rawVal = row.dataMap.get(cls);
+                    if(rawVal === undefined || rawVal === null) val = '—';
+                    else if(row.isAvg) val = parseFloat(rawVal).toFixed(2);
+                    else val = rawVal;
+                    if(val === 0 || val === '0') val = '0';
+                    if(val === '—') cells += `<td class="null-data">—</td>`;
+                    else cells += `<td>${val}</td>`;
+                } else {
+                    cells += `<td class="null-data">—</td>`;
+                }
+            }
+            tbody += `<tr>${cells}</tr>`;
+        }
+        return `<table class="analysis-table">${thead}${tbody}</table>`;
+    }
+    
+    // 导入成绩主流程
+    analyzeBtn.onclick = async () => {
+        if(!gradeFileInput.files.length) { showStatus("请选择成绩Excel文件", true); return; }
+        showStatus("正在解析成绩...");
+        try {
+            const json = await parseExcelToJson(gradeFileInput.files[0]);
+            if(!json.length) throw new Error("无数据");
+            const first = json[0];
+            // 排除包含“排名”的列，以及固定列
+            const fixed = new Set(['班级','姓名','考号','总分','总分排名']);
+            const allCols = Object.keys(first);
+            const autoSubjects = allCols.filter(k => {
+                if(fixed.has(k)) return false;
+                if(k.includes('排名') || k.includes('名次')) return false;
+                return typeof first[k] === 'number';
+            });
+            if(!autoSubjects.length) throw new Error("未识别到科目列（排除排名列后无数值列）");
+            subjects = autoSubjects;
+            subjects.forEach(s => { if(!subjectFullScore.has(s)) subjectFullScore.set(s, 100); });
+            
+            rawStudents = json.map(row => {
+                const obj = { class: row['班级'], name: row['姓名'], id: row['考号'], totalScore: row['总分'], totalRank: row['总分排名'] };
+                subjects.forEach(sub => { obj[sub] = row[sub] !== undefined ? Number(row[sub]) : 0; });
+                return obj;
+            }).filter(s => s.class);
+            
+            const uniqueClasses = [...new Set(rawStudents.map(s=>s.class))].sort();
+            classList = uniqueClasses;
+            
+            loadTeacherMap();
+            loadHeadTeacherMap();
+            renderSubjectScoreUI();
+            renderFullTable();
+            updateTeacherDisplay();
+            updateHeadTeacherDisplay();
+            
+            subjectScorePanel.style.display = 'block';
+            teacherConfigPanel.style.display = 'block';
+            hideToolbar.style.display = 'flex';
+            showStatus(`导入成功 | ${rawStudents.length}人 ${subjects.length}科 ${classList.length}班`);
+        } catch(err) { showStatus("解析失败 "+err.message, true); }
+    };
+    
+    recalcBtn.onclick = () => { if(rawStudents.length) { renderFullTable(); showStatus("已按最新满分重新计算"); } };
+    
+    // 教师导入
+    teacherExcelInput.addEventListener('change', async(e) => {
+        if(!teacherExcelInput.files.length) return;
+        try {
+            const json = await parseExcelToJson(teacherExcelInput.files[0]);
+            for(let row of json) {
+                if(row['班级'] && row['科目'] && row['教师']) {
+                    teacherMap.set(`${row['班级']}|${row['科目']}`, row['教师']);
+                }
+            }
+            saveTeacherMap();
+            updateTeacherDisplay();
+            renderFullTable();
+            showStatus(`教师导入成功，共${json.length}条记录`);
+        } catch(err) { showStatus("教师导入失败", true); }
+        teacherExcelInput.value = '';
+    });
+    
+    // 班主任导入
+    headTeacherExcelInput.addEventListener('change', async(e) => {
+        if(!headTeacherExcelInput.files.length) return;
+        try {
+            const json = await parseExcelToJson(headTeacherExcelInput.files[0]);
+            for(let row of json) {
+                if(row['班级'] && row['班主任']) {
+                    headTeacherMap.set(row['班级'], row['班主任']);
+                }
+            }
+            saveHeadTeacherMap();
+            updateHeadTeacherDisplay();
+            renderFullTable();
+            showStatus(`班主任导入成功，共${json.length}条记录`);
+        } catch(err) { showStatus("班主任导入失败", true); }
+        headTeacherExcelInput.value = '';
+    });
+    
+    toggleHideZeroSubjectsBtn.onclick = () => { hideZeroSubjects = !hideZeroSubjects; renderFullTable(); };
+    toggleHideZeroClassesBtn.onclick = () => { hideZeroClasses = !hideZeroClasses; renderFullTable(); };
+    
+    exportBtn.onclick = () => {
+        const tbl = document.querySelector('.analysis-table');
+        if(!tbl) { showStatus("无表格导出", true); return; }
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.table_to_sheet(tbl, { raw: true });
+        XLSX.utils.book_append_sheet(wb, ws, "成绩分析汇总");
+        XLSX.writeFile(wb, `成绩分析_${new Date().toISOString().slice(0,19)}.xlsx`);
+        showStatus("导出成功");
+    };
+    
+    // 模板下载
+    function downloadGrade() {
+        const data = [['班级','姓名','考号','语文','数学','英语','总分','总分排名'],['2024计算机班','张三','001',86,106,97,289,1],['2024航空班','王五','002',84,77,104,265,2]];
+        const ws = XLSX.utils.aoa_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '成绩明细'); XLSX.writeFile(wb, '成绩明细模板.xlsx');
+    }
+    function downloadTeacher() {
+        const data = [['班级','科目','教师'],['2024计算机班','语文','梁海英'],['2024计算机班','数学','乔晗刚']];
+        const ws = XLSX.utils.aoa_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '任课教师'); XLSX.writeFile(wb, '任课教师模板.xlsx');
+    }
+    function downloadHead() {
+        const data = [['班级','班主任'],['2024计算机班','李晓恬'],['2024航空班','乔晗刚']];
+        const ws = XLSX.utils.aoa_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '班主任'); XLSX.writeFile(wb, '班主任模板.xlsx');
+    }
+    document.getElementById('downloadGradeTemplate').addEventListener('click', downloadGrade);
+    document.getElementById('downloadTeacherTemplate').addEventListener('click', downloadTeacher);
+    document.getElementById('downloadHeadTeacherTemplate').addEventListener('click', downloadHead);
+</script>
+</body>
+</html>
