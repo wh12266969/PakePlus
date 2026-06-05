@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教师课表 - 智能排课系统</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card h3 {
+            color: #1e3c72;
+            margin-top: 0;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #1e3c72;
+            padding-bottom: 8px;
+        }
+        
+        .settings-bar {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .settings-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .settings-group label {
+            font-weight: bold;
+            color: #333;
+        }
+        select {
+            padding: 6px 12px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            background: white;
+        }
+        
+        /* 可搜索下拉框 */
+        .searchable-select {
+            position: relative;
+            width: 250px;
+        }
+        .searchable-select input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .searchable-select .dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .searchable-select .dropdown div {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+        }
+        .searchable-select .dropdown div:hover {
+            background: #e8f4fd;
+        }
+        .searchable-select .dropdown .teacher-subjects {
+            font-size: 11px;
+            color: #666;
+            margin-top: 2px;
+        }
+        
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            background: #1e3c72;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn:hover { background: #2b4c7c; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
+        .btn-info { background: #17a2b8; }
+        .btn-info:hover { background: #138496; }
+        
+        /* 教师课表格子 - 字体缩小以便容纳多班级 */
+        .timetable-wrapper {
+            overflow-x: auto;
+        }
+        .timetable {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;      /* 基础字体缩小 */
+        }
+        .timetable th, .timetable td {
+            border: 1px solid #ddd;
+            padding: 8px 6px;
+            text-align: center;
+            vertical-align: middle;
+        }
+        .timetable th {
+            background: #1e3c72;
+            color: white;
+            font-weight: normal;
+            font-size: 13px;
+        }
+        .timetable .class-title {
+            font-size: 16px;
+            font-weight: bold;
+            background: #e8f4fd;
+            color: #1e3c72;
+        }
+        
+        /* 班级+课程显示样式 - 适配多班级 */
+        .class-with-course {
+            line-height: 1.3;
+        }
+        .class-name {
+            font-weight: bold;
+            font-size: 11px;
+            white-space: normal;
+            word-break: break-word;
+        }
+        .course-name {
+            font-size: 10px;
+            color: #555;
+            white-space: normal;
+            word-break: break-word;
+        }
+        /* 多班级列表容器 */
+        .multi-class-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            text-align: left;
+        }
+        .multi-class-item {
+            font-size: 11px;
+            line-height: 1.3;
+            padding: 2px 0;
+            border-bottom: 1px dashed #eee;
+        }
+        .multi-class-item:last-child {
+            border-bottom: none;
+        }
+        .multi-class-name {
+            font-weight: bold;
+            display: inline-block;
+            margin-right: 4px;
+        }
+        .multi-course-name {
+            font-size: 10px;
+            color: #555;
+        }
+        
+        /* 打印样式保持不变 */
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+                margin: 0;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .timetable {
+                font-size: 10pt;
+                margin: 0;
+                width: 100%;
+            }
+            .timetable th, .timetable td {
+                border: 1px solid #000;
+                padding: 6px 3px;
+            }
+            .timetable .class-title {
+                font-size: 14pt;
+                font-weight: bold;
+                background: #f0f0f0;
+                color: #000;
+            }
+            .class-name {
+                font-size: 10pt;
+            }
+            .course-name {
+                font-size: 9pt;
+                color: #333;
+            }
+            .multi-class-item {
+                font-size: 9pt;
+            }
+            @page {
+                size: A4 portrait;
+                margin: 1.5cm;
+            }
+            .teacher-timetable {
+                page-break-after: always;
+            }
+            .teacher-timetable:last-child {
+                page-break-after: auto;
+            }
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 2000;
+            animation: fadeOut 2s ease-in-out;
+        }
+        .toast.error { background: #dc3545; }
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; visibility: hidden; }
+        }
+    </style>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <!-- 删除顶部栏，不再显示登录信息和返回按钮 -->
+    
+    <div class="card no-print">
+        <h3>📅 教师课表展示</h3>
+        
+        <div class="settings-bar">
+            <div class="settings-group">
+                <label>教师：</label>
+                <div class="searchable-select" id="teacherSelect">
+                    <input type="text" id="teacherSearchInput" placeholder="输入教师姓名搜索...">
+                    <div id="teacherDropdown" class="dropdown"></div>
+                </div>
+            </div>
+            <div class="settings-group">
+                <label>显示模式：</label>
+                <select id="displayMode">
+                    <option value="full">班级+课程</option>
+                    <option value="classOnly">只显示班级</option>
+                    <option value="courseOnly">只显示课程</option>
+                </select>
+            </div>
+            <div class="settings-group">
+                <label>课程名称：</label>
+                <select id="courseNameMode">
+                    <option value="fullName">全称</option>
+                    <option value="shortName">简称</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="toolbar">
+            <button id="printBtn" class="btn btn-info">🖨️ 打印当前教师</button>
+            <button id="printAllBtn" class="btn btn-info">🖨️ 打印所有教师</button>
+            <button id="exportBtn" class="btn btn-success">📄 导出Excel</button>
+        </div>
+    </div>
+
+    <div class="card" id="timetableCard">
+        <div id="timetableContainer">
+            <div style="text-align:center; padding:40px; color:#999;">请选择教师</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const CLASSES_KEY = "pk_classes";
+    const COURSES_KEY = "pk_courses";
+    const TEACHERS_KEY = "pk_teachers";
+    const SCHEDULES_KEY = "pk_schedules";
+    const PLANS_KEY = "pk_plans";
+    const SCHEDULE_CONFIG_KEY = "pk_scheduleConfig";
+    
+    let classes = [];
+    let courses = [];
+    let teachers = [];
+    let schedules = {};
+    let plans = [];
+    let scheduleConfig = {};
+    let currentTeacherId = null;
+    
+    let weekdays = ["星期一", "星期二", "星期三", "星期四", "星期五"];
+    let periods = ["第1节", "第2节", "第3节", "第4节", "第5节", "第6节"];
+    
+    function showToast(msg, isErr) {
+        let t = document.createElement("div");
+        t.className = "toast" + (isErr ? " error" : "");
+        t.innerText = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 2000);
+    }
+    
+    function loadAllData() {
+        let sc = localStorage.getItem(SCHEDULE_CONFIG_KEY);
+        if (sc) {
+            try {
+                let parsed = JSON.parse(sc);
+                scheduleConfig = parsed;
+                periods = [];
+                for (let i = 1; i <= (parsed.dayPeriods || 6); i++) {
+                    periods.push("第" + i + "节");
+                }
+                weekdays = parsed.selectedWeekdays || ["星期一", "星期二", "星期三", "星期四", "星期五"];
+            } catch(e) {}
+        }
+        
+        let c = localStorage.getItem(CLASSES_KEY);
+        if (c) classes = JSON.parse(c);
+        if (!classes) classes = [];
+        
+        let cs = localStorage.getItem(COURSES_KEY);
+        if (cs) courses = JSON.parse(cs);
+        if (!courses) courses = [];
+        
+        let t = localStorage.getItem(TEACHERS_KEY);
+        if (t) teachers = JSON.parse(t);
+        if (!teachers) teachers = [];
+        
+        let s = localStorage.getItem(SCHEDULES_KEY);
+        if (s) schedules = JSON.parse(s);
+        else schedules = {};
+        
+        let p = localStorage.getItem(PLANS_KEY);
+        if (p) plans = JSON.parse(p);
+        else plans = [];
+        
+        if (teachers.length > 0 && !currentTeacherId) {
+            currentTeacherId = teachers[0].id;
+        }
+        
+        initTeacherSearch();
+        renderTimetable();
+    }
+    
+    function getTeacherSubjects(teacherId) {
+        let subjects = [];
+        for (let plan of plans) {
+            if (plan.teacherId == teacherId) {
+                let course = courses.find(c => c.id == plan.courseId);
+                if (course && !subjects.includes(course.name)) {
+                    subjects.push(course.name);
+                }
+            }
+        }
+        return subjects;
+    }
+    
+    function initTeacherSearch() {
+        let input = document.getElementById("teacherSearchInput");
+        let dropdown = document.getElementById("teacherDropdown");
+        
+        function renderDropdown(filterText) {
+            let filtered = teachers.filter(t => t.name.toLowerCase().includes(filterText.toLowerCase()));
+            if (filtered.length === 0) {
+                dropdown.innerHTML = '<div style="color:#999;">暂无匹配教师</div>';
+            } else {
+                dropdown.innerHTML = filtered.map(t => {
+                    let subjects = getTeacherSubjects(t.id);
+                    let subjectsText = subjects.length > 0 ? subjects.join("、") : "未分配科目";
+                    return `<div data-id="${t.id}">
+                        <div><strong>${escapeHtml(t.name)}</strong></div>
+                        <div class="teacher-subjects">📖 ${escapeHtml(subjectsText)}</div>
+                    </div>`;
+                }).join('');
+                
+                dropdown.querySelectorAll('div[data-id]').forEach(div => {
+                    div.onclick = () => {
+                        currentTeacherId = parseInt(div.getAttribute('data-id'));
+                        input.value = getTeacherName(currentTeacherId);
+                        dropdown.style.display = 'none';
+                        renderTimetable();
+                    };
+                });
+            }
+            dropdown.style.display = 'block';
+        }
+        
+        input.onfocus = () => {
+            renderDropdown(input.value);
+        };
+        input.oninput = () => {
+            renderDropdown(input.value);
+        };
+        
+        document.addEventListener('click', function(e) {
+            if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+        
+        if (currentTeacherId) {
+            input.value = getTeacherName(currentTeacherId);
+        }
+    }
+    
+    function getCourseName(courseId, mode) {
+        let course = courses.find(c => c.id == courseId);
+        if (!course) return "未知课程";
+        if (mode === "shortName" && course.shortName) {
+            return course.shortName;
+        }
+        return course.name;
+    }
+    
+    function getTeacherName(teacherId) {
+        let teacher = teachers.find(t => t.id == teacherId);
+        return teacher ? teacher.name : "未知教师";
+    }
+    
+    function getClassName(id) {
+        let cls = classes.find(c => c.id == id);
+        return cls ? cls.name : "未知班级";
+    }
+    
+    // 关键修改：获取教师在某时间点的所有课程（支持同一时间多个班级）
+    function getTeacherSchedules(teacherId, day, period) {
+        let results = [];
+        for (let classId in schedules) {
+            let sch = schedules[classId];
+            let key = day + "-" + period;
+            if (sch && sch[key] && sch[key].teacherId == teacherId) {
+                results.push({
+                    classId: parseInt(classId),
+                    className: getClassName(parseInt(classId)),
+                    courseId: sch[key].courseId,
+                    courseName: sch[key].courseName
+                });
+            }
+        }
+        return results;
+    }
+    
+    // 渲染单元格内容（支持多班级）
+    function renderCellContent(schedulesList, displayMode, courseNameMode) {
+        if (!schedulesList || schedulesList.length === 0) {
+            return '';
+        }
+        
+        if (schedulesList.length === 1) {
+            // 单个班级，保持原有简洁样式
+            let item = schedulesList[0];
+            let className = item.className;
+            let courseName = getCourseName(item.courseId, courseNameMode);
+            
+            if (displayMode === "full") {
+                return `<div class="class-with-course">
+                            <div class="class-name">${escapeHtml(className)}</div>
+                            <div class="course-name">${escapeHtml(courseName)}</div>
+                        </div>`;
+            } else if (displayMode === "classOnly") {
+                return `<div class="class-with-course">${escapeHtml(className)}</div>`;
+            } else {
+                return `<div class="class-with-course">${escapeHtml(courseName)}</div>`;
+            }
+        } else {
+            // 多个班级：使用列表形式展示，字体已全局缩小
+            let itemsHtml = '<div class="multi-class-list">';
+            for (let item of schedulesList) {
+                let className = item.className;
+                let courseName = getCourseName(item.courseId, courseNameMode);
+                if (displayMode === "full") {
+                    itemsHtml += `<div class="multi-class-item">
+                                    <span class="multi-class-name">${escapeHtml(className)}</span>
+                                    <span class="multi-course-name">(${escapeHtml(courseName)})</span>
+                                  </div>`;
+                } else if (displayMode === "classOnly") {
+                    itemsHtml += `<div class="multi-class-item">${escapeHtml(className)}</div>`;
+                } else {
+                    itemsHtml += `<div class="multi-class-item">${escapeHtml(courseName)}</div>`;
+                }
+            }
+            itemsHtml += '</div>';
+            return itemsHtml;
+        }
+    }
+    
+    function renderTimetable() {
+        let container = document.getElementById("timetableContainer");
+        if (!currentTeacherId) {
+            container.innerHTML = '<div style="text-align:center; padding:40px; color:#999;">请选择教师</div>';
+            return;
+        }
+        
+        let displayMode = document.getElementById("displayMode").value;
+        let courseNameMode = document.getElementById("courseNameMode").value;
+        let teacherName = getTeacherName(currentTeacherId);
+        
+        let html = '<table class="timetable">';
+        html += '<thead><tr class="class-title">';
+        html += '<th colspan="' + (weekdays.length + 1) + '" style="text-align:center;">' + escapeHtml(teacherName) + ' 课表</th>';
+        html += '</tr></thead><tbody>';
+        
+        // 星期行
+        html += '<tr>';
+        html += '<th>节次</th>';
+        for (let day of weekdays) {
+            html += '<th>' + day + '</th>';
+        }
+        html += '</tr>';
+        
+        // 数据行
+        for (let period of periods) {
+            html += '<tr>';
+            html += '<td style="font-weight:bold;">' + period + '</td>';
+            for (let day of weekdays) {
+                let schedulesList = getTeacherSchedules(currentTeacherId, day, period);
+                if (schedulesList.length > 0) {
+                    let cellContent = renderCellContent(schedulesList, displayMode, courseNameMode);
+                    html += '<td style="padding: 6px;">' + cellContent + '</td>';
+                } else {
+                    html += '<td style="padding: 6px;"></td>';
+                }
+            }
+            html += '</tr>';
+        }
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    }
+    
+    // 获取教师的课表HTML（用于打印，同样支持多班级）
+    function getTeacherTimetableHTML(teacherId, displayMode, courseNameMode) {
+        let teacherName = getTeacherName(teacherId);
+        
+        let html = '<table class="timetable" style="width:100%; border-collapse:collapse;">';
+        html += '<thead><tr style="background:#f0f0f0;">';
+        html += '<th colspan="' + (weekdays.length + 1) + '" style="text-align:center; font-size:14pt; font-weight:bold; padding:8px;">' + escapeHtml(teacherName) + ' 课表</th>';
+        html += '</tr>';
+        html += '<tr style="background:#e0e0e0;">';
+        html += '<th style="border:1px solid #000; padding:6px;">节次</th>';
+        for (let day of weekdays) {
+            html += '<th style="border:1px solid #000; padding:6px;">' + day + '</th>';
+        }
+        html += '</tr></thead><tbody>';
+        
+        for (let period of periods) {
+            html += '<tr>';
+            html += '<td style="border:1px solid #000; padding:6px; font-weight:bold;">' + period + '</td>';
+            for (let day of weekdays) {
+                let schedulesList = getTeacherSchedules(teacherId, day, period);
+                if (schedulesList.length > 0) {
+                    let content = '';
+                    if (schedulesList.length === 1) {
+                        let item = schedulesList[0];
+                        let className = item.className;
+                        let courseName = getCourseName(item.courseId, courseNameMode);
+                        if (displayMode === "full") {
+                            content = `<div><strong>${escapeHtml(className)}</strong><br><span style="font-size:9pt;">${escapeHtml(courseName)}</span></div>`;
+                        } else if (displayMode === "classOnly") {
+                            content = escapeHtml(className);
+                        } else {
+                            content = escapeHtml(courseName);
+                        }
+                    } else {
+                        let items = [];
+                        for (let item of schedulesList) {
+                            let className = item.className;
+                            let courseName = getCourseName(item.courseId, courseNameMode);
+                            if (displayMode === "full") {
+                                items.push(`${escapeHtml(className)} (${escapeHtml(courseName)})`);
+                            } else if (displayMode === "classOnly") {
+                                items.push(escapeHtml(className));
+                            } else {
+                                items.push(escapeHtml(courseName));
+                            }
+                        }
+                        content = items.join('<br>');
+                    }
+                    html += '<td style="border:1px solid #000; padding:6px; text-align:center;">' + content + '</td>';
+                } else {
+                    html += '<td style="border:1px solid #000; padding:6px; text-align:center;"></td>';
+                }
+            }
+            html += '</tr>';
+        }
+        html += '</tbody></table>';
+        return html;
+    }
+    
+    function printCurrent() {
+        let displayMode = document.getElementById("displayMode").value;
+        let courseNameMode = document.getElementById("courseNameMode").value;
+        let teacherName = getTeacherName(currentTeacherId);
+        let tableHtml = getTeacherTimetableHTML(currentTeacherId, displayMode, courseNameMode);
+        
+        let printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>${escapeHtml(teacherName)} 课表</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body {
+                        font-family: 'Microsoft YaHei', 'SimHei', Arial, sans-serif;
+                        margin: 0;
+                        padding: 0;
+                    }
+                    .timetable {
+                        width: 100%;
+                        border-collapse: collapse;
+                        font-size: 11pt;
+                    }
+                    .timetable th, .timetable td {
+                        border: 1px solid #000;
+                        padding: 6px 3px;
+                        text-align: center;
+                        vertical-align: middle;
+                    }
+                    .timetable th {
+                        background: #f0f0f0;
+                        font-weight: bold;
+                    }
+                    @page {
+                        size: A4 portrait;
+                        margin: 1.5cm;
+                    }
+                </style>
+            </head>
+            <body>
+                ${tableHtml}
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.print();
+        printWindow.close();
+    }
+    
+    function printAll() {
+        let displayMode = document.getElementById("displayMode").value;
+        let courseNameMode = document.getElementById("courseNameMode").value;
+        
+        let allHtml = '';
+        for (let teacher of teachers) {
+            allHtml += '<div class="teacher-timetable">' + getTeacherTimetableHTML(teacher.id, displayMode, courseNameMode) + '</div>';
+        }
+        
+        let printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>全校教师课表</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body {
+                        font-family: 'Microsoft YaHei', 'SimHei', Arial, sans-serif;
+                        margin: 0;
+                        padding: 0;
+                    }
+                    .timetable {
+                        width: 100%;
+                        border-collapse: collapse;
+                        font-size: 11pt;
+                    }
+                    .timetable th, .timetable td {
+                        border: 1px solid #000;
+                        padding: 6px 3px;
+                        text-align: center;
+                        vertical-align: middle;
+                    }
+                    .timetable th {
+                        background: #f0f0f0;
+                        font-weight: bold;
+                    }
+                    .teacher-timetable {
+                        page-break-after: always;
+                    }
+                    .teacher-timetable:last-child {
+                        page-break-after: auto;
+                    }
+                    @page {
+                        size: A4 portrait;
+                        margin: 1.5cm;
+                    }
+                </style>
+            </head>
+            <body>
+                ${allHtml}
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.print();
+        printWindow.close();
+    }
+    
+    function exportToExcel() {
+        let displayMode = document.getElementById("displayMode").value;
+        let courseNameMode = document.getElementById("courseNameMode").value;
+        
+        let exportMode = confirm("选择导出模式：\n\n确定：每个教师一个Sheet\n取消：所有教师一个Sheet（每师分页）");
+        
+        if (exportMode) {
+            let wb = XLSX.utils.book_new();
+            for (let teacher of teachers) {
+                let data = buildTeacherData(teacher.id, displayMode, courseNameMode);
+                let ws = XLSX.utils.aoa_to_sheet(data);
+                ws['!cols'] = [{wch:8}, {wch:14}, {wch:14}, {wch:14}, {wch:14}, {wch:14}];
+                XLSX.utils.book_append_sheet(wb, ws, teacher.name.substring(0, 31));
+            }
+            XLSX.writeFile(wb, "教师课表_多Sheet.xlsx");
+            showToast("导出成功，每个教师一个Sheet");
+        } else {
+            let allData = [];
+            for (let idx = 0; idx < teachers.length; idx++) {
+                let teacher = teachers[idx];
+                let teacherData = buildTeacherData(teacher.id, displayMode, courseNameMode);
+                for (let row of teacherData) {
+                    allData.push(row);
+                }
+                if (idx < teachers.length - 1) {
+                    allData.push([]);
+                    allData.push([]);
+                }
+            }
+            let ws = XLSX.utils.aoa_to_sheet(allData);
+            ws['!cols'] = [{wch:8}, {wch:14}, {wch:14}, {wch:14}, {wch:14}, {wch:14}];
+            let wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "全校教师课表");
+            XLSX.writeFile(wb, "教师课表_单Sheet.xlsx");
+            showToast("导出成功，所有教师一个Sheet");
+        }
+    }
+    
+    function buildTeacherData(teacherId, displayMode, courseNameMode) {
+        let teacherName = getTeacherName(teacherId);
+        let data = [];
+        
+        let titleRow = [teacherName + " 课表"];
+        for (let i = 1; i <= weekdays.length; i++) {
+            titleRow.push("");
+        }
+        data.push(titleRow);
+        
+        let weekRow = ["节次"];
+        for (let day of weekdays) {
+            weekRow.push(day);
+        }
+        data.push(weekRow);
+        
+        for (let period of periods) {
+            let row = [period];
+            for (let day of weekdays) {
+                let schedulesList = getTeacherSchedules(teacherId, day, period);
+                if (schedulesList.length > 0) {
+                    let cellText = "";
+                    if (schedulesList.length === 1) {
+                        let item = schedulesList[0];
+                        let className = item.className;
+                        let courseName = getCourseName(item.courseId, courseNameMode);
+                        if (displayMode === "full") {
+                            cellText = className + "\n" + courseName;
+                        } else if (displayMode === "classOnly") {
+                            cellText = className;
+                        } else {
+                            cellText = courseName;
+                        }
+                    } else {
+                        let parts = [];
+                        for (let item of schedulesList) {
+                            let className = item.className;
+                            let courseName = getCourseName(item.courseId, courseNameMode);
+                            if (displayMode === "full") {
+                                parts.push(className + "(" + courseName + ")");
+                            } else if (displayMode === "classOnly") {
+                                parts.push(className);
+                            } else {
+                                parts.push(courseName);
+                            }
+                        }
+                        cellText = parts.join("\n");
+                    }
+                    row.push(cellText);
+                } else {
+                    row.push("");
+                }
+            }
+            data.push(row);
+        }
+        return data;
+    }
+    
+    function escapeHtml(s) {
+        if (!s) return '';
+        return String(s).replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+    
+    function init() {
+        loadAllData();
+        
+        document.getElementById("displayMode").onchange = () => renderTimetable();
+        document.getElementById("courseNameMode").onchange = () => renderTimetable();
+        document.getElementById("printBtn").onclick = printCurrent;
+        document.getElementById("printAllBtn").onclick = printAll;
+        document.getElementById("exportBtn").onclick = exportToExcel;
+    }
+    
+    init();
+</script>
+</body>
+</html>
