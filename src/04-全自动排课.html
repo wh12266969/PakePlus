@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全自动排课 - 智能排课系统</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        
+        .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .card h3 { color: #1e3c72; margin-top: 0; margin-bottom: 15px; border-bottom: 2px solid #1e3c72; padding-bottom: 8px; }
+        
+        .class-selector { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; padding: 10px; background: #f8f9fa; border-radius: 8px; max-height: 150px; overflow-y: auto; }
+        .class-check { display: flex; align-items: center; gap: 5px; background: white; padding: 5px 12px; border-radius: 20px; border: 1px solid #ddd; cursor: pointer; }
+        .class-check:hover { background: #e8f4fd; }
+        
+        .btn { background: #6c757d; color: white; border: none; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; transition: 0.2s; }
+        .btn:hover { background: #5a6268; transform: translateY(-1px); }
+        .btn-primary { background: #1e3c72; }
+        .btn-primary:hover { background: #2b4c7c; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-warning { background: #fd7e14; }
+        .btn-warning:hover { background: #e96a0a; }
+        .btn-info { background: #17a2b8; }
+        .btn-info:hover { background: #138496; }
+        .btn-secondary { background: #6c757d; }
+        
+        .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+        .stage-buttons { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 15px; }
+        
+        .progress-area { background: #f8f9fa; border-radius: 8px; padding: 15px; margin-bottom: 20px; }
+        .progress-bar { width: 100%; height: 20px; background: #e0e0e0; border-radius: 10px; overflow: hidden; margin: 10px 0; }
+        .progress-fill { height: 100%; background: #28a745; transition: width 0.3s; width: 0%; }
+        
+        .config-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+        .config-row label { font-weight: bold; }
+        .config-row input { width: 80px; padding: 5px; border-radius: 4px; border: 1px solid #ddd; text-align: center; }
+        .config-row input[type="checkbox"] { width: 20px; margin: 0; }
+        
+        .debug-output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .debug-output .log-time { color: #888; }
+        .debug-output .log-info { color: #9cdcfe; }
+        .debug-output .log-success { color: #6a9955; }
+        .debug-output .log-error { color: #f48771; }
+        
+        .unfinished-panel { background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 15px; }
+        .unfinished-title { font-weight: bold; margin-bottom: 10px; color: #856404; }
+        .unfinished-toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; align-items: center; }
+        .unfinished-class-list { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; max-height: 200px; overflow-y: auto; }
+        .unfinished-class-item { background: white; border-radius: 8px; padding: 8px 12px; border: 1px solid #ddd; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: 0.1s; }
+        .unfinished-class-item:hover { background: #e8f4fd; border-color: #1e3c72; }
+        .unfinished-class-item.selected { background: #1e3c72; color: white; border-color: #1e3c72; }
+        .unfinished-class-item .class-name { font-weight: bold; font-size: 14px; }
+        .unfinished-class-item .missing-count { font-size: 11px; background: #dc3545; color: white; padding: 2px 8px; border-radius: 20px; }
+        .unfinished-class-item.selected .missing-count { background: #ffd700; color: #333; }
+        .unfinished-checkbox { width: 18px; height: 18px; cursor: pointer; margin: 0; }
+        
+        .toast { position: fixed; bottom: 30px; right: 30px; background: #28a745; color: white; padding: 12px 20px; border-radius: 8px; z-index: 2000; animation: fadeOut 2s ease-in-out; }
+        .toast.error { background: #dc3545; }
+        @keyframes fadeOut { 0% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
+    </style>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <!-- 第一步：选择班级 -->
+    <div class="card">
+        <h3>📚 第一步：选择要排课的班级</h3>
+        <div id="classSelector" class="class-selector"></div>
+        <div class="toolbar">
+            <button id="selectAllBtn" class="btn btn-primary">全选</button>
+            <button id="clearAllBtn" class="btn btn-danger">清空</button>
+        </div>
+    </div>
+
+    <!-- 第二步：排课参数 -->
+    <div class="card">
+        <h3>⚙️ 第二步：排课参数</h3>
+        <div class="config-row">
+            <label>多轮优化次数：</label>
+            <input type="number" id="roundsInput" value="40" min="10" max="100">
+            <label>高课时阈值：</label>
+            <input type="number" id="highHourThreshold" value="4" min="1" max="10">
+            <span style="color:#666;">（课时 ≥ 此值的课程优先排）</span>
+        </div>
+        <div class="config-row">
+            <label>回溯深度：</label>
+            <input type="number" id="backtrackDepth" value="3" min="1" max="6" step="1">
+            <span style="color:#666;">（层数越多，耗时越长，但成功概率越高）</span>
+        </div>
+        <div class="config-row">
+            <label>锁定已排课程：</label>
+            <input type="checkbox" id="preserveLockedCheckbox" checked>
+            <span style="color:#666;">（勾选后，已标记为🔒的课程不会被修改）</span>
+        </div>
+    </div>
+
+    <!-- 第三步：排课操作 -->
+    <div class="card">
+        <h3>🚀 第三步：排课操作</h3>
+        <div class="stage-buttons">
+            <button id="autoScheduleBtn" class="btn btn-primary">⚡ 全自动排课</button>
+            <button id="manualAdjustBtn" class="btn btn-info">✋ 手动调课</button>
+            <button id="clearScheduleBtn" class="btn btn-danger">🗑️ 清空所选班级</button>
+            <button id="exportResultBtn" class="btn btn-success">📄 导出课表</button>
+        </div>
+        <div id="progressArea" class="progress-area" style="display: none;">
+            <div>排课进度</div>
+            <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
+            <div id="progressText">准备就绪...</div>
+        </div>
+    </div>
+
+    <!-- 调试面板 -->
+    <div class="card">
+        <h3>🔍 调试面板（分步执行）</h3>
+        <div class="toolbar">
+            <button id="step1Btn" class="btn btn-primary">1️⃣ 高课时课程（30轮）</button>
+            <button id="step2Btn" class="btn btn-primary">2️⃣ 低课时课程（30轮）</button>
+            <button id="step3Btn" class="btn btn-warning">3️⃣ 回溯排课</button>
+            <button id="resetScheduleBtn" class="btn btn-danger">🔄 重置课表</button>
+        </div>
+        <div id="debugOutput" class="debug-output">
+            <div><span class="log-time">[--:--:--]</span> <span class="log-info">等待执行...</span></div>
+        </div>
+    </div>
+
+    <!-- 未完成班级面板 -->
+    <div class="card" id="unfinishedCard" style="display: none;">
+        <div class="unfinished-panel">
+            <div class="unfinished-title">⚠️ 未完成班级（勾选后可使用下方功能）</div>
+            <div class="unfinished-toolbar">
+                <button id="selectAllUnfinishedBtn" class="btn btn-primary">☑️ 全选</button>
+                <button id="deselectAllUnfinishedBtn" class="btn btn-secondary">☐ 取消全选</button>
+                <button id="retryAutoBtn" class="btn btn-success">🔄 再次自动排课</button>
+                <button id="backtrackBtn" class="btn btn-warning">🔁 回溯排课</button>
+                <button id="clearUnfinishedSelectedBtn" class="btn btn-danger">🗑️ 清空选中课表</button>
+            </div>
+            <div id="unfinishedClassList" class="unfinished-class-list"></div>
+            <div class="unfinished-hint">💡 提示：勾选班级后点击"再次自动排课"（清空重排）或"回溯排课"（智能交换填补）</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ========== 存储KEY ==========
+    const PLANS_KEY = "pk_plans";
+    const CLASSES_KEY = "pk_classes";
+    const COURSES_KEY = "pk_courses";
+    const TEACHERS_KEY = "pk_teachers";
+    const SCHEDULES_KEY = "pk_schedules";
+    const SCHEDULE_CONFIG_KEY = "pk_scheduleConfig";
+    const RULES_KEY = "pk_scheduleRules";
+    
+    // ========== 全局变量 ==========
+    let plans = [], classes = [], courses = [], teachers = [], schedules = {}, scheduleConfig = {};
+    let selectedClassIds = [];
+    let selectedUnfinishedClassIds = [];
+    let isRunning = false;
+    let weekdays = ["星期一", "星期二", "星期三", "星期四", "星期五"];
+    let periods = [];
+    let morningPeriodsList = [], afternoonPeriodsList = [];
+    let currentTemp = {};
+    
+    // 规则配置
+    let teacherDailyLimits = [], teacherPeriodLimits = [], teacherFreeTimes = [];
+    let groupFreeTimes = [], schoolFreeTimes = [], courseCannotTimes = [], courseMustTimes = [], courseMutexGroups = [], teacherGroups = [];
+    let dailyCourseLimit = true;
+    
+    // 连排规则
+    let consecutiveStage1Enabled = true;
+    let consecutiveStage1Pairs = [];
+    let consecutiveStage2Enabled = true;
+    let consecutiveStage2Pairs = [];
+    
+    // 锁定课程列表
+    let lockedLessons = [];
+    
+    // ========== 连排规则读取 ==========
+    function loadConsecutiveRules() {
+        let rulesData = localStorage.getItem(RULES_KEY);
+        let rules = {};
+        if(rulesData) {
+            try { rules = JSON.parse(rulesData); } catch(e) {}
+        }
+        let consecutiveRules = rules.consecutiveRules || {};
+        let stage1 = consecutiveRules.stage1 || {};
+        let stage2 = consecutiveRules.stage2 || {};
+        
+        consecutiveStage1Enabled = stage1.enabled !== false;
+        consecutiveStage1Pairs = stage1.pairs || [];
+        consecutiveStage2Enabled = stage2.enabled !== false;
+        consecutiveStage2Pairs = stage2.pairs || [];
+        
+        if(consecutiveStage1Pairs.length === 0 && consecutiveStage2Pairs.length === 0) {
+            for(let i = 0; i < morningPeriodsList.length - 1; i++) {
+                consecutiveStage1Pairs.push([morningPeriodsList[i], morningPeriodsList[i+1]]);
+            }
+            for(let i = 0; i < afternoonPeriodsList.length - 1; i++) {
+                consecutiveStage1Pairs.push([afternoonPeriodsList[i], afternoonPeriodsList[i+1]]);
+            }
+        }
+    }
+    
+    function getAllowedConsecutivePairs() {
+        let allPairs = [];
+        if(consecutiveStage1Enabled) allPairs.push(...consecutiveStage1Pairs);
+        if(consecutiveStage2Enabled) allPairs.push(...consecutiveStage2Pairs);
+        return allPairs;
+    }
+    
+    function isAllowedConsecutivePair(period1, period2) {
+        let pairs = getAllowedConsecutivePairs();
+        for(let pair of pairs) {
+            if((pair[0] === period1 && pair[1] === period2) || (pair[0] === period2 && pair[1] === period1)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    function isAllowedConsecutiveBlock(periodsList) {
+        if(periodsList.length < 2) return true;
+        for(let i = 0; i < periodsList.length - 1; i++) {
+            if(!isAllowedConsecutivePair(periodsList[i], periodsList[i+1])) return false;
+        }
+        return true;
+    }
+    
+    // ========== 辅助函数 ==========
+    function getClassName(id) { let c = classes.find(c => c.id == id); return c ? c.name : "未知班级"; }
+    function getCourseName(id) { let c = courses.find(c => c.id == id); return c ? c.name : "未知课程"; }
+    function getTeacherName(id) { let t = teachers.find(t => t.id == id); return t ? t.name : "未知教师"; }
+    function getPlan(classId, courseId) { return plans.find(p => p.classId == classId && p.courseId == courseId); }
+    function escapeHtml(s) { if(!s) return ''; return s.replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;'); }
+    function shuffleArray(arr) { for(let i = arr.length - 1; i > 0; i--) { let j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
+    
+    function getScheduledCount(classId, courseId, tempSch) {
+        if(!tempSch) return 0;
+        let classSchedule = tempSch[classId];
+        if(!classSchedule) return 0;
+        let cnt = 0;
+        for(let key in classSchedule) {
+            if(classSchedule[key] && classSchedule[key].courseId == courseId) cnt++;
+        }
+        return cnt;
+    }
+    
+    function getRemainingHours(classId, courseId, tempSch) {
+        let plan = getPlan(classId, courseId);
+        if(!plan) return 0;
+        return plan.hoursPerWeek - getScheduledCount(classId, courseId, tempSch);
+    }
+    
+    function getClassTotalStats(classId, tempSch) {
+        let classPlans = plans.filter(p => p.classId == classId);
+        let totalReq = 0, totalSch = 0;
+        for(let plan of classPlans) {
+            totalReq += plan.hoursPerWeek;
+            totalSch += getScheduledCount(classId, plan.courseId, tempSch);
+        }
+        return { totalRequired: totalReq, totalScheduled: totalSch, missing: totalReq - totalSch };
+    }
+    
+    function calculateTotalMissing(tempSch) {
+        let total = 0;
+        for(let cid of selectedClassIds) total += getClassTotalStats(cid, tempSch).missing;
+        return total;
+    }
+    
+    function getHighHourThreshold() { return parseInt(document.getElementById("highHourThreshold").value) || 4; }
+    function getBacktrackDepth() { return parseInt(document.getElementById("backtrackDepth").value) || 3; }
+    function isHighHourCourse(hours) { return hours >= getHighHourThreshold(); }
+    function isLowHourCourse(hours) { return hours < getHighHourThreshold(); }
+    
+    // ========== 锁定功能 ==========
+    function loadLockedLessons() {
+        lockedLessons = [];
+        let preserveLocked = document.getElementById("preserveLockedCheckbox").checked;
+        if(!preserveLocked) return;
+        for(let classId in schedules) {
+            let schedule = schedules[classId];
+            for(let key in schedule) {
+                if(schedule[key] && schedule[key].locked === true) {
+                    lockedLessons.push({ classId: parseInt(classId), key });
+                }
+            }
+        }
+    }
+    
+    function isLocked(classId, key) {
+        return lockedLessons.some(l => l.classId == classId && l.key === key);
+    }
+    
+    function preserveLockedInTemp(tempSch) {
+        for(let locked of lockedLessons) {
+            if(schedules[locked.classId] && schedules[locked.classId][locked.key]) {
+                if(!tempSch[locked.classId]) tempSch[locked.classId] = {};
+                tempSch[locked.classId][locked.key] = { ...schedules[locked.classId][locked.key], locked: true };
+            }
+        }
+    }
+    
+    // ========== 硬约束检测 ==========
+    function checkTeacherConflict(teacherId, day, period, tempSch, excludeClassId) {
+        for(let cid in tempSch) {
+            if(excludeClassId && cid == excludeClassId) continue;
+            let sch = tempSch[cid];
+            if(sch && sch[day + "-" + period] && sch[day + "-" + period].teacherId == teacherId) return true;
+        }
+        return false;
+    }
+    
+    function checkClassConflict(classId, day, period, tempSch) {
+        return !!(tempSch[classId] && tempSch[classId][day + "-" + period]);
+    }
+    
+    function checkDailyLimit(classId, courseId, day, tempSch) {
+        if(!dailyCourseLimit) return false;
+        let plan = getPlan(classId, courseId);
+        if(plan && plan.consecutiveEnabled && plan.consecutiveCount > 0) return false;
+        let sch = tempSch[classId] || {};
+        for(let p of periods) if(sch[day + "-" + p] && sch[day + "-" + p].courseId == courseId) return true;
+        return false;
+    }
+    
+    function checkTeacherFixedFreeTime(teacherId, day, period) { return teacherFreeTimes.some(ft => ft.teacherId == teacherId && ft.weekday == day && ft.period == period); }
+    function checkTeacherGroupFreeTime(teacherId, day, period) {
+        for(let gt of groupFreeTimes) {
+            let group = teacherGroups.find(g => g.id == gt.groupId);
+            if(group && (group.members || group.teacherIds || []).includes(teacherId) && gt.weekday == day && gt.period == period) return true;
+        }
+        return false;
+    }
+    function checkSchoolFreeTime(day, period) { return schoolFreeTimes.some(sft => sft.weekday == day && sft.period == period); }
+    function isCourseTimeAvailable(courseId, period) {
+        let must = courseMustTimes.some(limit => limit.courseId == courseId);
+        if(must) return courseMustTimes.some(limit => limit.courseId == courseId && limit.periods.includes(period));
+        return !courseCannotTimes.some(limit => limit.courseId == courseId && limit.periods.includes(period));
+    }
+    function checkCourseMutex(classId, courseId, day, tempSch) {
+        let sch = tempSch[classId] || {};
+        for(let group of courseMutexGroups) {
+            if(group.courseIds.includes(courseId)) {
+                for(let otherId of group.courseIds) {
+                    if(otherId == courseId) continue;
+                    for(let p of periods) if(sch[day + "-" + p] && sch[day + "-" + p].courseId == otherId) return true;
+                }
+            }
+        }
+        return false;
+    }
+    function getTeacherPeriodCount(teacherId, period, tempSch) {
+        let count = 0;
+        for(let cid in tempSch) {
+            let sch = tempSch[cid];
+            for(let w of weekdays) if(sch && sch[w + "-" + period] && sch[w + "-" + period].teacherId == teacherId) count++;
+        }
+        return count;
+    }
+    function checkTeacherPeriodLimit(teacherId, period, tempSch) {
+        let limit = teacherPeriodLimits.find(l => l.period == period);
+        if(!limit) return true;
+        return getTeacherPeriodCount(teacherId, period, tempSch) < limit.maxCountPerWeek;
+    }
+    function checkTeacherDailyLimit(teacherId, day, tempSch, additional = 1) {
+        let limit = teacherDailyLimits.find(l => l.teacherId == teacherId);
+        if(!limit) return true;
+        let current = 0;
+        for(let cid in tempSch) {
+            let sch = tempSch[cid];
+            for(let key in sch) if(key.startsWith(day) && sch[key].teacherId == teacherId) current++;
+        }
+        return current + additional <= limit.maxHoursPerDay;
+    }
+    
+    function isTimeAvailable(classId, teacherId, courseId, day, period, tempSch) {
+        if(!classId || !teacherId || !courseId) return false;
+        if(isLocked(classId, day + "-" + period)) return false;
+        if(checkSchoolFreeTime(day, period)) return false;
+        if(checkTeacherFixedFreeTime(teacherId, day, period)) return false;
+        if(checkTeacherGroupFreeTime(teacherId, day, period)) return false;
+        if(!isCourseTimeAvailable(courseId, period)) return false;
+        if(checkTeacherConflict(teacherId, day, period, tempSch, classId)) return false;
+        if(checkClassConflict(classId, day, period, tempSch)) return false;
+        if(checkDailyLimit(classId, courseId, day, tempSch)) return false;
+        if(!checkTeacherDailyLimit(teacherId, day, tempSch, 1)) return false;
+        if(!checkTeacherPeriodLimit(teacherId, period, tempSch)) return false;
+        if(checkCourseMutex(classId, courseId, day, tempSch)) return false;
+        return true;
+    }
+    
+    function addLesson(classId, teacherId, courseId, day, period, tempSch) {
+        let remaining = getRemainingHours(classId, courseId, tempSch);
+        if(remaining <= 0) return false;
+        if(!isTimeAvailable(classId, teacherId, courseId, day, period, tempSch)) return false;
+        if(!tempSch[classId]) tempSch[classId] = {};
+        tempSch[classId][day + "-" + period] = { courseId, teacherId, courseName: getCourseName(courseId), teacherName: getTeacherName(teacherId) };
+        return true;
+    }
+    
+    function removeLesson(classId, day, period, tempSch) {
+        if(tempSch[classId]) delete tempSch[classId][day + "-" + period];
+    }
+    
+    // ========== 班内连排块（完整实现） ==========
+    function countClassConsecutiveBlocks(classId, courseId, tempSch) {
+        let schedule = tempSch[classId] || {};
+        let plan = getPlan(classId, courseId);
+        let size = (plan && plan.consecutiveSize) ? plan.consecutiveSize : 2;
+        let blocks = new Set();
+        for(let day of weekdays) {
+            for(let i = 0; i <= periods.length - size; i++) {
+                let valid = true;
+                for(let j = 0; j < size; j++) {
+                    let p = periods[i+j];
+                    if(!schedule[day + "-" + p] || schedule[day + "-" + p].courseId != courseId) {
+                        valid = false;
+                        break;
+                    }
+                }
+                if(valid) blocks.add(day + "_" + i);
+            }
+        }
+        return blocks.size;
+    }
+    
+    function isClassConsecutive(classId, day, period, tempSch) {
+        let schedule = tempSch[classId] || {};
+        let lesson = schedule[day + "-" + period];
+        if(!lesson) return false;
+        let plan = getPlan(classId, lesson.courseId);
+        if(!plan || !plan.consecutiveEnabled) return false;
+        let periodIdx = periods.indexOf(period);
+        if(periodIdx > 0 && schedule[day + "-" + periods[periodIdx-1]] && schedule[day + "-" + periods[periodIdx-1]].courseId == lesson.courseId) return true;
+        if(periodIdx < periods.length-1 && schedule[day + "-" + periods[periodIdx+1]] && schedule[day + "-" + periods[periodIdx+1]].courseId == lesson.courseId) return true;
+        return false;
+    }
+    
+    function getAvailableStartPositions(classId, courseId, size, tempSch) {
+        let plan = getPlan(classId, courseId);
+        if(!plan || !plan.consecutiveEnabled) return [];
+        
+        let availablePositions = [];
+        for(let day of weekdays) {
+            for(let i = 0; i <= periods.length - size; i++) {
+                let startPeriod = periods[i];
+                let periodsToPlace = [];
+                for(let j = 0; j < size; j++) periodsToPlace.push(periods[i + j]);
+                
+                if(!isAllowedConsecutiveBlock(periodsToPlace)) continue;
+                
+                let allAvailable = true;
+                for(let j = 0; j < size; j++) {
+                    if(!isTimeAvailable(classId, plan.teacherId, courseId, day, periods[i + j], tempSch)) {
+                        allAvailable = false;
+                        break;
+                    }
+                }
+                if(allAvailable) {
+                    availablePositions.push({ day, startPeriod });
+                }
+            }
+        }
+        return availablePositions;
+    }
+    
+    function addClassConsecutiveBlockByPosition(classId, courseId, day, startPeriod, tempSch) {
+        let plan = getPlan(classId, courseId);
+        if(!plan) return false;
+        let size = plan.consecutiveSize || 2;
+        let startIdx = periods.indexOf(startPeriod);
+        let success = true;
+        for(let i = 0; i < size; i++) {
+            if(!addLesson(classId, plan.teacherId, courseId, day, periods[startIdx + i], tempSch)) success = false;
+        }
+        return success;
+    }
+    
+    function getClassConsecutiveTasks(tempSch) {
+        let tasks = [];
+        for(let classId of selectedClassIds) {
+            let classPlans = plans.filter(p => p.classId == classId);
+            for(let plan of classPlans) {
+                if(!plan.consecutiveEnabled || plan.consecutiveCount <= 0) continue;
+                
+                let needed = plan.consecutiveCount;
+                let existing = countClassConsecutiveBlocks(classId, plan.courseId, tempSch);
+                let toAdd = needed - existing;
+                
+                if(toAdd > 0) {
+                    tasks.push({
+                        classId: classId,
+                        courseId: plan.courseId,
+                        teacherId: plan.teacherId,
+                        toAdd: toAdd,
+                        size: plan.consecutiveSize || 2,
+                        hours: plan.hoursPerWeek,
+                        courseName: getCourseName(plan.courseId),
+                        className: getClassName(classId)
+                    });
+                }
+            }
+        }
+        tasks.sort((a, b) => b.hours - a.hours);
+        return tasks;
+    }
+    
+    async function scheduleClassConsecutiveBlocks(tempSch) {
+        let tasks = getClassConsecutiveTasks(tempSch);
+        let scheduled = 0;
+        
+        if(tasks.length > 0) {
+            debugLog(`班内连排任务: ${tasks.length} 个`);
+        }
+        
+        for(let task of tasks) {
+            debugLog(`  尝试: ${task.className} - ${task.courseName} (需${task.toAdd}个连排块, ${task.size}节连排)`);
+            
+            for(let b = 0; b < task.toAdd; b++) {
+                let availablePositions = getAvailableStartPositions(task.classId, task.courseId, task.size, tempSch);
+                
+                if(availablePositions.length === 0) {
+                    debugLog(`    无法放置第${b+1}个连排块: 无可用位置`, "error");
+                    break;
+                }
+                
+                let randomIndex = Math.floor(Math.random() * availablePositions.length);
+                let pos = availablePositions[randomIndex];
+                
+                let success = addClassConsecutiveBlockByPosition(task.classId, task.courseId, pos.day, pos.startPeriod, tempSch);
+                
+                if(success) {
+                    scheduled++;
+                    debugLog(`    ✅ 已放置: ${pos.day} ${pos.startPeriod} 开始`, "success");
+                } else {
+                    debugLog(`    ❌ 放置失败`, "error");
+                    break;
+                }
+            }
+        }
+        return scheduled;
+    }
+    
+    // ========== 跨班连排 ==========
+    function getCrossClassOpportunitiesForHours(tempSch, isHigh) {
+        let teacherCourseMap = new Map();
+        for(let classId of selectedClassIds) {
+            let classPlans = plans.filter(p => p.classId == classId);
+            for(let plan of classPlans) {
+                if((isHigh && !isHighHourCourse(plan.hoursPerWeek)) || (!isHigh && !isLowHourCourse(plan.hoursPerWeek))) continue;
+                let remaining = getRemainingHours(classId, plan.courseId, tempSch);
+                if(remaining <= 0) continue;
+                let key = `${plan.teacherId}_${plan.courseId}`;
+                if(!teacherCourseMap.has(key)) {
+                    teacherCourseMap.set(key, {
+                        teacherId: plan.teacherId,
+                        teacherName: getTeacherName(plan.teacherId),
+                        courseId: plan.courseId,
+                        courseName: getCourseName(plan.courseId),
+                        classList: [],
+                        maxHours: plan.hoursPerWeek
+                    });
+                }
+                teacherCourseMap.get(key).classList.push(classId);
+            }
+        }
+        let opportunities = [];
+        for(let opp of teacherCourseMap.values()) {
+            if(opp.classList.length >= 2) opportunities.push(opp);
+        }
+        opportunities.sort((a, b) => b.maxHours - a.maxHours);
+        return opportunities;
+    }
+    
+    async function tryCrossClassBlock(opportunity, tempSch) {
+        let teacherId = opportunity.teacherId;
+        let courseId = opportunity.courseId;
+        let classes = opportunity.classList;
+        let allowedPairs = getAllowedConsecutivePairs();
+        if(allowedPairs.length === 0) return false;
+        let shuffledClasses = shuffleArray([...classes]);
+        
+        for(let pair of allowedPairs) {
+            let period1 = pair[0], period2 = pair[1];
+            let days = shuffleArray([...weekdays]);
+            for(let day of days) {
+                for(let i = 0; i < shuffledClasses.length; i++) {
+                    for(let j = i+1; j < shuffledClasses.length; j++) {
+                        let cls1 = shuffledClasses[i];
+                        let cls2 = shuffledClasses[j];
+                        let remaining1 = getRemainingHours(cls1, courseId, tempSch);
+                        let remaining2 = getRemainingHours(cls2, courseId, tempSch);
+                        if(remaining1 <= 0 || remaining2 <= 0) continue;
+                        if(isTimeAvailable(cls1, teacherId, courseId, day, period1, tempSch) &&
+                           isTimeAvailable(cls2, teacherId, courseId, day, period2, tempSch)) {
+                            addLesson(cls1, teacherId, courseId, day, period1, tempSch);
+                            addLesson(cls2, teacherId, courseId, day, period2, tempSch);
+                            return true;
+                        }
+                        if(isTimeAvailable(cls1, teacherId, courseId, day, period2, tempSch) &&
+                           isTimeAvailable(cls2, teacherId, courseId, day, period1, tempSch)) {
+                            addLesson(cls1, teacherId, courseId, day, period2, tempSch);
+                            addLesson(cls2, teacherId, courseId, day, period1, tempSch);
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+    
+    // ========== 评分函数 ==========
+    function getTeacherDailyCount(teacherId, day, tempSch) {
+        let count = 0;
+        for(let cid in tempSch) {
+            let sch = tempSch[cid];
+            for(let key in sch) if(key.startsWith(day) && sch[key].teacherId == teacherId) count++;
+        }
+        return count;
+    }
+    
+    function getClassDailyCount(classId, day, tempSch) {
+        let sch = tempSch[classId] || {};
+        let count = 0;
+        for(let period of periods) if(sch[day + "-" + period]) count++;
+        return count;
+    }
+    
+    function findBestSlot(classId, teacherId, courseId, tempSch) {
+        let bestSlot = null;
+        let bestScore = -Infinity;
+        let plan = getPlan(classId, courseId);
+        let isMainCourse = plan && plan.type === "主课";
+        
+        for(let day of weekdays) {
+            for(let period of periods) {
+                if(!isTimeAvailable(classId, teacherId, courseId, day, period, tempSch)) continue;
+                let score = 0;
+                let periodIndex = periods.indexOf(period);
+                let teacherTodayCount = getTeacherDailyCount(teacherId, day, tempSch);
+                let classTodayCount = getClassDailyCount(classId, day, tempSch);
+                score += (6 - teacherTodayCount) * 15;
+                score += (6 - classTodayCount) * 10;
+                if(periodIndex >= 2 && periodIndex <= 3) score += 15;
+                if(periodIndex === 0 || periodIndex === periods.length - 1) score -= 5;
+                if(isMainCourse && periodIndex <= 3) score += 10;
+                let schedule = tempSch[classId] || {};
+                for(let otherDay of weekdays) {
+                    if(otherDay === day) continue;
+                    let otherKey = otherDay + "-" + period;
+                    if(schedule[otherKey] && schedule[otherKey].courseId === courseId) score -= 15;
+                }
+                let todayCount = 0;
+                for(let p of periods) {
+                    let key = day + "-" + p;
+                    if(schedule[key] && schedule[key].courseId === courseId) todayCount++;
+                }
+                if(todayCount >= 2) score -= 20;
+                if(score > bestScore) { bestScore = score; bestSlot = { day, period }; }
+            }
+        }
+        return bestSlot;
+    }
+    
+    // ========== 课程处理通用函数 ==========
+    async function processCoursesByHour(tempSch, isHighHour, rounds = 30) {
+        let coursesProcessed = new Set();
+        for(let plan of plans) {
+            if(!selectedClassIds.includes(plan.classId)) continue;
+            if(isHighHour && !isHighHourCourse(plan.hoursPerWeek)) continue;
+            if(!isHighHour && !isLowHourCourse(plan.hoursPerWeek)) continue;
+            coursesProcessed.add(plan.courseId);
+        }
+        let courseList = Array.from(coursesProcessed);
+        if(courseList.length === 0) return 0;
+        
+        let bestSchedule = null;
+        let bestMissing = Infinity;
+        let baseSchedule = JSON.parse(JSON.stringify(tempSch));
+        
+        for(let round = 0; round < rounds; round++) {
+            let roundSchedule = JSON.parse(JSON.stringify(baseSchedule));
+            
+            // 跨班连排
+            let opportunities = getCrossClassOpportunitiesForHours(roundSchedule, isHighHour);
+            for(let opp of shuffleArray(opportunities)) {
+                await tryCrossClassBlock(opp, roundSchedule);
+            }
+            
+            // 班内连排
+            await scheduleClassConsecutiveBlocks(roundSchedule);
+            
+            // 单节排课
+            let singleTasks = [];
+            for(let classId of selectedClassIds) {
+                let classPlans = plans.filter(p => p.classId == classId);
+                for(let plan of classPlans) {
+                    let isConsecutive = plan.consecutiveEnabled && plan.consecutiveCount > 0;
+                    if(isConsecutive) continue;
+                    if(isHighHour && !isHighHourCourse(plan.hoursPerWeek)) continue;
+                    if(!isHighHour && !isLowHourCourse(plan.hoursPerWeek)) continue;
+                    let remaining = getRemainingHours(classId, plan.courseId, roundSchedule);
+                    if(remaining > 0) singleTasks.push({ classId, courseId: plan.courseId, teacherId: plan.teacherId, remaining: remaining, hours: plan.hoursPerWeek, isMain: plan.type === "主课" });
+                }
+            }
+            singleTasks.sort((a, b) => { if(a.isMain !== b.isMain) return a.isMain ? -1 : 1; return b.hours - a.hours; });
+            for(let task of shuffleArray(singleTasks)) {
+                let remaining = getRemainingHours(task.classId, task.courseId, roundSchedule);
+                for(let i = 0; i < remaining; i++) {
+                    let slot = findBestSlot(task.classId, task.teacherId, task.courseId, roundSchedule);
+                    if(slot) addLesson(task.classId, task.teacherId, task.courseId, slot.day, slot.period, roundSchedule);
+                }
+            }
+            
+            let missing = calculateTotalMissing(roundSchedule);
+            if(missing < bestMissing) { bestMissing = missing; bestSchedule = JSON.parse(JSON.stringify(roundSchedule)); }
+        }
+        if(bestSchedule) Object.assign(tempSch, bestSchedule);
+        return bestMissing;
+    }
+    
+    // ========== 回溯排课 ==========
+    function getAllEmptySlots(classId, tempSch) {
+        let schedule = tempSch[classId] || {};
+        let empty = [];
+        for(let day of weekdays) {
+            for(let period of periods) {
+                let key = day + "-" + period;
+                if(!schedule[key] && !isLocked(classId, key)) empty.push(key);
+            }
+        }
+        return shuffleArray(empty);
+    }
+    
+    function getMissingTasksForClass(classId, tempSch) {
+        let classPlans = plans.filter(p => p.classId == classId);
+        let tasks = [];
+        for(let plan of classPlans) {
+            let remaining = getRemainingHours(classId, plan.courseId, tempSch);
+            if(remaining <= 0) continue;
+            tasks.push({ courseId: plan.courseId, teacherId: plan.teacherId, isConsecutive: plan.consecutiveEnabled && plan.consecutiveCount > 0, size: plan.consecutiveSize || 2 });
+        }
+        return tasks;
+    }
+    
+    function getMovableToEmpty(classId, emptyKey, tempSch) {
+        let movable = new Set();
+        let schedule = tempSch[classId] || {};
+        let [emptyDay, emptyPeriod] = emptyKey.split("-");
+        for(let key in schedule) {
+            if(key === emptyKey) continue;
+            let lesson = schedule[key];
+            if(!lesson) continue;
+            let [day, period] = key.split("-");
+            if(isClassConsecutive(classId, day, period, tempSch)) continue;
+            if(isLocked(classId, key)) continue;
+            if(isTimeAvailable(classId, lesson.teacherId, lesson.courseId, emptyDay, emptyPeriod, tempSch)) movable.add(key);
+        }
+        return movable;
+    }
+    
+    function getPlaceableForMissing(classId, missingTask, tempSch) {
+        let placeable = new Set();
+        let schedule = tempSch[classId] || {};
+        let teacherId = missingTask.teacherId;
+        let courseId = missingTask.courseId;
+        for(let day of weekdays) {
+            for(let period of periods) {
+                let key = day + "-" + period;
+                if(!schedule[key] && !isLocked(classId, key) && isTimeAvailable(classId, teacherId, courseId, day, period, tempSch)) placeable.add(key);
+            }
+        }
+        for(let key in schedule) {
+            let lesson = schedule[key];
+            if(!lesson) continue;
+            if(lesson.courseId === courseId) continue;
+            let [day, period] = key.split("-");
+            if(isClassConsecutive(classId, day, period, tempSch)) continue;
+            if(isLocked(classId, key)) continue;
+            if(isTimeAvailable(classId, teacherId, courseId, day, period, tempSch)) {
+                for(let emptyDay of weekdays) {
+                    for(let emptyPeriod of periods) {
+                        let emptyKey = emptyDay + "-" + emptyPeriod;
+                        if(!schedule[emptyKey] && !isLocked(classId, emptyKey) && isTimeAvailable(classId, lesson.teacherId, lesson.courseId, emptyDay, emptyPeriod, tempSch)) {
+                            placeable.add(key); break;
+                        }
+                    }
+                }
+            }
+        }
+        return placeable;
+    }
+    
+    function executeSwap(classId, targetKey, emptyKey, missingTask, tempSch) {
+        let schedule = tempSch[classId] || {};
+        let targetLesson = schedule[targetKey];
+        let [targetDay, targetPeriod] = targetKey.split("-");
+        let [emptyDay, emptyPeriod] = emptyKey.split("-");
+        if(targetLesson) {
+            removeLesson(classId, targetDay, targetPeriod, tempSch);
+            addLesson(classId, targetLesson.teacherId, targetLesson.courseId, emptyDay, emptyPeriod, tempSch);
+        }
+        if(missingTask.isConsecutive) {
+            let startIdx = periods.indexOf(targetPeriod);
+            for(let i = 0; i < missingTask.size; i++) addLesson(classId, missingTask.teacherId, missingTask.courseId, targetDay, periods[startIdx + i], tempSch);
+        } else {
+            addLesson(classId, missingTask.teacherId, missingTask.courseId, targetDay, targetPeriod, tempSch);
+        }
+        return true;
+    }
+    
+    async function tryFixWithDepth(classId, emptyKey, missingTask, tempSch, depth) {
+        if(depth === 0) return false;
+        let [emptyDay, emptyPeriod] = emptyKey.split("-");
+        if(isTimeAvailable(classId, missingTask.teacherId, missingTask.courseId, emptyDay, emptyPeriod, tempSch)) {
+            addLesson(classId, missingTask.teacherId, missingTask.courseId, emptyDay, emptyPeriod, tempSch);
+            return true;
+        }
+        let setA = getMovableToEmpty(classId, emptyKey, tempSch);
+        let setB = getPlaceableForMissing(classId, missingTask, tempSch);
+        for(let pos of setA) if(setB.has(pos)) { executeSwap(classId, pos, emptyKey, missingTask, tempSch); return true; }
+        for(let moveKey of setA) {
+            let moveLesson = tempSch[classId][moveKey];
+            if(!moveLesson) continue;
+            let [moveDay, movePeriod] = moveKey.split("-");
+            removeLesson(classId, moveDay, movePeriod, tempSch);
+            addLesson(classId, moveLesson.teacherId, moveLesson.courseId, emptyDay, emptyPeriod, tempSch);
+            let success = await tryFixWithDepth(classId, moveKey, missingTask, tempSch, depth - 1);
+            if(success) return true;
+            removeLesson(classId, emptyDay, emptyPeriod, tempSch);
+            addLesson(classId, moveLesson.teacherId, moveLesson.courseId, moveDay, movePeriod, tempSch);
+        }
+        return false;
+    }
+    
+    async function tryBacktrackForClass(classId, tempSch, maxDepth) {
+        let fixed = 0;
+        for(let iter = 0; iter < 20; iter++) {
+            let missingTasks = getMissingTasksForClass(classId, tempSch);
+            if(missingTasks.length === 0) break;
+            let emptySlots = getAllEmptySlots(classId, tempSch);
+            if(emptySlots.length === 0) break;
+            let anyFixed = false;
+            for(let emptyKey of emptySlots) {
+                for(let task of missingTasks) {
+                    let success = await tryFixWithDepth(classId, emptyKey, task, tempSch, maxDepth);
+                    if(success) { fixed++; anyFixed = true; break; }
+                }
+                if(anyFixed) break;
+            }
+            if(!anyFixed) break;
+        }
+        return fixed;
+    }
+    
+    // ========== 按钮功能 ==========
+    async function step1_HighHour() {
+        debugLog(`========== 高课时课程处理开始（30轮） ==========`);
+        let beforeMissing = calculateTotalMissing(currentTemp);
+        await processCoursesByHour(currentTemp, true, 30);
+        let afterMissing = calculateTotalMissing(currentTemp);
+        debugLog(`========== 高课时课程处理完成，未排课时：${beforeMissing} → ${afterMissing} ==========`, "success");
+        renderUnfinishedPanel();
+    }
+    
+    async function step2_LowHour() {
+        debugLog(`========== 低课时课程处理开始（30轮） ==========`);
+        let beforeMissing = calculateTotalMissing(currentTemp);
+        await processCoursesByHour(currentTemp, false, 30);
+        let afterMissing = calculateTotalMissing(currentTemp);
+        debugLog(`========== 低课时课程处理完成，未排课时：${beforeMissing} → ${afterMissing} ==========`, "success");
+        renderUnfinishedPanel();
+    }
+    
+    async function step3_Backtrack() {
+        debugLog(`========== 回溯排课开始 ==========`);
+        let depth = getBacktrackDepth();
+        debugLog(`回溯深度：${depth}`);
+        let beforeMissing = calculateTotalMissing(currentTemp);
+        let totalFixed = 0;
+        for(let classId of selectedClassIds) {
+            let fixed = await tryBacktrackForClass(classId, currentTemp, depth);
+            if(fixed > 0) { debugLog(`${getClassName(classId)}: 优化了 ${fixed} 节课`, "success"); totalFixed += fixed; }
+        }
+        let afterMissing = calculateTotalMissing(currentTemp);
+        debugLog(`========== 回溯排课完成，共优化 ${totalFixed} 节，未排课时：${beforeMissing} → ${afterMissing} ==========`, "success");
+        renderUnfinishedPanel();
+    }
+    
+    async function fullAutoSchedule() {
+        if(selectedClassIds.length === 0) { showToast("请先选择要排课的班级", true); return; }
+        if(isRunning) return;
+        isRunning = true;
+        document.getElementById("progressArea").style.display = "block";
+        document.getElementById("autoScheduleBtn").disabled = true;
+        
+        loadLockedLessons();
+        let rounds = parseInt(document.getElementById("roundsInput").value) || 40;
+        if(rounds < 10) rounds = 10;
+        if(rounds > 100) rounds = 100;
+        let depth = getBacktrackDepth();
+        
+        let bestSchedule = null;
+        let bestMissing = Infinity;
+        
+        for(let round = 0; round < rounds; round++) {
+            let roundSchedule = JSON.parse(JSON.stringify(currentTemp));
+            preserveLockedInTemp(roundSchedule);
+            
+            await processCoursesByHour(roundSchedule, true, 1);
+            await processCoursesByHour(roundSchedule, false, 1);
+            
+            for(let classId of selectedClassIds) {
+                await tryBacktrackForClass(classId, roundSchedule, depth);
+            }
+            
+            let missing = calculateTotalMissing(roundSchedule);
+            if(missing < bestMissing) { bestMissing = missing; bestSchedule = JSON.parse(JSON.stringify(roundSchedule)); }
+            
+            let percent = ((round + 1) / rounds) * 100;
+            document.getElementById("progressFill").style.width = percent + "%";
+            document.getElementById("progressText").innerHTML = `优化轮次 ${round+1}/${rounds}，未排课时：${missing}`;
+            await new Promise(r => setTimeout(r, 5));
+        }
+        
+        currentTemp = bestSchedule;
+        schedules = bestSchedule;
+        saveSchedules();
+        
+        document.getElementById("progressFill").style.width = "100%";
+        document.getElementById("progressText").innerHTML = "全自动排课完成！";
+        setTimeout(() => {
+            document.getElementById("progressArea").style.display = "none";
+            document.getElementById("autoScheduleBtn").disabled = false;
+            isRunning = false;
+            renderUnfinishedPanel();
+            showToast("全自动排课完成");
+        }, 800);
+    }
+    
+    function resetSchedule() {
+        currentTemp = {};
+        for(let classId of selectedClassIds) currentTemp[classId] = {};
+        preserveLockedInTemp(currentTemp);
+        debugLog("课表已重置（锁定课程已保留）", "success");
+        renderUnfinishedPanel();
+    }
+    
+    function saveSchedules() { localStorage.setItem(SCHEDULES_KEY, JSON.stringify(schedules)); }
+    function loadCurrentTemp() { currentTemp = JSON.parse(JSON.stringify(schedules)); for(let id of selectedClassIds) if(!currentTemp[id]) currentTemp[id] = {}; loadLockedLessons(); preserveLockedInTemp(currentTemp); }
+    
+    function renderClassSelector() {
+        let container = document.getElementById("classSelector");
+        container.innerHTML = '';
+        for(let cls of classes) {
+            let isChecked = selectedClassIds.includes(cls.id);
+            let label = document.createElement("label");
+            label.className = "class-check";
+            label.innerHTML = '<input type="checkbox" value="' + cls.id + '" ' + (isChecked ? 'checked' : '') + '> ' + escapeHtml(cls.name);
+            label.querySelector('input').onchange = (function(id) { return function(e) {
+                if(e.target.checked) { if(!selectedClassIds.includes(id)) selectedClassIds.push(id); }
+                else { selectedClassIds = selectedClassIds.filter(i => i !== id); }
+                loadCurrentTemp();
+                renderUnfinishedPanel();
+            }; })(cls.id);
+            container.appendChild(label);
+        }
+        loadCurrentTemp();
+    }
+    
+    function renderUnfinishedPanel() {
+        let missingClasses = [];
+        for(let cid of selectedClassIds) {
+            let stats = getClassTotalStats(cid, currentTemp);
+            if(stats.missing > 0) missingClasses.push({ id: cid, name: getClassName(cid), missing: stats.missing });
+        }
+        let card = document.getElementById("unfinishedCard");
+        if(missingClasses.length === 0) { card.style.display = "none"; selectedUnfinishedClassIds = []; return; }
+        card.style.display = "block";
+        let container = document.getElementById("unfinishedClassList");
+        container.innerHTML = "";
+        for(let cls of missingClasses) {
+            let isSelected = selectedUnfinishedClassIds.includes(cls.id);
+            let div = document.createElement("div");
+            div.className = "unfinished-class-item" + (isSelected ? " selected" : "");
+            div.innerHTML = `<input type="checkbox" class="unfinished-checkbox" data-id="${cls.id}" ${isSelected ? 'checked' : ''}><span class="class-name">${escapeHtml(cls.name)}</span><span class="missing-count">缺 ${cls.missing} 节</span>`;
+            let checkbox = div.querySelector('.unfinished-checkbox');
+            checkbox.onchange = (function(id) { return function(e) { e.stopPropagation(); if(e.target.checked) { if(!selectedUnfinishedClassIds.includes(id)) selectedUnfinishedClassIds.push(id); } else { selectedUnfinishedClassIds = selectedUnfinishedClassIds.filter(i => i !== id); } renderUnfinishedPanel(); }; })(cls.id);
+            div.addEventListener("click", (function(id) { return function(e) { if(e.target.type !== 'checkbox') { window.location.href = "05-手动调课.html?classId=" + id; } }; })(cls.id));
+            container.appendChild(div);
+        }
+    }
+    
+    function selectAllUnfinished() {
+        let missing = [];
+        for(let cid of selectedClassIds) if(getClassTotalStats(cid, currentTemp).missing > 0) missing.push(cid);
+        selectedUnfinishedClassIds = missing;
+        renderUnfinishedPanel();
+    }
+    
+    function deselectAllUnfinished() { selectedUnfinishedClassIds = []; renderUnfinishedPanel(); showToast("已取消全选"); }
+    function selectAllClasses() { selectedClassIds = classes.map(c => c.id); renderClassSelector(); renderUnfinishedPanel(); }
+    function clearAllClasses() { selectedClassIds = []; renderClassSelector(); renderUnfinishedPanel(); }
+    function clearSelectedSchedules() { if(selectedClassIds.length === 0) { showToast("请先选择班级", true); return; } if(confirm("清空所选班级课表？")) { for(let id of selectedClassIds) { delete schedules[id]; if(currentTemp) delete currentTemp[id]; } saveSchedules(); renderUnfinishedPanel(); showToast("已清空"); } }
+    function clearSelectedUnfinishedSchedules() { if(selectedUnfinishedClassIds.length === 0) { showToast("请先勾选班级", true); return; } if(confirm(`清空 ${selectedUnfinishedClassIds.length} 个班级课表？`)) { for(let id of selectedUnfinishedClassIds) { delete schedules[id]; if(currentTemp) delete currentTemp[id]; } saveSchedules(); renderUnfinishedPanel(); showToast("已清空"); } }
+    async function retryAutoForUnfinished() { if(selectedUnfinishedClassIds.length === 0) { showToast("请先勾选班级", true); return; } let temp = JSON.parse(JSON.stringify(schedules)); for(let id of selectedUnfinishedClassIds) delete temp[id]; currentTemp = temp; preserveLockedInTemp(currentTemp); await fullAutoSchedule(); }
+    async function backtrackForUnfinished() { if(selectedUnfinishedClassIds.length === 0) { showToast("请先勾选班级", true); return; } let depth = getBacktrackDepth(); for(let id of selectedUnfinishedClassIds) { await tryBacktrackForClass(id, currentTemp, depth); } schedules = currentTemp; saveSchedules(); renderUnfinishedPanel(); showToast("回溯排课完成"); }
+    
+    function exportResult() {
+        if(selectedClassIds.length === 0) { showToast("请先选择班级", true); return; }
+        let headers = ["班级"];
+        for(let day of weekdays) for(let period of periods) headers.push(`${day}\n${period}`);
+        let data = [headers];
+        for(let cid of selectedClassIds) {
+            let row = [getClassName(cid)];
+            let schedule = currentTemp[cid] || {};
+            for(let day of weekdays) {
+                for(let period of periods) {
+                    let key = day + "-" + period;
+                    let lesson = schedule[key];
+                    if(lesson) {
+                        let plan = getPlan(cid, lesson.courseId);
+                        let mark = (plan && plan.consecutiveEnabled && plan.consecutiveCount > 0) ? "🔗" : "";
+                        let lockMark = lesson.locked ? " 🔒" : "";
+                        row.push(`${lesson.courseName}${mark}${lockMark}\n${lesson.teacherName}`);
+                    } else row.push("空闲");
+                }
+            }
+            data.push(row);
+        }
+        let ws = XLSX.utils.aoa_to_sheet(data);
+        ws['!cols'] = [{wch:14}];
+        for(let i = 0; i < headers.length - 1; i++) ws['!cols'].push({wch:14});
+        let wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "排课表");
+        XLSX.writeFile(wb, `排课表_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.xlsx`);
+        showToast("导出成功");
+    }
+    
+    function manualAdjust() { window.location.href = "05-手动调课.html"; }
+    function showToast(msg, isErr) { let t = document.createElement("div"); t.className = "toast" + (isErr ? " error" : ""); t.innerText = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2000); }
+    
+    function debugLog(message, type = "info") {
+        let output = document.getElementById("debugOutput");
+        let time = new Date().toLocaleTimeString();
+        let colorClass = type === "error" ? "log-error" : (type === "success" ? "log-success" : "log-info");
+        let div = document.createElement("div");
+        div.innerHTML = `<span class="log-time">[${time}]</span> <span class="${colorClass}">${message}</span>`;
+        output.appendChild(div);
+        div.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        if(output.children.length > 200) output.removeChild(output.children[0]);
+    }
+    
+    // ========== 初始化 ==========
+    function initPeriodGroups() {
+        let sc = localStorage.getItem(SCHEDULE_CONFIG_KEY);
+        let morningCount = 4, afternoonCount = 2;
+        if(sc) { try { let config = JSON.parse(sc); morningCount = config.morningPeriods || 4; afternoonCount = config.afternoonPeriods || 2; weekdays = config.selectedWeekdays || ["星期一","星期二","星期三","星期四","星期五"]; } catch(e) {} }
+        periods = [];
+        for(let i = 1; i <= morningCount + afternoonCount; i++) periods.push("第" + i + "节");
+        morningPeriodsList = []; afternoonPeriodsList = [];
+        for(let i = 1; i <= morningCount; i++) morningPeriodsList.push("第" + i + "节");
+        for(let i = 1; i <= afternoonCount; i++) afternoonPeriodsList.push("第" + (morningCount + i) + "节");
+    }
+    
+    function loadAllData() {
+        initPeriodGroups();
+        
+        let rulesData = localStorage.getItem(RULES_KEY);
+        if(rulesData) {
+            try { let r = JSON.parse(rulesData);
+                teacherDailyLimits = r.teacherDailyLimits || [];
+                teacherPeriodLimits = r.teacherPeriodLimits || [];
+                teacherFreeTimes = r.teacherFreeTimes || [];
+                groupFreeTimes = r.groupFreeTimes || [];
+                schoolFreeTimes = r.schoolFreeTimes || [];
+                courseCannotTimes = r.courseCannotTimes || [];
+                courseMustTimes = r.courseMustTimes || [];
+                courseMutexGroups = r.courseMutexGroups || [];
+                dailyCourseLimit = r.dailyCourseLimit ?? true;
+            } catch(e) {}
+        }
+        
+        loadConsecutiveRules();
+        
+        let teacherGroupsData = localStorage.getItem("pk_teacherGroups");
+        if(teacherGroupsData) try { teacherGroups = JSON.parse(teacherGroupsData); } catch(e) {}
+        
+        plans = JSON.parse(localStorage.getItem(PLANS_KEY) || "[]");
+        classes = JSON.parse(localStorage.getItem(CLASSES_KEY) || "[]");
+        courses = JSON.parse(localStorage.getItem(COURSES_KEY) || "[]");
+        teachers = JSON.parse(localStorage.getItem(TEACHERS_KEY) || "[]");
+        schedules = JSON.parse(localStorage.getItem(SCHEDULES_KEY) || "{}");
+        if(selectedClassIds.length === 0 && classes.length > 0) selectedClassIds = classes.slice(0, Math.min(3, classes.length)).map(c => c.id);
+        renderClassSelector();
+        renderUnfinishedPanel();
+    }
+    
+    function goBack() { window.open("02-目录.html", "mainDirectory"); window.close(); }
+    function logout() { localStorage.removeItem("currentUser"); window.location.href = "01-登录.html"; }
+    function displayCurrentUser() {
+        let user = localStorage.getItem("currentUser");
+        if(user) { try { let u = JSON.parse(user); document.getElementById("userNameDisplay").innerText = u.name + " (" + u.roleName + ")"; } catch(e) {} }
+        else { window.location.href = "01-登录.html"; }
+    }
+    
+    function init() {
+        displayCurrentUser();
+        loadAllData();
+        document.getElementById("selectAllBtn").onclick = selectAllClasses;
+        document.getElementById("clearAllBtn").onclick = clearAllClasses;
+        document.getElementById("autoScheduleBtn").onclick = fullAutoSchedule;
+        document.getElementById("manualAdjustBtn").onclick = manualAdjust;
+        document.getElementById("clearScheduleBtn").onclick = clearSelectedSchedules;
+        document.getElementById("exportResultBtn").onclick = exportResult;
+        document.getElementById("backBtn").onclick = goBack;
+        document.getElementById("logoutBtn").onclick = logout;
+        document.getElementById("selectAllUnfinishedBtn").onclick = selectAllUnfinished;
+        document.getElementById("deselectAllUnfinishedBtn").onclick = deselectAllUnfinished;
+        document.getElementById("retryAutoBtn").onclick = retryAutoForUnfinished;
+        document.getElementById("backtrackBtn").onclick = backtrackForUnfinished;
+        document.getElementById("clearUnfinishedSelectedBtn").onclick = clearSelectedUnfinishedSchedules;
+        document.getElementById("step1Btn").onclick = step1_HighHour;
+        document.getElementById("step2Btn").onclick = step2_LowHour;
+        document.getElementById("step3Btn").onclick = step3_Backtrack;
+        document.getElementById("resetScheduleBtn").onclick = resetSchedule;
+    }
+    init();
+</script>
+</body>
+</html>
