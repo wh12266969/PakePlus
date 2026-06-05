@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教学计划矩阵 - 智能排课系统</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card h3 {
+            color: #1e3c72;
+            margin-top: 0;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #1e3c72;
+            padding-bottom: 8px;
+        }
+        
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            background: #1e3c72;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn:hover { background: #2b4c7c; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-warning { background: #ffc107; color: #333; }
+        .btn-warning:hover { background: #e0a800; }
+        .btn-info { background: #17a2b8; }
+        .btn-info:hover { background: #138496; }
+        
+        .matrix-wrapper {
+            overflow-x: auto;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        .matrix-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        .matrix-table th, .matrix-table td {
+            border: 1px solid #ddd;
+            padding: 6px 4px;
+            text-align: center;
+            vertical-align: middle;
+            min-width: 80px;
+        }
+        .matrix-table th {
+            background: #1e3c72;
+            color: white;
+            font-weight: normal;
+        }
+        .matrix-table .group-header {
+            background: #2b4c7c;
+        }
+        .matrix-table .class-name-cell {
+            background: #f5f5f5;
+            font-weight: bold;
+            position: sticky;
+            left: 0;
+            z-index: 1;
+        }
+        .matrix-table .clickable-cell {
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+        }
+        .matrix-table .clickable-cell:hover {
+            background: #e8f4fd;
+        }
+        .matrix-table .hours-input {
+            width: 50px;
+            text-align: center;
+            border: 1px solid #1e3c72;
+            border-radius: 4px;
+            padding: 2px;
+        }
+        
+        .summary-complete { color: #28a745; font-weight: bold; }
+        .summary-warning { color: #ffc107; font-weight: bold; }
+        .summary-exceed { color: #dc3545; font-weight: bold; }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            width: 400px;
+            max-width: 90%;
+        }
+        .modal-content h4 {
+            margin-top: 0;
+            color: #1e3c72;
+        }
+        .modal-content input {
+            width: 100%;
+            padding: 8px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .modal-content .list-container {
+            max-height: 250px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+        .list-item {
+            padding: 8px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+        }
+        .list-item:hover {
+            background: #e8f4fd;
+        }
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 2000;
+            animation: fadeOut 2s ease-in-out;
+        }
+        .toast.error { background: #dc3545; }
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; visibility: hidden; }
+        }
+        
+        .data-warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: #856404;
+        }
+        
+        @media print {
+            body { background: white; margin: 0; padding: 0; }
+            .no-print { display: none !important; }
+            .matrix-table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+            .matrix-table th, .matrix-table td { border: 1px solid #000; padding: 4px 2px; text-align: center; vertical-align: middle; }
+            @page { size: A4 landscape; margin: 0.5cm; }
+        }
+    </style>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <div class="card no-print">
+        <h3>📊 教学计划矩阵</h3>
+        
+        <div class="toolbar">
+            <button id="saveBtn" class="btn btn-success">💾 保存到教学计划</button>
+            <button id="syncTeacherBtn" class="btn btn-info">🔄 同步班主任</button>
+            <button id="printBtn" class="btn btn-info">🖨️ 打印</button>
+            <button id="exportBtn" class="btn">📄 导出Excel</button>
+            <button id="initDemoBtn" class="btn btn-warning">📋 初始化演示数据</button>
+        </div>
+    </div>
+
+    <div class="card" id="matrixCard">
+        <div id="matrixContainer" class="matrix-wrapper">
+            <div style="text-align:center; padding:40px; color:#999;">加载中...</div>
+        </div>
+    </div>
+</div>
+
+<!-- 班主任选择模态框 -->
+<div id="teacherModal" class="modal">
+    <div class="modal-content">
+        <h4 id="teacherModalTitle">选择班主任</h4>
+        <input type="text" id="teacherSearch" placeholder="🔍 搜索教师...">
+        <div id="teacherList" class="list-container"></div>
+        <div class="modal-buttons">
+            <button id="cancelTeacherBtn" class="btn" style="background:#6c757d;">取消</button>
+        </div>
+    </div>
+</div>
+
+<!-- 任课教师选择模态框 -->
+<div id="courseTeacherModal" class="modal">
+    <div class="modal-content">
+        <h4 id="courseTeacherModalTitle">选择教师</h4>
+        <input type="text" id="courseTeacherSearch" placeholder="🔍 搜索教师...">
+        <div id="courseTeacherList" class="list-container"></div>
+        <div class="modal-buttons">
+            <button id="cancelCourseTeacherBtn" class="btn" style="background:#6c757d;">取消</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const CATEGORY_KEY = "pk_categories";
+    const CLASSES_KEY = "pk_classes";
+    const COURSES_KEY = "pk_courses";
+    const TEACHERS_KEY = "pk_teachers";
+    const PLANS_KEY = "pk_plans";
+    const SCHEDULE_CONFIG_KEY = "pk_scheduleConfig";
+    
+    let categories = [];
+    let classes = [];
+    let courses = [];
+    let teachers = [];
+    let plans = [];
+    let scheduleConfig = { weekDays: 5, dayPeriods: 6 };
+    let matrixData = {};
+    let currentCell = { classId: null, courseId: null, courseName: null };
+    
+    function showToast(msg, isErr) {
+        let t = document.createElement("div");
+        t.className = "toast" + (isErr ? " error" : "");
+        t.innerText = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 2000);
+    }
+    
+    function loadAllData() {
+        let sc = localStorage.getItem(SCHEDULE_CONFIG_KEY);
+        if (sc) {
+            try {
+                let parsed = JSON.parse(sc);
+                scheduleConfig = parsed;
+            } catch(e) {}
+        }
+        
+        let cat = localStorage.getItem(CATEGORY_KEY);
+        if (cat) categories = JSON.parse(cat);
+        else categories = [];
+        
+        let cls = localStorage.getItem(CLASSES_KEY);
+        if (cls) classes = JSON.parse(cls);
+        else classes = [];
+        
+        let cs = localStorage.getItem(COURSES_KEY);
+        if (cs) courses = JSON.parse(cs);
+        else courses = [];
+        
+        let t = localStorage.getItem(TEACHERS_KEY);
+        if (t) teachers = JSON.parse(t);
+        else teachers = [];
+        
+        let p = localStorage.getItem(PLANS_KEY);
+        if (p) plans = JSON.parse(p);
+        else plans = [];
+        
+        console.log("加载数据：", { categories: categories.length, classes: classes.length, courses: courses.length, teachers: teachers.length, plans: plans.length });
+        
+        if (categories.length === 0 && classes.length === 0) {
+            document.getElementById("matrixContainer").innerHTML = `
+                <div class="data-warning">
+                    <strong>⚠️ 暂无数据</strong><br><br>
+                    请先在基础数据中添加数据，或点击「初始化演示数据」<br><br>
+                    <button id="initDemoBtnInline" class="btn btn-warning">📋 初始化演示数据</button>
+                </div>
+            `;
+            let inlineBtn = document.getElementById("initDemoBtnInline");
+            if (inlineBtn) inlineBtn.onclick = () => initDemoData();
+            return;
+        }
+        
+        initMatrixData();
+        renderMatrix();
+    }
+    
+    function initMatrixData() {
+        matrixData = {};
+        for (let cls of classes) {
+            matrixData[cls.id] = {};
+            let category = categories.find(c => c.id == cls.categoryId);
+            let courseIds = category ? (category.courseIds || []) : [];
+            for (let courseId of courseIds) {
+                let plan = plans.find(p => p.classId == cls.id && p.courseId == courseId);
+                matrixData[cls.id][courseId] = {
+                    teacherId: plan ? plan.teacherId : null,
+                    hours: plan ? plan.hoursPerWeek : 4
+                };
+            }
+        }
+    }
+    
+    function getTotalPeriods() {
+        return (scheduleConfig.weekDays || 5) * (scheduleConfig.dayPeriods || 6);
+    }
+    
+    function getClassTotalHours(classId) {
+        let total = 0;
+        let data = matrixData[classId] || {};
+        for (let courseId in data) {
+            total += data[courseId].hours || 0;
+        }
+        return total;
+    }
+    
+    function getTeacherHours(teacherId) {
+        let total = 0;
+        for (let classId in matrixData) {
+            for (let courseId in matrixData[classId]) {
+                if (matrixData[classId][courseId].teacherId == teacherId) {
+                    total += matrixData[classId][courseId].hours || 0;
+                }
+            }
+        }
+        return total;
+    }
+    
+    function getTeachersByCourse(courseId) {
+        let course = courses.find(c => c.id == courseId);
+        if (!course) return [];
+        return teachers.filter(t => t.courseIds && t.courseIds.includes(courseId));
+    }
+    
+    function getCourseName(courseId) {
+        let course = courses.find(c => c.id == courseId);
+        return course ? course.name : "未知课程";
+    }
+    
+    function getTeacherName(teacherId) {
+        let teacher = teachers.find(t => t.id == teacherId);
+        return teacher ? teacher.name : "未选择";
+    }
+    
+    function getClassName(classId) {
+        let cls = classes.find(c => c.id == classId);
+        return cls ? cls.name : "未知班级";
+    }
+    
+    function getClassTeacher(classId) {
+        let cls = classes.find(c => c.id == classId);
+        return cls ? (cls.teacher || "未设置") : "未知";
+    }
+    
+    // 更新班主任
+    function updateClassTeacher(classId, teacherName) {
+        let cls = classes.find(c => c.id == classId);
+        if (cls) {
+            cls.teacher = teacherName;
+            localStorage.setItem(CLASSES_KEY, JSON.stringify(classes));
+            renderMatrix();
+            showToast(`班主任已更新为 ${teacherName}`);
+        }
+    }
+    
+    // 打开班主任选择弹窗
+    function openTeacherSelect(classId) {
+        let availableTeachers = teachers.map(t => t.name);
+        
+        document.getElementById("teacherModalTitle").innerHTML = `选择班主任 - ${getClassName(classId)}`;
+        
+        let teacherList = document.getElementById("teacherList");
+        let searchInput = document.getElementById("teacherSearch");
+        
+        function renderTeachers(filter) {
+            let filtered = availableTeachers.filter(name => name.toLowerCase().includes(filter.toLowerCase()));
+            teacherList.innerHTML = "";
+            if (filtered.length === 0) {
+                teacherList.innerHTML = '<div style="padding:8px; color:#999;">暂无教师</div>';
+            } else {
+                for (let name of filtered) {
+                    let div = document.createElement("div");
+                    div.className = "list-item";
+                    div.innerHTML = `<div style="font-weight:bold;">${escapeHtml(name)}</div>`;
+                    div.onclick = () => {
+                        updateClassTeacher(classId, name);
+                        document.getElementById("teacherModal").style.display = "none";
+                    };
+                    teacherList.appendChild(div);
+                }
+            }
+        }
+        
+        searchInput.value = "";
+        searchInput.oninput = () => renderTeachers(searchInput.value);
+        renderTeachers("");
+        
+        document.getElementById("teacherModal").style.display = "flex";
+    }
+    
+    // 打开任课教师选择弹窗
+    function openCourseTeacherSelect(classId, courseId, courseName) {
+        currentCell = { classId, courseId, courseName };
+        let availableTeachers = getTeachersByCourse(courseId);
+        
+        document.getElementById("courseTeacherModalTitle").innerHTML = `选择教师 - ${getClassName(classId)} ${courseName}`;
+        
+        let teacherList = document.getElementById("courseTeacherList");
+        let searchInput = document.getElementById("courseTeacherSearch");
+        
+        function renderTeachers(filter) {
+            let filtered = availableTeachers.filter(t => t.name.toLowerCase().includes(filter.toLowerCase()));
+            teacherList.innerHTML = "";
+            if (filtered.length === 0) {
+                teacherList.innerHTML = '<div style="padding:8px; color:#999;">暂无教师</div>';
+            } else {
+                for (let teacher of filtered) {
+                    let hours = getTeacherHours(teacher.id);
+                    let div = document.createElement("div");
+                    div.className = "list-item";
+                    div.innerHTML = `
+                        <div style="font-weight:bold;">${escapeHtml(teacher.name)}</div>
+                        <div style="font-size:11px; color:#666;">已安排 ${hours} 节</div>
+                    `;
+                    div.onclick = () => {
+                        matrixData[classId][courseId].teacherId = teacher.id;
+                        renderMatrix();
+                        document.getElementById("courseTeacherModal").style.display = "none";
+                    };
+                    teacherList.appendChild(div);
+                }
+            }
+        }
+        
+        searchInput.value = "";
+        searchInput.oninput = () => renderTeachers(searchInput.value);
+        renderTeachers("");
+        
+        document.getElementById("courseTeacherModal").style.display = "flex";
+    }
+    
+    function saveHours(classId, courseId, newHours) {
+        let oldHours = matrixData[classId][courseId].hours;
+        matrixData[classId][courseId].hours = newHours;
+        
+        let currentClass = classes.find(c => c.id == classId);
+        if (currentClass) {
+            let sameCategoryClasses = classes.filter(c => c.categoryId == currentClass.categoryId && c.id != classId);
+            if (sameCategoryClasses.length > 0 && oldHours != newHours) {
+                let confirmSync = confirm(`是否将课时 ${newHours} 节同步到同类别的其他 ${sameCategoryClasses.length} 个班级？\n\n点击"确定"同步，点击"取消"仅修改当前班级。`);
+                if (confirmSync) {
+                    for (let cls of sameCategoryClasses) {
+                        if (matrixData[cls.id] && matrixData[cls.id][courseId]) {
+                            matrixData[cls.id][courseId].hours = newHours;
+                        }
+                    }
+                    showToast(`已同步到 ${sameCategoryClasses.length} 个班级`);
+                }
+            }
+        }
+        
+        renderMatrix();
+    }
+    
+    function makeHoursEditable(element, classId, courseId, currentHours) {
+        let input = document.createElement('input');
+        input.type = 'number';
+        input.value = currentHours;
+        input.min = 0;
+        input.max = 10;
+        input.step = 1;
+        input.className = 'hours-input';
+        
+        element.innerHTML = '';
+        element.appendChild(input);
+        input.focus();
+        input.select();
+        
+        function save() {
+            let newHours = parseInt(input.value);
+            if (isNaN(newHours)) newHours = 0;
+            if (newHours < 0) newHours = 0;
+            if (newHours > 10) newHours = 10;
+            saveHours(classId, courseId, newHours);
+        }
+        
+        input.onblur = save;
+        input.onkeypress = function(e) {
+            if (e.key === 'Enter') {
+                save();
+            }
+        };
+    }
+    
+    // 从班级管理同步班主任
+    function syncTeacherFromClasses() {
+        let classesStr = localStorage.getItem(CLASSES_KEY);
+        if (!classesStr) {
+            showToast("暂无班级数据", true);
+            return;
+        }
+        let classesData = JSON.parse(classesStr);
+        classes = classesData;
+        renderMatrix();
+        showToast("已从班级管理同步班主任");
+    }
+    
+    function renderMatrix() {
+        let container = document.getElementById("matrixContainer");
+        let totalPeriods = getTotalPeriods();
+        
+        let categoryGroups = [];
+        for (let category of categories) {
+            let categoryClasses = classes.filter(c => c.categoryId == category.id);
+            if (categoryClasses.length > 0) {
+                categoryGroups.push({ category, classes: categoryClasses });
+            }
+        }
+        
+        if (categoryGroups.length === 0) {
+            container.innerHTML = '<div class="data-warning"><strong>⚠️ 暂无数据</strong><br><br>请先在基础数据中添加类别和班级</div>';
+            return;
+        }
+        
+        let html = '';
+        
+        for (let group of categoryGroups) {
+            let category = group.category;
+            let categoryClasses = group.classes;
+            
+            let courseIds = category.courseIds || [];
+            let categoryCourses = courseIds.map(id => courses.find(c => c.id == id)).filter(c => c);
+            
+            if (categoryCourses.length === 0) {
+                html += `<div style="margin-bottom: 30px;">
+                            <div style="font-weight: bold; margin-bottom: 10px; font-size: 14px;">📁 ${escapeHtml(category.name)}</div>
+                            <div style="padding: 20px; text-align: center; color: #999; background:#f8f9fa; border-radius:8px;">该类别未配置课程</div>
+                         </div>`;
+                continue;
+            }
+            
+            html += `<div style="margin-bottom: 30px;">`;
+            html += `<div style="font-weight: bold; margin-bottom: 10px; font-size: 14px;">📁 ${escapeHtml(category.name)}</div>`;
+            html += `<table class="matrix-table">`;
+            html += `<thead>`;
+            html += `<tr class="group-header">`;
+            html += `<th rowspan="2">班级</th>`;
+            html += `<th rowspan="2">班主任</th>`;
+            for (let course of categoryCourses) {
+                html += `<th colspan="2">${escapeHtml(course.name)}</th>`;
+            }
+            html += `<th rowspan="2">汇总</th>`;
+            html += `</tr>`;
+            html += `<tr class="group-header">`;
+            for (let course of categoryCourses) {
+                html += `<th>教师</th><th>课时</th>`;
+            }
+            html += `</tr>`;
+            html += `</thead><tbody>`;
+            
+            for (let cls of categoryClasses) {
+                let totalHours = getClassTotalHours(cls.id);
+                let summaryClass = totalHours === totalPeriods ? "summary-complete" : (totalHours > totalPeriods ? "summary-exceed" : "summary-warning");
+                let summaryText = totalHours > totalPeriods ? `${totalHours}/${totalPeriods} 超出` : `${totalHours}/${totalPeriods}`;
+                
+                html += `<tr>`;
+                html += `<td class="class-name-cell">${escapeHtml(cls.name)}</td>`;
+                html += `<td class="clickable-cell" onclick="openTeacherSelect(${cls.id})">${escapeHtml(cls.teacher || "未设置")}</td>`;
+                for (let course of categoryCourses) {
+                    let data = matrixData[cls.id]?.[course.id] || { teacherId: null, hours: 4 };
+                    let teacherName = getTeacherName(data.teacherId);
+                    let hours = data.hours;
+                    
+                    html += `<td class="clickable-cell" onclick="openCourseTeacherSelect(${cls.id}, ${course.id}, '${escapeHtml(course.name)}')">${escapeHtml(teacherName)}</td>`;
+                    html += `<td class="clickable-cell" onclick="makeHoursEditable(this, ${cls.id}, ${course.id}, ${hours})">${hours}节</td>`;
+                }
+                html += `<td class="${summaryClass}">${summaryText}</td>`;
+                html += `</tr>`;
+            }
+            html += `</tbody>`;
+            html += `</table>`;
+            html += `</div>`;
+        }
+        
+        container.innerHTML = html;
+    }
+    
+    function saveToPlans() {
+        let newPlans = [];
+        let planId = 1;
+        
+        for (let classId in matrixData) {
+            for (let courseId in matrixData[classId]) {
+                let data = matrixData[classId][courseId];
+                if (data.teacherId && data.hours > 0) {
+                    newPlans.push({
+                        id: planId++,
+                        classId: parseInt(classId),
+                        courseId: parseInt(courseId),
+                        teacherId: data.teacherId,
+                        hoursPerWeek: data.hours,
+                        type: "主课",
+                        consecutiveTimes: 0
+                    });
+                }
+            }
+        }
+        
+        localStorage.setItem(PLANS_KEY, JSON.stringify(newPlans));
+        showToast("✅ 教学计划已保存", false);
+    }
+    
+    function printMatrix() {
+        let printContent = document.getElementById("matrixContainer").cloneNode(true);
+        let printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head><meta charset="UTF-8"><title>教学计划矩阵</title>
+            <style>
+                body { font-family: 'Microsoft YaHei', 'SimHei', Arial, sans-serif; margin: 0; padding: 0; }
+                .matrix-table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+                .matrix-table th, .matrix-table td { border: 1px solid #000; padding: 4px 2px; text-align: center; vertical-align: middle; }
+                .matrix-table th { background: #1e3c72; color: white; }
+                .summary-complete { color: #28a745; font-weight: bold; }
+                .summary-warning { color: #ffc107; font-weight: bold; }
+                .summary-exceed { color: #dc3545; font-weight: bold; }
+                @page { size: A4 landscape; margin: 0.5cm; }
+            </style>
+            </head>
+            <body>${printContent.innerHTML}</body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.print();
+        printWindow.close();
+    }
+    
+    function exportToExcel() {
+        let exportMode = prompt("请选择导出格式：\n1 - 数据库格式\n2 - 矩阵格式(单Sheet)\n3 - 矩阵格式(多Sheet)", "1");
+        if (exportMode === "1") exportDatabaseFormat();
+        else if (exportMode === "2") exportMatrixSingleSheet();
+        else if (exportMode === "3") exportMatrixMultiSheet();
+        else showToast("已取消", true);
+    }
+    
+    function exportDatabaseFormat() {
+        let totalPeriods = getTotalPeriods();
+        let wsData = [["类别", "班级", "班主任", "课程", "教师", "课时", "汇总"]];
+        for (let category of categories) {
+            let categoryClasses = classes.filter(c => c.categoryId == category.id);
+            let courseIds = category.courseIds || [];
+            for (let cls of categoryClasses) {
+                let totalHours = getClassTotalHours(cls.id);
+                for (let courseId of courseIds) {
+                    let data = matrixData[cls.id]?.[courseId] || { teacherId: null, hours: 0 };
+                    wsData.push([category.name, cls.name, cls.teacher || "", getCourseName(courseId), getTeacherName(data.teacherId), data.hours, `${totalHours}/${totalPeriods}`]);
+                }
+            }
+        }
+        let ws = XLSX.utils.aoa_to_sheet(wsData);
+        ws['!cols'] = [{wch:12}, {wch:12}, {wch:10}, {wch:15}, {wch:10}, {wch:8}, {wch:12}];
+        let wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "教学计划");
+        XLSX.writeFile(wb, "教学计划_数据库格式.xlsx");
+        showToast("导出成功");
+    }
+    
+    function exportMatrixSingleSheet() {
+        let totalPeriods = getTotalPeriods();
+        let allData = [];
+        for (let idx = 0; idx < categories.length; idx++) {
+            let category = categories[idx];
+            let categoryClasses = classes.filter(c => c.categoryId == category.id);
+            let courseIds = category.courseIds || [];
+            let categoryCourses = courseIds.map(id => courses.find(c => c.id == id)).filter(c => c);
+            if (categoryClasses.length === 0 || categoryCourses.length === 0) continue;
+            if (idx > 0) { allData.push([]); allData.push([]); }
+            allData.push([`${category.name}`]);
+            allData.push([]);
+            let headerRow = ["班级", "班主任"];
+            for (let course of categoryCourses) headerRow.push(course.name);
+            headerRow.push("汇总");
+            allData.push(headerRow);
+            for (let cls of categoryClasses) {
+                let totalHours = getClassTotalHours(cls.id);
+                let row = [cls.name, cls.teacher || ""];
+                for (let course of categoryCourses) {
+                    let data = matrixData[cls.id]?.[course.id] || { teacherId: null, hours: 0 };
+                    row.push(`${getTeacherName(data.teacherId)}/${data.hours}`);
+                }
+                row.push(`${totalHours}/${totalPeriods}`);
+                allData.push(row);
+            }
+        }
+        let ws = XLSX.utils.aoa_to_sheet(allData);
+        ws['!cols'] = [{wch:12}, {wch:10}, {wch:10}, {wch:10}, {wch:10}, {wch:10}, {wch:12}];
+        let wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "教学计划矩阵");
+        XLSX.writeFile(wb, "教学计划矩阵_单Sheet.xlsx");
+        showToast("导出成功");
+    }
+    
+    function exportMatrixMultiSheet() {
+        let totalPeriods = getTotalPeriods();
+        let wb = XLSX.utils.book_new();
+        for (let category of categories) {
+            let categoryClasses = classes.filter(c => c.categoryId == category.id);
+            let courseIds = category.courseIds || [];
+            let categoryCourses = courseIds.map(id => courses.find(c => c.id == id)).filter(c => c);
+            if (categoryClasses.length === 0 || categoryCourses.length === 0) continue;
+            let wsData = [];
+            let headerRow = ["班级", "班主任"];
+            for (let course of categoryCourses) headerRow.push(course.name);
+            headerRow.push("汇总");
+            wsData.push(headerRow);
+            for (let cls of categoryClasses) {
+                let totalHours = getClassTotalHours(cls.id);
+                let row = [cls.name, cls.teacher || ""];
+                for (let course of categoryCourses) {
+                    let data = matrixData[cls.id]?.[course.id] || { teacherId: null, hours: 0 };
+                    row.push(`${getTeacherName(data.teacherId)}/${data.hours}`);
+                }
+                row.push(`${totalHours}/${totalPeriods}`);
+                wsData.push(row);
+            }
+            let ws = XLSX.utils.aoa_to_sheet(wsData);
+            ws['!cols'] = [{wch:12}, {wch:10}, {wch:10}, {wch:10}, {wch:10}, {wch:10}, {wch:12}];
+            XLSX.utils.book_append_sheet(wb, ws, category.name);
+        }
+        XLSX.writeFile(wb, "教学计划矩阵_多Sheet.xlsx");
+        showToast("导出成功");
+    }
+    
+    function initDemoData() {
+        let demoCourses = [
+            { id: 1, name: "数学", shortName: "数", type: "主课", sortOrder: 1 },
+            { id: 2, name: "语文", shortName: "语", type: "主课", sortOrder: 2 },
+            { id: 3, name: "英语", shortName: "英", type: "主课", sortOrder: 3 },
+            { id: 4, name: "物理", shortName: "物", type: "主课", sortOrder: 4 },
+            { id: 5, name: "化学", shortName: "化", type: "主课", sortOrder: 5 },
+            { id: 6, name: "生物", shortName: "生", type: "副课", sortOrder: 6 },
+            { id: 7, name: "历史", shortName: "史", type: "副课", sortOrder: 7 },
+            { id: 8, name: "地理", shortName: "地", type: "副课", sortOrder: 8 },
+            { id: 9, name: "政治", shortName: "政", type: "副课", sortOrder: 9 },
+            { id: 10, name: "体育", shortName: "体", type: "副课", sortOrder: 10 }
+        ];
+        localStorage.setItem(COURSES_KEY, JSON.stringify(demoCourses));
+        
+        let demoCategories = [
+            { id: 1, name: "理科", courseIds: [1, 2, 3, 4, 5, 6, 10] },
+            { id: 2, name: "文科", courseIds: [1, 2, 3, 7, 8, 9, 10] }
+        ];
+        localStorage.setItem(CATEGORY_KEY, JSON.stringify(demoCategories));
+        
+        let demoClasses = [
+            { id: 1, name: "高一1班", categoryId: 1, teacher: "张老师" },
+            { id: 2, name: "高一2班", categoryId: 1, teacher: "李老师" },
+            { id: 3, name: "高一3班", categoryId: 2, teacher: "王老师" },
+            { id: 4, name: "高一4班", categoryId: 2, teacher: "赵老师" }
+        ];
+        localStorage.setItem(CLASSES_KEY, JSON.stringify(demoClasses));
+        
+        let demoTeachers = [
+            { id: 1, name: "张老师", courseIds: [1, 4] },
+            { id: 2, name: "李老师", courseIds: [2, 7] },
+            { id: 3, name: "王老师", courseIds: [3, 8] },
+            { id: 4, name: "赵老师", courseIds: [4, 5] },
+            { id: 5, name: "陈老师", courseIds: [5, 6] },
+            { id: 6, name: "刘老师", courseIds: [6, 9] },
+            { id: 7, name: "周老师", courseIds: [7, 10] },
+            { id: 8, name: "吴老师", courseIds: [8, 9] },
+            { id: 9, name: "郑老师", courseIds: [9, 10] },
+            { id: 10, name: "孙老师", courseIds: [1, 2, 3] }
+        ];
+        localStorage.setItem(TEACHERS_KEY, JSON.stringify(demoTeachers));
+        
+        showToast("演示数据已初始化，请刷新页面", false);
+        setTimeout(() => location.reload(), 1500);
+    }
+    
+    function escapeHtml(s) {
+        if (!s) return '';
+        return s.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+    
+    function init() {
+        loadAllData();
+        
+        window.openTeacherSelect = openTeacherSelect;
+        window.openCourseTeacherSelect = openCourseTeacherSelect;
+        window.makeHoursEditable = makeHoursEditable;
+        
+        document.getElementById("saveBtn").onclick = saveToPlans;
+        document.getElementById("syncTeacherBtn").onclick = syncTeacherFromClasses;
+        document.getElementById("printBtn").onclick = printMatrix;
+        document.getElementById("exportBtn").onclick = exportToExcel;
+        document.getElementById("initDemoBtn").onclick = initDemoData;
+        
+        document.getElementById("cancelTeacherBtn").onclick = function() {
+            document.getElementById("teacherModal").style.display = "none";
+        };
+        document.getElementById("cancelCourseTeacherBtn").onclick = function() {
+            document.getElementById("courseTeacherModal").style.display = "none";
+        };
+        
+        window.onclick = function(e) {
+            if (e.target === document.getElementById("teacherModal")) {
+                document.getElementById("teacherModal").style.display = "none";
+            }
+            if (e.target === document.getElementById("courseTeacherModal")) {
+                document.getElementById("courseTeacherModal").style.display = "none";
+            }
+        };
+    }
+    
+    init();
+</script>
+</body>
+</html>
