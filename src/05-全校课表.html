@@ -1,0 +1,1546 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全校课表 - 智能排课系统</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 15px;
+        }
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 15px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+        .card h3 {
+            color: #1e3c72;
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 16px;
+            border-bottom: 2px solid #1e3c72;
+            padding-bottom: 5px;
+        }
+        
+        .multiselect-container {
+            position: relative;
+            margin-bottom: 10px;
+        }
+        .multiselect-input {
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            background: white;
+        }
+        .multiselect-input:hover { border-color: #1e3c72; }
+        .multiselect-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            display: none;
+        }
+        .multiselect-dropdown.show { display: block; }
+        .search-input {
+            width: 100%;
+            padding: 6px 10px;
+            border: none;
+            border-bottom: 1px solid #eee;
+            font-size: 12px;
+            outline: none;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            padding: 6px 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 12px;
+        }
+        .checkbox-item:hover { background: #f0f2f5; }
+        .checkbox-item input { margin-right: 8px; }
+        .selected-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 6px;
+        }
+        .tag {
+            background: #1e3c72;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 15px;
+            font-size: 11px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .tag-remove { cursor: pointer; opacity: 0.8; }
+        .tag-remove:hover { opacity: 1; }
+        
+        .toolbar-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 12px;
+            padding: 6px 10px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        .display-mode, .teacher-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .display-mode label, .teacher-selector label { font-weight: bold; font-size: 12px; }
+        select {
+            padding: 4px 10px;
+            border-radius: 15px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .timetable-wrapper {
+            overflow-x: auto;
+            max-height: 65vh;
+            overflow-y: auto;
+            border-radius: 10px;
+        }
+        .timetable {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+        .timetable th, .timetable td {
+            border: 1px solid #ddd;
+            padding: 6px 4px;
+            text-align: center;
+            vertical-align: middle;
+        }
+        .timetable th {
+            background: #1e3c72;
+            color: white;
+            font-weight: 500;
+            position: sticky;
+            top: 0;
+            padding: 8px 4px;
+        }
+        .timetable .class-col {
+            background: #f5f5f5;
+            font-weight: bold;
+            position: sticky;
+            left: 0;
+        }
+        .course-cell {
+            background: #e8f4fd;
+            border-radius: 8px;
+            padding: 5px 3px;
+            cursor: pointer;
+            transition: all 0.15s;
+            border: 2px solid transparent;
+        }
+        .course-cell:hover {
+            background: #d0e4f5;
+        }
+        .course-cell.selected {
+            background: #ffeaa7;
+            border: 2px solid #f39c12;
+        }
+        .course-cell.teacher-highlight {
+            background: #fff3cd !important;
+            border: 2px solid #ffc107 !important;
+        }
+        .course-cell.locked {
+            background: #d4edda !important;
+            border: 2px solid #28a745 !important;
+            cursor: not-allowed;
+            opacity: 0.8;
+        }
+        .course-cell.locked .delete-course {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .drop-zone.drop-valid .course-cell {
+            background: #d4edda !important;
+            border: 2px solid #28a745 !important;
+        }
+        .empty-cell {
+            background: #fafafa;
+            cursor: pointer;
+            transition: all 0.15s;
+            padding: 8px 4px;
+        }
+        .empty-cell:hover {
+            background: #e8f4fd;
+        }
+        .add-icon {
+            font-size: 16px;
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 1999;
+        }
+        .course-selector-dialog {
+            position: fixed;
+            background: white;
+            border-radius: 12px;
+            padding: 0;
+            z-index: 2000;
+            width: 90%;
+            max-width: 500px;
+            max-height: 70vh;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            cursor: move;
+        }
+        .dialog-header {
+            background: #1e3c72;
+            color: white;
+            padding: 10px 15px;
+            cursor: move;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .dialog-header h3 { margin: 0; font-size: 14px; }
+        .dialog-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+        .dialog-body { padding: 12px; max-height: calc(70vh - 45px); overflow-y: auto; }
+        .course-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .course-card {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex: 1 0 auto;
+            min-width: 110px;
+            text-align: center;
+            font-size: 12px;
+        }
+        .course-card:hover {
+            background: #e8f4fd;
+            border-color: #1e3c72;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #28a745;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            z-index: 2000;
+            animation: fadeOut 2s ease-in-out;
+            font-size: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .toast.error { background: #dc3545; }
+        @keyframes fadeOut {
+            0% { opacity: 1; transform: translateY(0); }
+            70% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-15px); visibility: hidden; }
+        }
+        .tip {
+            background: #e7f3ff;
+            border-left: 3px solid #1e3c72;
+            padding: 8px 12px;
+            margin-bottom: 12px;
+            font-size: 12px;
+            border-radius: 8px;
+        }
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+        button {
+            background: #1e3c72;
+            color: white;
+            border: none;
+            padding: 5px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        button:hover { background: #2b4c7c; }
+        button.danger { background: #dc3545; }
+        button.success { background: #28a745; }
+        
+        .drag-over {
+            background: #ffd700 !important;
+        }
+        
+        .delete-course {
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 1px 5px;
+            margin-top: 3px;
+            cursor: pointer;
+            font-size: 9px;
+        }
+        .delete-course:hover { background: #c82333; }
+        
+        .drag-item {
+            cursor: grab;
+        }
+        .drag-item:active {
+            cursor: grabbing;
+        }
+        
+        .locked-badge {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            font-size: 8px;
+            padding: 1px 4px;
+            border-radius: 8px;
+            margin-left: 4px;
+        }
+    </style>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <h3>📅 全校课表（点击课程 → 绿色边框为可交换位置 → 拖拽交换）</h3>
+        
+        <div class="multiselect-container" id="classMultiselect">
+            <div class="multiselect-input" id="multiselectInput">📚 请选择班级...</div>
+            <div class="multiselect-dropdown" id="multiselectDropdown">
+                <input type="text" class="search-input" id="classSearch" placeholder="🔍 搜索班级...">
+                <div id="classListContainer"></div>
+            </div>
+            <div class="selected-tags" id="selectedTags"></div>
+        </div>
+        
+        <div class="toolbar-row">
+            <div class="display-mode">
+                <label>📊 显示：</label>
+                <select id="displayMode">
+                    <option value="course">只显示课程</option>
+                    <option value="short">课程简称</option>
+                    <option value="both" selected>课程+教师</option>
+                    <option value="shortBoth">简称+教师</option>
+                </select>
+            </div>
+            <div class="teacher-selector">
+                <label>👨‍🏫 高亮教师：</label>
+                <select id="teacherSelect">
+                    <option value="">-- 选择教师 --</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="timetable-wrapper" id="timetableWrapper">
+            <div id="timetableContainer">加载中...</div>
+        </div>
+        
+        <div class="btn-group">
+            <button id="clearSelectedBtn" class="danger">🗑️ 清空所选班级</button>
+            <button id="exportBtn" class="success">📄 导出课表</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        // 存储KEY
+        const PLANS_KEY = "pk_plans";
+        const CLASSES_KEY = "pk_classes";
+        const COURSES_KEY = "pk_courses";
+        const TEACHERS_KEY = "pk_teachers";
+        const SCHEDULES_KEY = "pk_schedules";
+        const SCHEDULE_CONFIG_KEY = "pk_scheduleConfig";
+        const RULES_KEY = "pk_scheduleRules";
+        const FIXED_RULES_KEY = "pk_fixedRules";
+        
+        // 全局变量
+        let plans = [], classes = [], courses = [], teachers = [], schedules = {}, tempSchedules = {}, rules = {}, fixedRules = {};
+        let selectedClassIds = [];
+        let currentHighlightTeacherId = null;
+        let selectedSourceCell = null;
+        let validDropTargets = [];
+        let classSearchKeyword = "";
+        
+        let weekdays = ["星期一", "星期二", "星期三", "星期四", "星期五"];
+        let periods = ["第1节", "第2节", "第3节", "第4节", "第5节", "第6节"];
+        
+        let dialogOffsetX = 0, dialogOffsetY = 0, isDraggingDialog = false;
+        
+        // ==================== 固定规则检测 ====================
+        
+        // 加载固定排课规则
+        function loadFixedRules() {
+            var fr = localStorage.getItem(FIXED_RULES_KEY);
+            if (fr) {
+                try {
+                    fixedRules = JSON.parse(fr);
+                } catch(e) { fixedRules = {}; }
+            } else {
+                fixedRules = {};
+            }
+            if (!fixedRules.teacherFixed) fixedRules.teacherFixed = [];
+            if (!fixedRules.groupFixed) fixedRules.groupFixed = [];
+            if (!fixedRules.classFixed) fixedRules.classFixed = [];
+            if (!fixedRules.courseFixed) fixedRules.courseFixed = [];
+        }
+        
+        // 检查课程是否被固定规则锁定
+        function isLessonLocked(classId, day, period) {
+            var schedule = tempSchedules[classId];
+            if (schedule) {
+                var key = day + "-" + period;
+                var lesson = schedule[key];
+                if (lesson && lesson.locked === true) {
+                    return { locked: true, reason: lesson.lockedReason || "固定排课锁定" };
+                }
+            }
+            return { locked: false };
+        }
+        
+        // ==================== 排课规则检测 ====================
+        
+        function checkTeacherConflict(teacherId, day, period, excludeClassId) {
+            for (var cid in tempSchedules) {
+                if (excludeClassId && parseInt(cid) === excludeClassId) continue;
+                var sch = tempSchedules[cid];
+                var key = day + "-" + period;
+                if (sch && sch[key] && sch[key].teacherId === teacherId) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        function checkDailyLimit(classId, courseId, day) {
+            var sch = tempSchedules[classId] || {};
+            for (var pi = 0; pi < periods.length; pi++) {
+                var key = day + "-" + periods[pi];
+                if (sch[key] && sch[key].courseId === courseId) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        function checkTeacherFixedFreeTime(teacherId, day, period) {
+            var teacherFreeTimes = rules.teacherFreeTimes || [];
+            for (var i = 0; i < teacherFreeTimes.length; i++) {
+                var ft = teacherFreeTimes[i];
+                if (ft.teacherId === teacherId && ft.weekday === day && ft.period === period) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        function checkTeacherGroupFreeTime(teacherId, day, period) {
+            var groupFreeTimes = rules.groupFreeTimes || [];
+            var teacherGroups = JSON.parse(localStorage.getItem("pk_teacherGroups") || "[]");
+            for (var i = 0; i < groupFreeTimes.length; i++) {
+                var gt = groupFreeTimes[i];
+                for (var j = 0; j < teacherGroups.length; j++) {
+                    if (teacherGroups[j].id == gt.groupId) {
+                        var members = teacherGroups[j].members || teacherGroups[j].teacherIds || teacherGroups[j].memberIds || [];
+                        if (members.indexOf(teacherId) !== -1 && gt.weekday == day && gt.period == period) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+        
+        function checkSchoolFreeTime(day, period) {
+            var schoolFreeTimes = rules.schoolFreeTimes || [];
+            for (var i = 0; i < schoolFreeTimes.length; i++) {
+                if (schoolFreeTimes[i].weekday === day && schoolFreeTimes[i].period === period) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        function checkCourseTimeLimit(courseId, day, period) {
+            var courseLimits = rules.courseTimeLimits || rules.courseCannotTimes || [];
+            for (var i = 0; i < courseLimits.length; i++) {
+                var limit = courseLimits[i];
+                if (limit.courseId === courseId && limit.type === "cannot") {
+                    if (limit.periods && limit.periods.indexOf(period) !== -1) return true;
+                } else if (limit.courseId === courseId && limit.periods) {
+                    if (limit.periods.indexOf(period) !== -1) return true;
+                }
+            }
+            return false;
+        }
+        
+        function checkTeacherDailyLimit(teacherId, day, additionalHours, excludeClassId) {
+            var dailyLimits = rules.teacherDailyLimits || [];
+            var limit = null;
+            for (var i = 0; i < dailyLimits.length; i++) {
+                if (dailyLimits[i].teacherId == teacherId) {
+                    limit = dailyLimits[i].maxHoursPerDay;
+                    break;
+                }
+            }
+            if (!limit) return true;
+            
+            var currentHours = 0;
+            for (var cid in tempSchedules) {
+                if (excludeClassId && parseInt(cid) === excludeClassId) continue;
+                var sch = tempSchedules[cid];
+                for (var key in sch) {
+                    if (key.startsWith(day) && sch[key].teacherId == teacherId) {
+                        currentHours++;
+                    }
+                }
+            }
+            return (currentHours + additionalHours) <= limit;
+        }
+        
+        // 检查教师固定规则中的禁止排
+        function checkTeacherFixedForbidden(teacherId, day, period) {
+            var teacherFixed = fixedRules.teacherFixed || [];
+            for (var i = 0; i < teacherFixed.length; i++) {
+                var rule = teacherFixed[i];
+                if (rule.teacherId == teacherId && rule.type === "forbidden") {
+                    var times = rule.times || [];
+                    for (var j = 0; j < times.length; j++) {
+                        if (times[j].week === day && times[j].period === period) return true;
+                    }
+                }
+            }
+            return false;
+        }
+        
+        // 检查班级固定规则中的禁止排
+        function checkClassFixedForbidden(classId, day, period) {
+            var classFixed = fixedRules.classFixed || [];
+            for (var i = 0; i < classFixed.length; i++) {
+                var rule = classFixed[i];
+                if (rule.classId == classId && rule.type === "forbidden") {
+                    var times = rule.times || [];
+                    for (var j = 0; j < times.length; j++) {
+                        if (times[j].week === day && times[j].period === period) return true;
+                    }
+                }
+            }
+            return false;
+        }
+        
+        // 检查课程固定规则中的禁止排
+        function checkCourseFixedForbidden(courseId, classId, day, period) {
+            var courseFixed = fixedRules.courseFixed || [];
+            for (var i = 0; i < courseFixed.length; i++) {
+                var rule = courseFixed[i];
+                if (rule.courseId == courseId && rule.type === "forbidden") {
+                    if (rule.applyClass !== "all" && rule.applyClass != classId) continue;
+                    var times = rule.times || [];
+                    for (var j = 0; j < times.length; j++) {
+                        if (times[j].week === day && times[j].period === period) return true;
+                    }
+                }
+            }
+            return false;
+        }
+        
+        // 检查位置是否被锁定
+        function isPositionLocked(classId, teacherId, courseId, day, period) {
+            // 检查课表中的锁定标记
+            var lessonLocked = isLessonLocked(classId, day, period);
+            if (lessonLocked.locked) return lessonLocked;
+            return { locked: false };
+        }
+        
+        // 完整冲突检测（添加课程时使用）
+        function checkAddConflicts(classId, teacherId, courseId, day, period) {
+            // 检查锁定位置
+            var locked = isPositionLocked(classId, teacherId, courseId, day, period);
+            if (locked.locked) return { conflict: true, reason: locked.reason };
+            
+            if (checkSchoolFreeTime(day, period)) return { conflict: true, reason: "全校统一不上课时间" };
+            if (checkTeacherFixedFreeTime(teacherId, day, period)) return { conflict: true, reason: "教师固定无课时间" };
+            if (checkTeacherGroupFreeTime(teacherId, day, period)) return { conflict: true, reason: "教师组固定无课时间" };
+            if (checkTeacherFixedForbidden(teacherId, day, period)) return { conflict: true, reason: "教师固定规则禁止排课" };
+            if (checkClassFixedForbidden(classId, day, period)) return { conflict: true, reason: "班级固定规则禁止排课" };
+            if (checkCourseFixedForbidden(courseId, classId, day, period)) return { conflict: true, reason: "课程固定规则禁止排课" };
+            if (checkCourseTimeLimit(courseId, day, period)) return { conflict: true, reason: "课程时间限制" };
+            if (checkTeacherConflict(teacherId, day, period, classId)) return { conflict: true, reason: "教师时间冲突" };
+            if (checkDailyLimit(classId, courseId, day)) return { conflict: true, reason: "该课程今天已排过课" };
+            if (!checkTeacherDailyLimit(teacherId, day, 1, classId)) return { conflict: true, reason: "教师当日课时已达上限" };
+            return { conflict: false };
+        }
+        
+        // 交换时的冲突检测（不检查班级冲突，因为交换后班级仍有课程）
+        function canSwapCourses(sourceClass, sourceDay, sourcePeriod, sourceTeacherId, sourceCourseId,
+                               targetClass, targetDay, targetPeriod, targetTeacherId, targetCourseId) {
+            // 检查源位置和目标位置是否被锁定
+            var sourceLocked = isPositionLocked(sourceClass, sourceTeacherId, sourceCourseId, sourceDay, sourcePeriod);
+            var targetLocked = isPositionLocked(targetClass, targetTeacherId, targetCourseId, targetDay, targetPeriod);
+            if (sourceLocked.locked || targetLocked.locked) return false;
+            
+            // 检查目标课程放入源位置
+            var targetToSource = true;
+            var reason = "";
+            if (checkSchoolFreeTime(sourceDay, sourcePeriod)) { targetToSource = false; reason = "源位置全校停课"; }
+            else if (checkTeacherFixedFreeTime(targetTeacherId, sourceDay, sourcePeriod)) { targetToSource = false; reason = "源位置教师禁排"; }
+            else if (checkTeacherGroupFreeTime(targetTeacherId, sourceDay, sourcePeriod)) { targetToSource = false; reason = "源位置教师组禁排"; }
+            else if (checkTeacherFixedForbidden(targetTeacherId, sourceDay, sourcePeriod)) { targetToSource = false; reason = "源位置教师固定禁止"; }
+            else if (checkClassFixedForbidden(sourceClass, sourceDay, sourcePeriod)) { targetToSource = false; reason = "源位置班级固定禁止"; }
+            else if (checkCourseFixedForbidden(targetCourseId, sourceClass, sourceDay, sourcePeriod)) { targetToSource = false; reason = "源位置课程固定禁止"; }
+            else if (checkCourseTimeLimit(targetCourseId, sourceDay, sourcePeriod)) { targetToSource = false; reason = "源位置课程时间限制"; }
+            else if (checkTeacherConflict(targetTeacherId, sourceDay, sourcePeriod, sourceClass)) { targetToSource = false; reason = "源位置教师冲突"; }
+            else if (checkDailyLimit(sourceClass, targetCourseId, sourceDay)) { targetToSource = false; reason = "源位置每日限课"; }
+            else if (!checkTeacherDailyLimit(targetTeacherId, sourceDay, 1, sourceClass)) { targetToSource = false; reason = "源位置教师日课时上限"; }
+            
+            // 检查源课程放入目标位置
+            var sourceToTarget = true;
+            if (checkSchoolFreeTime(targetDay, targetPeriod)) { sourceToTarget = false; reason = "目标位置全校停课"; }
+            else if (checkTeacherFixedFreeTime(sourceTeacherId, targetDay, targetPeriod)) { sourceToTarget = false; reason = "目标位置教师禁排"; }
+            else if (checkTeacherGroupFreeTime(sourceTeacherId, targetDay, targetPeriod)) { sourceToTarget = false; reason = "目标位置教师组禁排"; }
+            else if (checkTeacherFixedForbidden(sourceTeacherId, targetDay, targetPeriod)) { sourceToTarget = false; reason = "目标位置教师固定禁止"; }
+            else if (checkClassFixedForbidden(targetClass, targetDay, targetPeriod)) { sourceToTarget = false; reason = "目标位置班级固定禁止"; }
+            else if (checkCourseFixedForbidden(sourceCourseId, targetClass, targetDay, targetPeriod)) { sourceToTarget = false; reason = "目标位置课程固定禁止"; }
+            else if (checkCourseTimeLimit(sourceCourseId, targetDay, targetPeriod)) { sourceToTarget = false; reason = "目标位置课程时间限制"; }
+            else if (checkTeacherConflict(sourceTeacherId, targetDay, targetPeriod, targetClass)) { sourceToTarget = false; reason = "目标位置教师冲突"; }
+            else if (checkDailyLimit(targetClass, sourceCourseId, targetDay)) { sourceToTarget = false; reason = "目标位置每日限课"; }
+            else if (!checkTeacherDailyLimit(sourceTeacherId, targetDay, 1, targetClass)) { sourceToTarget = false; reason = "目标位置教师日课时上限"; }
+            
+            return targetToSource && sourceToTarget;
+        }
+        
+        // 执行交换
+        function performSwap(sourceClass, sourceDay, sourcePeriod, targetClass, targetDay, targetPeriod) {
+            var sourceKey = sourceDay + "-" + sourcePeriod;
+            var targetKey = targetDay + "-" + targetPeriod;
+            
+            var sourceCourse = tempSchedules[sourceClass] ? tempSchedules[sourceClass][sourceKey] : null;
+            var targetCourse = tempSchedules[targetClass] ? tempSchedules[targetClass][targetKey] : null;
+            
+            if (!sourceCourse || !targetCourse) {
+                showToast("交换失败：课程数据丢失", true);
+                return false;
+            }
+            
+            if (!canSwapCourses(
+                sourceClass, sourceDay, sourcePeriod, sourceCourse.teacherId, sourceCourse.courseId,
+                targetClass, targetDay, targetPeriod, targetCourse.teacherId, targetCourse.courseId
+            )) {
+                showToast("交换失败：违反排课规则", true);
+                return false;
+            }
+            
+            tempSchedules[sourceClass][sourceKey] = targetCourse;
+            tempSchedules[targetClass][targetKey] = sourceCourse;
+            
+            autoSave();
+            renderTimetable();
+            showToast("✅ 已交换 " + sourceCourse.courseName + " ↔ " + targetCourse.courseName);
+            return true;
+        }
+        
+        // 高亮可交换位置
+        function highlightExchangeableSpots(sourceClassId, sourceDay, sourcePeriod, sourceTeacherId, sourceCourseId) {
+            clearAllHighlights();
+            
+            var allCells = document.querySelectorAll('.drop-zone');
+            var newValidTargets = [];
+            var count = 0;
+            
+            for (var i = 0; i < allCells.length; i++) {
+                var cell = allCells[i];
+                var targetClassId = parseInt(cell.getAttribute('data-class'));
+                var targetDay = cell.getAttribute('data-day');
+                var targetPeriod = cell.getAttribute('data-period');
+                
+                if (targetClassId !== sourceClassId) continue;
+                if (targetDay === sourceDay && targetPeriod === sourcePeriod) continue;
+                
+                var targetCourse = tempSchedules[targetClassId] ? tempSchedules[targetClassId][targetDay + "-" + targetPeriod] : null;
+                if (!targetCourse) continue;
+                
+                // 检查目标位置是否被锁定
+                var targetLocked = isPositionLocked(targetClassId, targetCourse.teacherId, targetCourse.courseId, targetDay, targetPeriod);
+                if (targetLocked.locked) continue;
+                
+                if (canSwapCourses(
+                    sourceClassId, sourceDay, sourcePeriod, sourceTeacherId, sourceCourseId,
+                    targetClassId, targetDay, targetPeriod, targetCourse.teacherId, targetCourse.courseId
+                )) {
+                    cell.classList.add('drop-valid');
+                    newValidTargets.push(cell);
+                    count++;
+                }
+            }
+            
+            validDropTargets = newValidTargets;
+            
+            if (count > 0) {
+                showToast("✨ 找到 " + count + " 个可以交换的位置，拖拽即可交换");
+            } else {
+                showToast("⚠️ 没有可以交换的位置", true);
+            }
+        }
+        
+        function clearAllHighlights() {
+            var allCells = document.querySelectorAll('.drop-zone');
+            for (var i = 0; i < allCells.length; i++) {
+                allCells[i].classList.remove('drop-valid');
+            }
+            validDropTargets = [];
+        }
+        
+        // 检查添加到空位
+        function canPlaceInEmpty(classId, teacherId, courseId, day, period) {
+            var result = checkAddConflicts(classId, teacherId, courseId, day, period);
+            return !result.conflict;
+        }
+        
+        // 辅助函数
+        function showToast(msg, isErr) {
+            var t = document.createElement("div");
+            t.className = "toast" + (isErr ? " error" : "");
+            t.innerText = msg;
+            document.body.appendChild(t);
+            setTimeout(function() { t.remove(); }, 2000);
+        }
+        
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+        
+        function getClassName(id) {
+            var cls = classes.find(function(c) { return c.id == id; });
+            return cls ? cls.name : "未知班级";
+        }
+        
+        function getCourseName(id) {
+            var c = courses.find(function(crs) { return crs.id == id; });
+            return c ? c.name : "未知课程";
+        }
+        
+        function getCourseShortName(id) {
+            var c = courses.find(function(crs) { return crs.id == id; });
+            if (c && c.shortName) return c.shortName;
+            if (c) return c.name.substring(0, 2);
+            return "未知";
+        }
+        
+        function getTeacherName(id) {
+            var t = teachers.find(function(teacher) { return teacher.id == id; });
+            return t ? t.name : "未知教师";
+        }
+        
+        // 初始化默认数据
+        function initDefaultData() {
+            var storedClasses = localStorage.getItem(CLASSES_KEY);
+            if (!storedClasses) {
+                classes = [
+                    { id: 1, name: "高一1班", grade: "高一" },
+                    { id: 2, name: "高一2班", grade: "高一" },
+                    { id: 3, name: "高二1班", grade: "高二" }
+                ];
+                localStorage.setItem(CLASSES_KEY, JSON.stringify(classes));
+            } else {
+                classes = JSON.parse(storedClasses);
+            }
+            
+            var storedCourses = localStorage.getItem(COURSES_KEY);
+            if (!storedCourses) {
+                courses = [
+                    { id: 1, name: "语文", shortName: "语" },
+                    { id: 2, name: "数学", shortName: "数" },
+                    { id: 3, name: "英语", shortName: "英" },
+                    { id: 4, name: "体育", shortName: "体" }
+                ];
+                localStorage.setItem(COURSES_KEY, JSON.stringify(courses));
+            } else {
+                courses = JSON.parse(storedCourses);
+            }
+            
+            var storedTeachers = localStorage.getItem(TEACHERS_KEY);
+            if (!storedTeachers) {
+                teachers = [
+                    { id: 1, name: "张老师", courseIds: [1] },
+                    { id: 2, name: "李老师", courseIds: [2] },
+                    { id: 3, name: "王老师", courseIds: [3] },
+                    { id: 4, name: "赵老师", courseIds: [4] }
+                ];
+                localStorage.setItem(TEACHERS_KEY, JSON.stringify(teachers));
+            } else {
+                teachers = JSON.parse(storedTeachers);
+            }
+            
+            var storedPlans = localStorage.getItem(PLANS_KEY);
+            if (!storedPlans) {
+                plans = [];
+            } else {
+                plans = JSON.parse(storedPlans);
+            }
+            
+            var storedSchedules = localStorage.getItem(SCHEDULES_KEY);
+            if (storedSchedules) {
+                schedules = JSON.parse(storedSchedules);
+            } else {
+                schedules = {};
+            }
+            tempSchedules = JSON.parse(JSON.stringify(schedules));
+        }
+        
+        // 加载所有数据
+        function loadAllData() {
+            // 读取教学时间配置
+            var sc = localStorage.getItem(SCHEDULE_CONFIG_KEY);
+            if (sc) {
+                try {
+                    var parsed = JSON.parse(sc);
+                    periods = [];
+                    for (var i = 1; i <= (parsed.dayPeriods || 6); i++) {
+                        periods.push("第" + i + "节");
+                    }
+                    weekdays = parsed.selectedWeekdays || ["星期一", "星期二", "星期三", "星期四", "星期五"];
+                } catch(e) { console.error("解析教学时间配置失败", e); }
+            }
+            
+            // 读取排课规则
+            var r = localStorage.getItem(RULES_KEY);
+            if (r) { try { rules = JSON.parse(r); } catch(e) {} }
+            if (!rules) rules = {};
+            
+            // 加载固定排课规则
+            loadFixedRules();
+            
+            // 初始化默认数据
+            initDefaultData();
+            
+            // 默认选择前3个班级
+            if (selectedClassIds.length === 0 && classes.length > 0) {
+                selectedClassIds = classes.slice(0, Math.min(3, classes.length)).map(function(c) { return c.id; });
+            }
+            
+            // 渲染界面
+            renderClassMultiselect();
+            updateTeacherSelect();
+            renderTimetable();
+        }
+        
+        function autoSave() {
+            schedules = JSON.parse(JSON.stringify(tempSchedules));
+            localStorage.setItem(SCHEDULES_KEY, JSON.stringify(schedules));
+        }
+        
+        function getTeachersInSelectedClasses() {
+            var teacherIds = new Set();
+            for (var i = 0; i < selectedClassIds.length; i++) {
+                var classId = selectedClassIds[i];
+                var schedule = tempSchedules[classId] || {};
+                for (var key in schedule) {
+                    if (schedule[key] && schedule[key].teacherId) {
+                        teacherIds.add(schedule[key].teacherId);
+                    }
+                }
+            }
+            var result = [];
+            for (var id of teacherIds) {
+                var teacher = teachers.find(function(t) { return t.id == id; });
+                if (teacher) result.push(teacher);
+            }
+            return result;
+        }
+        
+        function updateTeacherSelect() {
+            var select = document.getElementById("teacherSelect");
+            if (!select) return;
+            var selectedClassTeachers = getTeachersInSelectedClasses();
+            selectedClassTeachers.sort(function(a, b) { return a.name.localeCompare(b.name, 'zh'); });
+            
+            select.innerHTML = '<option value="">-- 选择教师高亮 --</option>';
+            for (var i = 0; i < selectedClassTeachers.length; i++) {
+                var t = selectedClassTeachers[i];
+                select.innerHTML += '<option value="' + t.id + '">' + escapeHtml(t.name) + '</option>';
+            }
+            
+            select.onchange = function() {
+                currentHighlightTeacherId = this.value ? parseInt(this.value) : null;
+                renderTimetable();
+            };
+        }
+        
+        function renderClassMultiselect() {
+            var container = document.getElementById("classListContainer");
+            if (!container) return;
+            
+            var filtered = classes.filter(function(cls) {
+                return classSearchKeyword === "" || cls.name.indexOf(classSearchKeyword) !== -1;
+            });
+            
+            container.innerHTML = '';
+            for (var i = 0; i < filtered.length; i++) {
+                var cls = filtered[i];
+                var isChecked = selectedClassIds.indexOf(cls.id) !== -1;
+                var div = document.createElement("div");
+                div.className = "checkbox-item";
+                div.innerHTML = '<input type="checkbox" value="' + cls.id + '" ' + (isChecked ? 'checked' : '') + '> <span>' + escapeHtml(cls.name) + '</span>';
+                div.querySelector('input').onchange = (function(id) {
+                    return function(e) {
+                        if (e.target.checked) {
+                            if (selectedClassIds.indexOf(id) === -1) selectedClassIds.push(id);
+                        } else {
+                            selectedClassIds = selectedClassIds.filter(function(i) { return i !== id; });
+                        }
+                        updateSelectedTags();
+                        updateTeacherSelect();
+                        renderTimetable();
+                    };
+                })(cls.id);
+                container.appendChild(div);
+            }
+            updateSelectedTags();
+        }
+        
+        function updateSelectedTags() {
+            var tagsContainer = document.getElementById("selectedTags");
+            var inputDisplay = document.getElementById("multiselectInput");
+            if (!tagsContainer || !inputDisplay) return;
+            
+            if (selectedClassIds.length === 0) {
+                tagsContainer.innerHTML = '';
+                inputDisplay.innerHTML = '📚 请选择班级...';
+                return;
+            }
+            inputDisplay.innerHTML = '📚 已选择 ' + selectedClassIds.length + ' 个班级';
+            var tagsHtml = '';
+            for (var i = 0; i < selectedClassIds.length; i++) {
+                var name = getClassName(selectedClassIds[i]);
+                tagsHtml += '<span class="tag">' + escapeHtml(name) + '<span class="tag-remove" data-id="' + selectedClassIds[i] + '">✖</span></span>';
+            }
+            tagsContainer.innerHTML = tagsHtml;
+            document.querySelectorAll('.tag-remove').forEach(function(el) {
+                el.onclick = function() {
+                    var id = parseInt(this.getAttribute('data-id'));
+                    selectedClassIds = selectedClassIds.filter(function(i) { return i !== id; });
+                    updateSelectedTags();
+                    renderClassMultiselect();
+                    updateTeacherSelect();
+                    renderTimetable();
+                };
+            });
+        }
+        
+        function getDisplayContent(cell, displayMode) {
+            if (!cell) return '<div class="add-icon">➕</div>';
+            var courseName = getCourseName(cell.courseId);
+            var courseShort = getCourseShortName(cell.courseId);
+            var teacherName = cell.teacherName;
+            
+            if (displayMode === "course") {
+                return '<div><strong>' + escapeHtml(courseName) + '</strong></div>';
+            } else if (displayMode === "short") {
+                return '<div><strong>' + escapeHtml(courseShort) + '</strong></div>';
+            } else if (displayMode === "both") {
+                return '<div><strong>' + escapeHtml(courseName) + '</strong></div><div style="font-size:9px;">' + escapeHtml(teacherName) + '</div>';
+            } else if (displayMode === "shortBoth") {
+                return '<div><strong>' + escapeHtml(courseShort) + '</strong></div><div style="font-size:9px;">' + escapeHtml(teacherName) + '</div>';
+            }
+            return '';
+        }
+        
+        function renderTimetable() {
+            var container = document.getElementById("timetableContainer");
+            var displayModeSelect = document.getElementById("displayMode");
+            var displayMode = displayModeSelect ? displayModeSelect.value : "both";
+            
+            if (!container) return;
+            if (selectedClassIds.length === 0) {
+                container.innerHTML = '<div class="tip">请先选择班级</div>';
+                return;
+            }
+            
+            var selectedClasses = [];
+            for (var i = 0; i < selectedClassIds.length; i++) {
+                var cls = classes.find(function(c) { return c.id == selectedClassIds[i]; });
+                if (cls) selectedClasses.push(cls);
+            }
+            
+            selectedClasses.sort(function(a, b) {
+                var gradeA = a.grade || "";
+                var gradeB = b.grade || "";
+                if (gradeA !== gradeB) return gradeA.localeCompare(gradeB);
+                return a.name.localeCompare(b.name);
+            });
+            
+            var html = '<table class="timetable">';
+            html += '<thead>';
+            html += '<tr>';
+            html += '<th class="class-col">班级/时间</th>';
+            for (var wi = 0; wi < weekdays.length; wi++) {
+                html += '<th colspan="' + periods.length + '">' + weekdays[wi] + '</th>';
+            }
+            html += '</tr>';
+            html += '<tr>';
+            html += '<th class="class-col"></th>';
+            for (var wi = 0; wi < weekdays.length; wi++) {
+                for (var pi = 0; pi < periods.length; pi++) {
+                    html += '<th>' + periods[pi] + '</th>';
+                }
+            }
+            html += '</tr>';
+            html += '</thead>';
+            html += '<tbody>';
+            
+            for (var ci = 0; ci < selectedClasses.length; ci++) {
+                var cls = selectedClasses[ci];
+                var schedule = tempSchedules[cls.id] || {};
+                html += '<tr>';
+                html += '<td class="class-col"><strong>' + escapeHtml(cls.name) + '</strong></td>';
+                
+                for (var wi = 0; wi < weekdays.length; wi++) {
+                    for (var pi = 0; pi < periods.length; pi++) {
+                        var day = weekdays[wi];
+                        var period = periods[pi];
+                        var key = day + "-" + period;
+                        var cell = schedule[key];
+                        var isTeacherHighlight = false;
+                        if (currentHighlightTeacherId && cell && cell.teacherId == currentHighlightTeacherId) {
+                            isTeacherHighlight = true;
+                        }
+                        var teacherHighlightClass = isTeacherHighlight ? 'teacher-highlight' : '';
+                        var isSelected = (selectedSourceCell && 
+                            selectedSourceCell.classId === cls.id && 
+                            selectedSourceCell.day === day && 
+                            selectedSourceCell.period === period);
+                        
+                        // 检查是否锁定
+                        var locked = false;
+                        var lockedReason = "";
+                        if (cell) {
+                            var lockCheck = isPositionLocked(cls.id, cell.teacherId, cell.courseId, day, period);
+                            locked = lockCheck.locked;
+                            lockedReason = lockCheck.reason;
+                        }
+                        
+                        if (cell) {
+                            html += '<td class="drop-zone" data-class="' + cls.id + '" data-day="' + day + '" data-period="' + period + '">';
+                            html += '<div class="course-cell ' + teacherHighlightClass + (isSelected ? ' selected' : '') + (locked ? ' locked' : '') + '" ';
+                            html += 'data-class="' + cls.id + '" data-day="' + day + '" data-period="' + period + '" ';
+                            html += 'data-course-id="' + cell.courseId + '" data-teacher-id="' + cell.teacherId + '" ';
+                            html += 'data-course-name="' + escapeHtml(cell.courseName) + '" data-teacher-name="' + escapeHtml(cell.teacherName) + '" ';
+                            html += 'data-locked="' + locked + '">';
+                            html += '<div class="drag-item">';
+                            html += getDisplayContent(cell, displayMode);
+                            if (!locked) {
+                                html += '<button class="delete-course" onclick="window.deleteLesson(' + cls.id + ', \'' + day + '\', \'' + period + '\')">✖</button>';
+                            } else {
+                                html += '<span class="locked-badge">🔒</span>';
+                            }
+                            html += '</div></div></td>';
+                        } else {
+                            html += '<td class="drop-zone empty-cell" data-class="' + cls.id + '" data-day="' + day + '" data-period="' + period + '" ';
+                            html += 'onclick="window.showCourseSelector(' + cls.id + ', \'' + day + '\', \'' + period + '\')">';
+                            html += '<div class="add-icon">➕</div></td>';
+                        }
+                    }
+                }
+                html += '</tr>';
+            }
+            html += '</tbody></table>';
+            container.innerHTML = html;
+            
+            bindCourseClick();
+            initDragAndDrop();
+        }
+        
+        function bindCourseClick() {
+            var courseDivs = document.querySelectorAll('.course-cell');
+            for (var i = 0; i < courseDivs.length; i++) {
+                courseDivs[i].removeEventListener('click', handleCourseClick);
+                courseDivs[i].addEventListener('click', handleCourseClick);
+            }
+        }
+        
+        function handleCourseClick(event) {
+            event.stopPropagation();
+            var el = event.target.closest('.course-cell');
+            if (!el) return;
+            
+            var isLocked = el.getAttribute('data-locked') === 'true';
+            if (isLocked) {
+                showToast("🔒 该课程已被锁定，不可交换", true);
+                return;
+            }
+            
+            currentHighlightTeacherId = null;
+            var teacherSelect = document.getElementById("teacherSelect");
+            if (teacherSelect) teacherSelect.value = "";
+            
+            var classId = parseInt(el.getAttribute('data-class'));
+            var day = el.getAttribute('data-day');
+            var period = el.getAttribute('data-period');
+            var teacherId = parseInt(el.getAttribute('data-teacher-id'));
+            var courseId = parseInt(el.getAttribute('data-course-id'));
+            var courseName = el.getAttribute('data-course-name');
+            var teacherName = el.getAttribute('data-teacher-name');
+            
+            selectedSourceCell = {
+                classId: classId, day: day, period: period,
+                teacherId: teacherId, courseId: courseId,
+                courseName: courseName, teacherName: teacherName
+            };
+            
+            showToast("👆 已选中 " + teacherName + " 的【" + courseName + "】，绿色边框为可交换的位置");
+            
+            highlightExchangeableSpots(classId, day, period, teacherId, courseId);
+            
+            renderTimetable();
+            setTimeout(function() {
+                highlightExchangeableSpots(classId, day, period, teacherId, courseId);
+                var cells = document.querySelectorAll('.course-cell');
+                for (var i = 0; i < cells.length; i++) {
+                    var c = cells[i];
+                    if (parseInt(c.getAttribute('data-class')) === classId &&
+                        c.getAttribute('data-day') === day &&
+                        c.getAttribute('data-period') === period) {
+                        c.classList.add('selected');
+                    }
+                }
+            }, 50);
+        }
+        
+        window.deleteLesson = function(classId, day, period) {
+            var schedule = tempSchedules[classId];
+            if (!schedule) return;
+            var key = day + "-" + period;
+            var lesson = schedule[key];
+            if (!lesson) return;
+            
+            // 检查是否被锁定
+            var locked = isPositionLocked(classId, lesson.teacherId, lesson.courseId, day, period);
+            if (locked.locked) {
+                showToast("❌ " + locked.reason + "，不可删除", true);
+                return;
+            }
+            
+            if (confirm("确定删除这节课吗？")) {
+                delete tempSchedules[classId][day + "-" + period];
+                autoSave();
+                selectedSourceCell = null;
+                clearAllHighlights();
+                renderTimetable();
+                updateTeacherSelect();
+                showToast("✅ 已删除");
+            }
+        };
+        
+        function getIncompleteClassPlans(classId) {
+            var schedule = tempSchedules[classId] || {};
+            var result = [];
+            for (var i = 0; i < plans.length; i++) {
+                var plan = plans[i];
+                if (plan.classId == classId) {
+                    var scheduledCount = 0;
+                    for (var key in schedule) {
+                        if (schedule[key] && schedule[key].courseId == plan.courseId) {
+                            scheduledCount++;
+                        }
+                    }
+                    if (scheduledCount < plan.hoursPerWeek) {
+                        result.push({ plan: plan, scheduled: scheduledCount, required: plan.hoursPerWeek });
+                    }
+                }
+            }
+            return result;
+        }
+        
+        window.showCourseSelector = function(classId, day, period) {
+            var incompletePlans = getIncompleteClassPlans(classId);
+            if (incompletePlans.length === 0) {
+                showToast("✅ 该班级所有课程已排完！", false);
+                return;
+            }
+            
+            var overlay = document.createElement("div"); overlay.className = "overlay";
+            var dialog = document.createElement("div"); dialog.className = "course-selector-dialog";
+            
+            var winWidth = window.innerWidth;
+            var winHeight = window.innerHeight;
+            var dialogWidth = 500;
+            var left = Math.max(10, (winWidth - dialogWidth) / 2 + 80);
+            var top = Math.max(10, (winHeight - 350) / 2);
+            dialog.style.left = left + 'px';
+            dialog.style.top = top + 'px';
+            dialog.style.width = dialogWidth + 'px';
+            
+            var html = '<div class="dialog-header">' +
+                '<h3>📖 选择课程 - ' + escapeHtml(getClassName(classId)) + '  ' + day + ' ' + period + '</h3>' +
+                '<button class="dialog-close">×</button>' +
+                '</div>' +
+                '<div class="dialog-body">' +
+                '<div class="course-grid">';
+            
+            for (var i = 0; i < incompletePlans.length; i++) {
+                var item = incompletePlans[i];
+                var plan = item.plan;
+                var progress = item.scheduled + '/' + item.required;
+                html += '<div class="course-card" data-course-id="' + plan.courseId + '" data-teacher-id="' + plan.teacherId + '">';
+                html += '<div><strong>' + escapeHtml(getCourseName(plan.courseId)) + '</strong></div>';
+                html += '<div style="font-size:10px; color:#666;">' + progress + '节</div>';
+                html += '</div>';
+            }
+            html += '</div></div>';
+            dialog.innerHTML = html;
+            document.body.appendChild(overlay); document.body.appendChild(dialog);
+            
+            var header = dialog.querySelector('.dialog-header');
+            var closeBtn = dialog.querySelector('.dialog-close');
+            
+            closeBtn.onclick = function() { overlay.remove(); dialog.remove(); };
+            
+            header.addEventListener('mousedown', function(e) {
+                if (e.target === closeBtn) return;
+                isDraggingDialog = true;
+                dialogOffsetX = e.clientX - dialog.offsetLeft;
+                dialogOffsetY = e.clientY - dialog.offsetTop;
+                dialog.style.cursor = 'grabbing';
+                e.preventDefault();
+            });
+            
+            document.addEventListener('mousemove', function(e) {
+                if (isDraggingDialog) {
+                    var newLeft = e.clientX - dialogOffsetX;
+                    var newTop = e.clientY - dialogOffsetY;
+                    newLeft = Math.max(0, Math.min(window.innerWidth - dialog.offsetWidth, newLeft));
+                    newTop = Math.max(0, Math.min(window.innerHeight - dialog.offsetHeight, newTop));
+                    dialog.style.left = newLeft + 'px';
+                    dialog.style.top = newTop + 'px';
+                }
+            });
+            
+            document.addEventListener('mouseup', function() {
+                isDraggingDialog = false;
+                if (dialog) dialog.style.cursor = '';
+            });
+            
+            var cards = dialog.querySelectorAll('.course-card');
+            for (var i = 0; i < cards.length; i++) {
+                cards[i].onclick = function() {
+                    var courseId = parseInt(this.getAttribute('data-course-id'));
+                    var teacherId = parseInt(this.getAttribute('data-teacher-id'));
+                    var courseName = getCourseName(courseId);
+                    
+                    var available = canPlaceInEmpty(classId, teacherId, courseId, day, period);
+                    if (!available) {
+                        showToast("❌ 冲突：该时间不可用", true);
+                        return;
+                    }
+                    
+                    if (!tempSchedules[classId]) tempSchedules[classId] = {};
+                    tempSchedules[classId][day + "-" + period] = {
+                        courseId: courseId,
+                        teacherId: teacherId,
+                        courseName: courseName,
+                        teacherName: getTeacherName(teacherId)
+                    };
+                    
+                    autoSave();
+                    selectedSourceCell = null;
+                    clearAllHighlights();
+                    renderTimetable();
+                    updateTeacherSelect();
+                    showToast("✅ 已添加 " + courseName);
+                    overlay.remove(); dialog.remove();
+                };
+            }
+            
+            overlay.onclick = function() { overlay.remove(); dialog.remove(); };
+        };
+        
+        function initDragAndDrop() {
+            var dragItems = document.querySelectorAll('.drag-item');
+            var dropZones = document.querySelectorAll('.drop-zone');
+            
+            function dragStartHandler(e) {
+                var el = e.target.closest('.drag-item');
+                if (!el) return;
+                var courseCell = el.closest('.course-cell');
+                if (!courseCell) return;
+                
+                var isLocked = courseCell.getAttribute('data-locked') === 'true';
+                if (isLocked) {
+                    e.preventDefault();
+                    showToast("🔒 锁定课程不可拖拽", true);
+                    return false;
+                }
+                
+                var classId = parseInt(courseCell.getAttribute('data-class'));
+                var day = courseCell.getAttribute('data-day');
+                var period = courseCell.getAttribute('data-period');
+                var teacherId = parseInt(courseCell.getAttribute('data-teacher-id'));
+                var courseId = parseInt(courseCell.getAttribute('data-course-id'));
+                var courseName = courseCell.getAttribute('data-course-name');
+                
+                e.dataTransfer.setData('text/plain', JSON.stringify({
+                    classId: classId, day: day, period: period,
+                    teacherId: teacherId, courseId: courseId, courseName: courseName
+                }));
+                e.target.style.opacity = '0.5';
+            }
+            
+            function dragEndHandler(e) {
+                e.target.style.opacity = '';
+                document.querySelectorAll('.drag-over').forEach(function(el) { el.classList.remove('drag-over'); });
+            }
+            
+            function dragOverHandler(e) {
+                e.preventDefault();
+                var zone = e.target.closest('.drop-zone');
+                if (zone && validDropTargets.indexOf(zone) !== -1) {
+                    zone.classList.add('drag-over');
+                }
+            }
+            
+            function dragLeaveHandler(e) {
+                var zone = e.target.closest('.drop-zone');
+                if (zone) zone.classList.remove('drag-over');
+            }
+            
+            function dropHandler(e) {
+                e.preventDefault();
+                var targetZone = e.target.closest('.drop-zone');
+                if (!targetZone) return;
+                targetZone.classList.remove('drag-over');
+                
+                if (validDropTargets.indexOf(targetZone) === -1) {
+                    showToast("❌ 该位置不可交换", true);
+                    return;
+                }
+                
+                var dragData;
+                try {
+                    dragData = JSON.parse(e.dataTransfer.getData('text/plain'));
+                } catch(err) { return; }
+                if (!dragData) return;
+                
+                var targetClassId = parseInt(targetZone.getAttribute('data-class'));
+                var targetDay = targetZone.getAttribute('data-day');
+                var targetPeriod = targetZone.getAttribute('data-period');
+                
+                performSwap(
+                    dragData.classId, dragData.day, dragData.period,
+                    targetClassId, targetDay, targetPeriod
+                );
+                
+                selectedSourceCell = null;
+                clearAllHighlights();
+            }
+            
+            for (var i = 0; i < dragItems.length; i++) {
+                dragItems[i].setAttribute('draggable', 'true');
+                dragItems[i].removeEventListener('dragstart', dragStartHandler);
+                dragItems[i].removeEventListener('dragend', dragEndHandler);
+                dragItems[i].addEventListener('dragstart', dragStartHandler);
+                dragItems[i].addEventListener('dragend', dragEndHandler);
+            }
+            
+            for (var i = 0; i < dropZones.length; i++) {
+                dropZones[i].removeEventListener('dragover', dragOverHandler);
+                dropZones[i].removeEventListener('dragleave', dragLeaveHandler);
+                dropZones[i].removeEventListener('drop', dropHandler);
+                dropZones[i].addEventListener('dragover', dragOverHandler);
+                dropZones[i].addEventListener('dragleave', dragLeaveHandler);
+                dropZones[i].addEventListener('drop', dropHandler);
+            }
+        }
+        
+        function exportTimetable() {
+            if (selectedClassIds.length === 0) {
+                showToast("请先选择班级", true);
+                return;
+            }
+            
+            var selectedClasses = [];
+            for (var i = 0; i < selectedClassIds.length; i++) {
+                var cls = classes.find(function(c) { return c.id == selectedClassIds[i]; });
+                if (cls) selectedClasses.push(cls);
+            }
+            
+            var displayModeSelect = document.getElementById("displayMode");
+            var displayMode = displayModeSelect ? displayModeSelect.value : "both";
+            
+            var excelData = [];
+            excelData.push(['全校课表', '', '', '', '', '', '']);
+            excelData.push(['导出时间：' + new Date().toLocaleString(), '', '', '', '', '', '']);
+            excelData.push([]);
+            
+            var headerRow = ['班级'];
+            for (var wi = 0; wi < weekdays.length; wi++) {
+                for (var pi = 0; pi < periods.length; pi++) {
+                    if (pi === 0) headerRow.push(weekdays[wi]);
+                    else headerRow.push('');
+                }
+            }
+            excelData.push(headerRow);
+            
+            var periodRow = [' '];
+            for (var wi = 0; wi < weekdays.length; wi++) {
+                for (var pi = 0; pi < periods.length; pi++) {
+                    periodRow.push(periods[pi]);
+                }
+            }
+            excelData.push(periodRow);
+            
+            for (var ci = 0; ci < selectedClasses.length; ci++) {
+                var cls = selectedClasses[ci];
+                var schedule = tempSchedules[cls.id] || {};
+                var dataRow = [cls.name];
+                
+                for (var wi = 0; wi < weekdays.length; wi++) {
+                    for (var pi = 0; pi < periods.length; pi++) {
+                        var day = weekdays[wi], period = periods[pi];
+                        var key = day + "-" + period;
+                        var cell = schedule[key];
+                        if (cell) {
+                            var courseName = getCourseName(cell.courseId);
+                            var teacherName = cell.teacherName;
+                            if (displayMode === "course") dataRow.push(courseName);
+                            else if (displayMode === "short") dataRow.push(getCourseShortName(cell.courseId));
+                            else dataRow.push(courseName + "\n" + teacherName);
+                        } else {
+                            dataRow.push('');
+                        }
+                    }
+                }
+                excelData.push(dataRow);
+            }
+            
+            var wb = XLSX.utils.book_new();
+            var ws = XLSX.utils.aoa_to_sheet(excelData);
+            XLSX.utils.book_append_sheet(wb, ws, "全校课表");
+            XLSX.writeFile(wb, "全校课表_" + new Date().toISOString().slice(0,19).replace(/:/g, '-') + ".xlsx");
+            showToast("✅ 课表导出成功");
+        }
+        
+        function clearSelectedSchedules() {
+            if (selectedClassIds.length === 0) {
+                showToast("请先选择班级", true);
+                return;
+            }
+            if (confirm("确定清空所选班级的课表吗？注意：锁定课程不会被清空")) {
+                for (var i = 0; i < selectedClassIds.length; i++) {
+                    var classId = selectedClassIds[i];
+                    var schedule = tempSchedules[classId] || {};
+                    var newSchedule = {};
+                    // 保留锁定课程
+                    for (var key in schedule) {
+                        if (schedule[key] && schedule[key].locked === true) {
+                            newSchedule[key] = schedule[key];
+                        }
+                    }
+                    if (Object.keys(newSchedule).length === 0) {
+                        delete tempSchedules[classId];
+                    } else {
+                        tempSchedules[classId] = newSchedule;
+                    }
+                }
+                autoSave();
+                selectedSourceCell = null;
+                clearAllHighlights();
+                renderTimetable();
+                updateTeacherSelect();
+                showToast("✅ 已清空所选班级课表（锁定课程已保留）");
+            }
+        }
+        
+        function bindMultiselectEvents() {
+            var input = document.getElementById("multiselectInput");
+            var dropdown = document.getElementById("multiselectDropdown");
+            var searchInput = document.getElementById("classSearch");
+            
+            if (!input || !dropdown || !searchInput) return;
+            
+            input.onclick = function(e) {
+                e.stopPropagation();
+                dropdown.classList.toggle("show");
+            };
+            
+            searchInput.oninput = function() {
+                classSearchKeyword = this.value;
+                renderClassMultiselect();
+            };
+            
+            document.addEventListener("click", function(e) {
+                if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+                    dropdown.classList.remove("show");
+                }
+            });
+        }
+        
+        // 绑定按钮事件
+        document.getElementById("clearSelectedBtn").onclick = clearSelectedSchedules;
+        document.getElementById("exportBtn").onclick = exportTimetable;
+        document.getElementById("displayMode").onchange = function() { renderTimetable(); };
+        
+        // 启动
+        loadAllData();
+        bindMultiselectEvents();
+    })();
+</script>
+</body>
+</html>
