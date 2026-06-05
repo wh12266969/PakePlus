@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能排课系统 - 控制台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: #E9EDF2;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 整体布局 */
+        .app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* 顶部栏 */
+        .top-bar {
+            background: linear-gradient(135deg, #2c5282, #2d5a9e);
+            color: #fff;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            flex-shrink: 0;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .logo span {
+            color: #ffd700;
+        }
+
+        .user-info {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .user-name {
+            background: rgba(255,255,255,0.2);
+            padding: 5px 14px;
+            border-radius: 50px;
+            font-size: 13px;
+        }
+
+        .project-name-badge {
+            background: rgba(255,215,0,0.2);
+            padding: 5px 14px;
+            border-radius: 50px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .logout-btn {
+            background: #e53e3e;
+            color: #fff;
+            border: none;
+            padding: 5px 14px;
+            border-radius: 50px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .logout-btn:hover {
+            background: #c53030;
+        }
+
+        /* 主体 */
+        .main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            gap: 1px;
+            background: #cbd5e0;
+        }
+
+        /* 左侧菜单栏 */
+        .sidebar {
+            width: 260px;
+            background: #fff;
+            overflow-y: auto;
+            flex-shrink: 0;
+            transition: width 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar.collapsed {
+            width: 60px;
+        }
+
+        .sidebar.collapsed .category-header span:first-child,
+        .sidebar.collapsed .menu-item span:last-child,
+        .sidebar.collapsed .category-header span:last-child,
+        .sidebar.collapsed .project-actions .action-btn span,
+        .sidebar.collapsed .project-list-header span {
+            display: none;
+        }
+
+        .sidebar.collapsed .menu-item span:first-child {
+            margin: 0 auto;
+        }
+
+        .sidebar.collapsed .menu-item,
+        .sidebar.collapsed .category-header {
+            justify-content: center;
+            padding: 10px 0;
+        }
+
+        .sidebar.collapsed .project-actions {
+            flex-direction: column;
+            gap: 6px;
+            padding: 10px;
+        }
+
+        .sidebar.collapsed .action-btn {
+            padding: 8px 0;
+        }
+
+        .sidebar-toggle {
+            padding: 12px 0;
+            text-align: center;
+            cursor: pointer;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 20px;
+            font-weight: bold;
+            color: #2c5282;
+            transition: 0.2s;
+            flex-shrink: 0;
+        }
+        .sidebar-toggle:hover {
+            background: #e2e8f0;
+        }
+
+        /* 项目操作栏 */
+        .project-actions {
+            display: flex;
+            gap: 8px;
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+            background: #fff;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 8px 6px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            background: #f1f5f9;
+            color: #2d3748;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-1px);
+            filter: brightness(0.95);
+        }
+
+        .action-new { background: #38a169; color: white; }
+        .action-import { background: #3182ce; color: white; }
+        .action-export { background: #dd6b20; color: white; }
+        .action-save { background: #805ad5; color: white; }
+
+        /* 项目列表 */
+        .project-list-section {
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+            background: #fafbfc;
+        }
+
+        .project-list-header {
+            font-size: 12px;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .project-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .project-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 10px;
+            margin-bottom: 4px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+        }
+
+        .project-item:hover {
+            background: #ebf4ff;
+            border-color: #3182ce;
+        }
+
+        .project-item.active {
+            background: #ebf4ff;
+            border-color: #3182ce;
+            border-left: 3px solid #3182ce;
+        }
+
+        .project-name {
+            font-size: 13px;
+            font-weight: 500;
+            color: #2d3748;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .project-date {
+            font-size: 10px;
+            color: #a0aec0;
+            margin-left: 8px;
+        }
+
+        .project-actions-mini {
+            display: flex;
+            gap: 4px;
+        }
+
+        .project-actions-mini button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: 0.2s;
+        }
+
+        .project-actions-mini button:hover {
+            background: #e2e8f0;
+        }
+
+        .project-rename-btn { color: #3182ce; }
+        .project-delete-btn { color: #e53e3e; }
+
+        /* 菜单滚动区域 */
+        .sidebar-menu-scroll {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        /* 菜单样式 */
+        .menu-category {
+            border-bottom: 1px solid #eef2f6;
+        }
+
+        .category-header {
+            padding: 10px 12px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            font-weight: 600;
+            font-size: 13px;
+            color: #2b4c7c;
+            background: #fafbfc;
+            transition: 0.2s;
+        }
+
+        .category-header:hover {
+            background: #f0f2f5;
+        }
+
+        .category-content {
+            padding: 6px 0 6px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .category-content.collapsed {
+            display: none;
+        }
+
+        .menu-item {
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+            color: #4a5568;
+        }
+
+        .menu-item:hover {
+            background: #ebf4ff;
+            color: #2c5282;
+        }
+
+        /* 右侧内容区 */
+        .content-area {
+            flex: 1;
+            background: #edf2f7;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .tabs-bar {
+            background: #fff;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            flex-shrink: 0;
+            min-height: 42px;
+        }
+
+        .tabs-bar::-webkit-scrollbar { height: 4px; }
+        .tabs-bar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .tabs-bar::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 2px; }
+
+        .tab {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: #f7fafc;
+            border-right: 1px solid #e2e8f0;
+            cursor: pointer;
+            font-size: 13px;
+            white-space: nowrap;
+            transition: 0.2s;
+            flex-shrink: 0;
+        }
+
+        .tab:hover { background: #edf2f7; }
+        .tab.active {
+            background: #fff;
+            border-bottom: 2px solid #3182ce;
+            color: #3182ce;
+            font-weight: 500;
+        }
+
+        .tab-close {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            cursor: pointer;
+            color: #a0aec0;
+        }
+        .tab-close:hover { background: #e2e8f0; color: #e53e3e; }
+
+        .iframe-container {
+            flex: 1;
+            position: relative;
+            background: #f5f7fa;
+        }
+
+        .iframe-pane {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+        }
+        .iframe-pane.active { display: block; }
+        iframe { width: 100%; height: 100%; border: none; background: #fff; }
+
+        /* 模态框 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        .modal {
+            background: white;
+            border-radius: 12px;
+            width: 400px;
+            max-width: 90%;
+            padding: 24px;
+            box-shadow: 0 20px 35px rgba(0,0,0,0.2);
+        }
+        .modal h3 {
+            margin-bottom: 16px;
+            color: #2c5282;
+        }
+        .modal input, .modal select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+        .modal-buttons button {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .modal-confirm { background: #3182ce; color: white; }
+        .modal-cancel { background: #e2e8f0; color: #4a5568; }
+
+        #fileInput { display: none; }
+    </style>
+</head>
+<body>
+<div class="app">
+    <div class="top-bar">
+        <div class="logo">智能<span>排课系统</span></div>
+        <div class="user-info">
+            <span class="project-name-badge" id="currentProjectBadge">未选择项目</span>
+            <span class="user-name" id="userNameDisplay">加载中...</span>
+            <button class="logout-btn" id="logoutBtn">退出登录</button>
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-toggle" id="sidebarToggle">☰</div>
+            
+            <!-- 项目操作栏 -->
+            <div class="project-actions" id="projectActions" style="display: none;">
+                <button class="action-btn action-new" id="newProjectBtn">➕ <span>新建</span></button>
+                <button class="action-btn action-import" id="importBtnSidebar">📥 <span>导入</span></button>
+                <button class="action-btn action-export" id="exportBtnSidebar">📤 <span>导出</span></button>
+                <button class="action-btn action-save" id="saveCurrentBtn">💾 <span>保存</span></button>
+            </div>
+
+            <!-- 项目列表 -->
+            <div class="project-list-section" id="projectListSection" style="display: none;">
+                <div class="project-list-header">
+                    <span>📁 我的项目</span>
+                    <span style="font-size: 11px;" id="projectCount">0个</span>
+                </div>
+                <div class="project-list" id="projectList"></div>
+            </div>
+
+            <div class="sidebar-menu-scroll" id="sidebarMenuScroll"></div>
+        </div>
+
+        <div class="content-area">
+            <div class="tabs-bar" id="tabsBar">
+                <div class="tab active" data-tab-id="welcome">
+                    <span>🏠 控制台</span>
+                </div>
+            </div>
+            <div class="iframe-container" id="iframeContainer">
+                <div class="iframe-pane active" data-pane-id="welcome">
+                    <iframe id="welcomeIframe" src="about:blank"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<input type="file" id="fileInput" accept=".json">
+
+<script>
+    // ==================== 项目管理系统 ====================
+    let currentUser = JSON.parse(localStorage.getItem("currentUser") || "null");
+    if (!currentUser) location.href = "01-登录.html";
+    
+    if (currentUser && !currentUser.roleType) {
+        currentUser.roleType = currentUser.roleName === '教师' || currentUser.roleName === '老师' ? 'teacher' : 'admin';
+        localStorage.setItem("currentUser", JSON.stringify(currentUser));
+    }
+    
+    const isAdmin = currentUser.roleType === 'admin';
+    const isTeacher = currentUser.roleType === 'teacher';
+    const roleDisplayName = currentUser.roleName || (isAdmin ? '管理员' : '教师');
+    document.getElementById("userNameDisplay").innerText = currentUser.name + " (" + roleDisplayName + ")";
+    document.getElementById("logoutBtn").onclick = () => {
+        if (confirm("确定要退出登录吗？")) {
+            localStorage.removeItem("currentUser");
+            location.href = "01-登录.html";
+        }
+    };
+    
+    // 项目存储 Key
+    const PROJECTS_STORAGE_KEY = 'saved_projects';
+    const CURRENT_PROJECT_KEY = 'current_project_id';
+    
+    let projects = [];           // 项目列表
+    let currentProjectId = null; // 当前项目ID
+    
+    // 加载项目列表
+    function loadProjects() {
+        const saved = localStorage.getItem(PROJECTS_STORAGE_KEY);
+        if (saved) {
+            projects = JSON.parse(saved);
+        } else {
+            // 初始化示例项目
+            projects = [];
+        }
+        updateProjectListUI();
+    }
+    
+    // 保存项目列表
+    function saveProjectsList() {
+        localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(projects));
+        updateProjectListUI();
+    }
+    
+    // 获取当前项目的所有数据
+    function getCurrentProjectData() {
+        const data = {};
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key !== PROJECTS_STORAGE_KEY && key !== CURRENT_PROJECT_KEY && key !== 'currentUser' && key !== 'users') {
+                data[key] = localStorage.getItem(key);
+            }
+        }
+        return data;
+    }
+    
+    // 加载指定项目
+    function loadProject(projectId) {
+        const project = projects.find(p => p.id === projectId);
+        if (!project) return false;
+        
+        // 保存当前项目数据（如果有）
+        if (currentProjectId) {
+            saveCurrentProjectData();
+        }
+        
+        // 清空业务数据（保留用户信息）
+        const keysToKeep = ['currentUser', 'users', PROJECTS_STORAGE_KEY, CURRENT_PROJECT_KEY];
+        const preserved = {};
+        for (let key of keysToKeep) {
+            if (localStorage.getItem(key)) preserved[key] = localStorage.getItem(key);
+        }
+        localStorage.clear();
+        for (let key in preserved) localStorage.setItem(key, preserved[key]);
+        
+        // 恢复项目数据
+        if (project.data) {
+            for (let [key, value] of Object.entries(project.data)) {
+                localStorage.setItem(key, value);
+            }
+        }
+        
+        currentProjectId = projectId;
+        localStorage.setItem(CURRENT_PROJECT_KEY, currentProjectId);
+        updateCurrentProjectBadge();
+        updateProjectListUI();
+        
+        // 刷新页面以加载新项目数据
+        location.reload();
+        return true;
+    }
+    
+    // 保存当前项目数据
+    function saveCurrentProjectData() {
+        if (!currentProjectId) return;
+        const projectIndex = projects.findIndex(p => p.id === currentProjectId);
+        if (projectIndex !== -1) {
+            projects[projectIndex].data = getCurrentProjectData();
+            projects[projectIndex].updatedAt = new Date().toISOString();
+            saveProjectsList();
+        }
+    }
+    
+    // 新建项目
+    function createProject(projectName) {
+        // 保存当前项目
+        if (currentProjectId) saveCurrentProjectData();
+        
+        const newId = 'project_' + Date.now();
+        const newProject = {
+            id: newId,
+            name: projectName,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            data: {}
+        };
+        
+        projects.push(newProject);
+        saveProjectsList();
+        
+        // 清空当前数据并切换到新项目
+        const keysToKeep = ['currentUser', 'users', PROJECTS_STORAGE_KEY, CURRENT_PROJECT_KEY];
+        const preserved = {};
+        for (let key of keysToKeep) {
+            if (localStorage.getItem(key)) preserved[key] = localStorage.getItem(key);
+        }
+        localStorage.clear();
+        for (let key in preserved) localStorage.setItem(key, preserved[key]);
+        
+        currentProjectId = newId;
+        localStorage.setItem(CURRENT_PROJECT_KEY, currentProjectId);
+        updateCurrentProjectBadge();
+        updateProjectListUI();
+        
+        location.reload();
+    }
+    
+    // 重命名项目
+    function renameProject(projectId, newName) {
+        const project = projects.find(p => p.id === projectId);
+        if (project) {
+            project.name = newName;
+            project.updatedAt = new Date().toISOString();
+            saveProjectsList();
+            if (currentProjectId === projectId) updateCurrentProjectBadge();
+        }
+    }
+    
+    // 删除项目
+    function deleteProject(projectId) {
+        if (projects.length === 1) {
+            alert("至少需要保留一个项目，无法删除。");
+            return false;
+        }
+        const index = projects.findIndex(p => p.id === projectId);
+        if (index !== -1) {
+            projects.splice(index, 1);
+            saveProjectsList();
+            
+            if (currentProjectId === projectId) {
+                // 切换到第一个项目
+                loadProject(projects[0].id);
+            }
+        }
+        return true;
+    }
+    
+    // 导出项目到文件
+    function exportProjectAsFile() {
+        if (!currentProjectId) {
+            alert("请先选择一个项目");
+            return;
+        }
+        const project = projects.find(p => p.id === currentProjectId);
+        if (!project) return;
+        
+        // 获取最新数据
+        const currentData = getCurrentProjectData();
+        const exportData = {
+            projectInfo: {
+                id: project.id,
+                name: project.name,
+                createdAt: project.createdAt,
+                exportedAt: new Date().toISOString()
+            },
+            data: currentData
+        };
+        
+        const jsonStr = JSON.stringify(exportData, null, 2);
+        const blob = new Blob([jsonStr], { type: "application/json" });
+        const fileName = `${project.name}_备份_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.json`;
+        
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        alert("✅ 项目导出成功！");
+    }
+    
+    // 导入项目
+    function importProjectFromFile(file) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            try {
+                const importData = JSON.parse(ev.target.result);
+                let projectName, projectData;
+                
+                if (importData.projectInfo && importData.data) {
+                    projectName = importData.projectInfo.name;
+                    projectData = importData.data;
+                } else {
+                    projectName = "导入的项目";
+                    projectData = importData;
+                }
+                
+                // 添加时间戳避免重名
+                const newName = projectName + "_" + new Date().toLocaleDateString();
+                const newId = 'project_' + Date.now();
+                const newProject = {
+                    id: newId,
+                    name: newName,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    data: projectData
+                };
+                
+                projects.push(newProject);
+                saveProjectsList();
+                alert(`✅ 导入成功！项目名称：${newName}`);
+                loadProject(newId);
+            } catch (e) {
+                alert("❌ 导入失败：文件格式错误");
+            }
+        };
+        reader.readAsText(file);
+    }
+    
+    // UI 更新
+    function updateProjectListUI() {
+        const container = document.getElementById("projectList");
+        const countSpan = document.getElementById("projectCount");
+        if (!container) return;
+        
+        if (projects.length === 0) {
+            container.innerHTML = '<div style="padding: 12px; text-align: center; color: #a0aec0; font-size: 12px;">暂无项目，点击"新建"</div>';
+            if (countSpan) countSpan.innerText = "0个";
+            return;
+        }
+        
+        if (countSpan) countSpan.innerText = projects.length + "个";
+        
+        container.innerHTML = projects.map(project => `
+            <div class="project-item ${currentProjectId === project.id ? 'active' : ''}" data-id="${project.id}">
+                <div class="project-name" title="${escapeHtml(project.name)}">📄 ${escapeHtml(project.name)}</div>
+                <div class="project-actions-mini">
+                    <button class="project-rename-btn" data-id="${project.id}" data-name="${escapeHtml(project.name)}" title="重命名">✏️</button>
+                    <button class="project-delete-btn" data-id="${project.id}" title="删除">🗑️</button>
+                </div>
+            </div>
+        `).join('');
+        
+        // 绑定点击切换项目
+        document.querySelectorAll('.project-item').forEach(el => {
+            el.addEventListener('click', (e) => {
+                if (e.target.classList.contains('project-rename-btn') || 
+                    e.target.classList.contains('project-delete-btn')) return;
+                const pid = el.dataset.id;
+                if (pid && pid !== currentProjectId) {
+                    if (confirm("切换项目将保存当前进度，确定切换吗？")) {
+                        loadProject(pid);
+                    }
+                }
+            });
+        });
+        
+        // 重命名按钮
+        document.querySelectorAll('.project-rename-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const pid = btn.dataset.id;
+                const oldName = btn.dataset.name;
+                const newName = prompt("请输入新项目名称:", oldName);
+                if (newName && newName.trim()) {
+                    renameProject(pid, newName.trim());
+                }
+            });
+        });
+        
+        // 删除按钮
+        document.querySelectorAll('.project-delete-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const pid = btn.dataset.id;
+                if (confirm("确定要删除这个项目吗？此操作不可恢复！")) {
+                    deleteProject(pid);
+                }
+            });
+        });
+    }
+    
+    function updateCurrentProjectBadge() {
+        const badge = document.getElementById("currentProjectBadge");
+        if (currentProjectId) {
+            const project = projects.find(p => p.id === currentProjectId);
+            badge.innerText = `📁 ${project ? project.name : '未知项目'}`;
+        } else {
+            badge.innerText = "未选择项目";
+        }
+    }
+    
+    // 新建项目模态框
+    function showNewProjectModal() {
+        const modalHtml = `
+            <div class="modal-overlay" id="newProjectModal">
+                <div class="modal">
+                    <h3>📁 新建项目</h3>
+                    <input type="text" id="projectNameInput" placeholder="项目名称" autocomplete="off">
+                    <div class="modal-buttons">
+                        <button class="modal-cancel" id="cancelModalBtn">取消</button>
+                        <button class="modal-confirm" id="confirmModalBtn">创建</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        const input = document.getElementById("projectNameInput");
+        input.focus();
+        
+        const closeModal = () => document.getElementById("newProjectModal")?.remove();
+        
+        document.getElementById("confirmModalBtn").onclick = () => {
+            const name = input.value.trim();
+            if (!name) {
+                alert("请输入项目名称");
+                return;
+            }
+            createProject(name);
+            closeModal();
+        };
+        document.getElementById("cancelModalBtn").onclick = closeModal;
+        document.getElementById("newProjectModal").onclick = (e) => {
+            if (e.target === e.currentTarget) closeModal();
+        };
+    }
+    
+    // ==================== 侧边栏折叠 ====================
+    const sidebar = document.getElementById("sidebar");
+    document.getElementById("sidebarToggle").onclick = () => sidebar.classList.toggle("collapsed");
+    
+    // ==================== 显示/隐藏管理员控件 ====================
+    if (isAdmin) {
+        document.getElementById("projectActions").style.display = "flex";
+        document.getElementById("projectListSection").style.display = "block";
+        
+        document.getElementById("newProjectBtn").onclick = showNewProjectModal;
+        document.getElementById("importBtnSidebar").onclick = () => document.getElementById("fileInput").click();
+        document.getElementById("exportBtnSidebar").onclick = exportProjectAsFile;
+        document.getElementById("saveCurrentBtn").onclick = () => {
+            saveCurrentProjectData();
+            alert("✅ 当前项目已保存");
+        };
+        
+        const fileInput = document.getElementById("fileInput");
+        fileInput.onchange = (e) => {
+            if (e.target.files[0]) importProjectFromFile(e.target.files[0]);
+            e.target.value = '';
+        };
+    }
+    
+    // ==================== 初始化项目系统 ====================
+    loadProjects();
+    
+    // 恢复上次打开的项目
+    const savedProjectId = localStorage.getItem(CURRENT_PROJECT_KEY);
+    if (savedProjectId && projects.find(p => p.id === savedProjectId)) {
+        currentProjectId = savedProjectId;
+    } else if (projects.length > 0) {
+        currentProjectId = projects[0].id;
+        localStorage.setItem(CURRENT_PROJECT_KEY, currentProjectId);
+    }
+    updateCurrentProjectBadge();
+    
+    // ==================== 菜单配置与渲染 ====================
+    const fullMenuConfig = [
+        { name: "📚 基础数据管理", permission: "admin", children: [
+            { name: "专业/类别设置", page: "03-专业设置.html", icon: "🏷️" },
+            { name: "教学时间设置", page: "03-教学时间.html", icon: "⏰" },
+            { name: "班级管理", page: "03-班级管理.html", icon: "🏫" },
+            { name: "课程管理", page: "03-课程管理.html", icon: "📚" },
+            { name: "教师管理", page: "03-教师管理.html", icon: "👨‍🏫" },
+            { name: "教师组管理", page: "03-教师组管理.html", icon: "👥" },
+            { name: "教室管理", page: "03-教室管理.html", icon: "🏢" },
+        ]},
+        { name: "📊 教学计划管理", permission: "admin", children: [
+            { name: "教学计划矩阵", page: "03-教学计划矩阵.html", icon: "📊" },
+            { name: "教学计划列表", page: "03-教学计划列表.html", icon: "📋" },
+        ]},
+        { name: "⚙️ 排课管理", permission: "admin", children: [
+            { name: "排课规则设置", page: "04-排课规则.html", icon: "⚙️" },
+            { name: "固定排课时间", page: "04-固定排课时间.html", icon: "📌" },
+            { name: "全自动排课", page: "04-全自动排课.html", icon: "🤖" },
+            { name: "半自动排课", page: "04-半自动排课.html", icon: "🎯" },
+            { name: "手动排课", page: "04-手动排课.html", icon: "✋" },
+        ]},
+        { name: "📅 课表查看", permission: "all", children: [
+            { name: "全校课表", page: "05-全校课表.html", icon: "🏫" },
+            { name: "班级课表", page: "05-班级课表.html", icon: "📖" },
+            { name: "教师课表", page: "05-教师课表.html", icon: "👨‍🏫" },
+        ]},
+        { name: "🔄 调课安排", permission: "admin", children: [
+            { name: "教学计划调整", page: "07-教学计划调整.html", icon: "📝" },
+            { name: "临时调课代课安排", page: "07-临时调课代课.html", icon: "🔄" },
+        ]},
+        { name: "📖 早读自习安排", permission: "admin", children: [
+            { name: "自动排早读自习", page: "08-自动排早读自习.html", icon: "🤖" },
+        ]},
+        { name: "📝 考试管理", permission: "admin", children: [
+            { name: "考务安排", page: "09-考务安排.html", icon: "📋" },
+            { name: "成绩分析", page: "09-成绩分析.html", icon: "📊" },
+            { name: "分班成绩工具", page: "09-分班成绩工具.html", icon: "🔧" },
+        ]},
+        { name: "🔧 系统设置", permission: "admin", children: [
+            { name: "用户管理", page: "10-用户管理.html", icon: "👥" },
+            { name: "个人中心", page: "10-个人中心.html", icon: "👤" },
+        ]}
+    ];
+    
+    function getFilteredMenu() {
+        if (isAdmin) return JSON.parse(JSON.stringify(fullMenuConfig));
+        const teacherMenu = [];
+        for (let cat of fullMenuConfig) {
+            if (cat.permission === 'all' || cat.name === "📅 课表查看") {
+                teacherMenu.push({ name: cat.name, children: [...cat.children] });
+            }
+        }
+        return teacherMenu;
+    }
+    
+    function renderMenu() {
+        const container = document.getElementById("sidebarMenuScroll");
+        const menu = getFilteredMenu();
+        if (!menu.length && isTeacher) {
+            container.innerHTML = `<div style="padding: 20px;">⚠️ 无菜单权限</div>`;
+            return;
+        }
+        let html = "";
+        menu.forEach((cat, idx) => {
+            if (!cat.children?.length) return;
+            html += `<div class="menu-category">
+                <div class="category-header"><span>${cat.name}</span><span>${idx === 0 ? '▼' : '▶'}</span></div>
+                <div class="category-content ${idx !== 0 ? 'collapsed' : ''}">`;
+            cat.children.forEach(item => {
+                html += `<div class="menu-item" data-page="${item.page}" data-name="${item.name}"><span>${item.icon}</span><span>${item.name}</span></div>`;
+            });
+            html += `</div></div>`;
+        });
+        container.innerHTML = html;
+        
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.onclick = () => openNewTab(item.dataset.page, item.dataset.name);
+        });
+        document.querySelectorAll('.category-header').forEach(header => {
+            header.onclick = () => {
+                const content = header.nextElementSibling;
+                content.classList.toggle('collapsed');
+                const arrow = header.querySelector('span:last-child');
+                arrow.innerHTML = content.classList.contains('collapsed') ? '▶' : '▼';
+            };
+        });
+    }
+    
+    // ==================== 欢迎页与标签页 ====================
+    let tabs = [], activeTabId = "welcome", tabCounter = 1;
+    const MAX_TABS = 5;
+    
+    function initWelcomePage() {
+        const iframe = document.getElementById("welcomeIframe");
+        const welcomeHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>控制台</title><style>body{font-family:system-ui;background:linear-gradient(135deg,#f5f7fa,#e4e8f0);padding:40px 20px;text-align:center;}h2{color:#2c5282;}.shortcuts{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:30px;}.shortcut-btn{background:#3182ce;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;}.info-card{background:white;border-radius:16px;padding:24px;margin-top:30px;max-width:600px;margin-left:auto;margin-right:auto;text-align:left;}</style></head><body>
+        <h2>🎉 智能排课系统</h2><p>欢迎回来，${escapeHtml(currentUser.name)}</p>
+        <div class="shortcuts">${isAdmin ? 
+            '<button class="shortcut-btn" onclick="parent.openNewTab(\'03-班级管理.html\',\'班级管理\')">🏫 班级管理</button>' +
+            '<button class="shortcut-btn" onclick="parent.openNewTab(\'04-全自动排课.html\',\'全自动排课\')">🤖 全自动排课</button>' :
+            '<button class="shortcut-btn" onclick="parent.openNewTab(\'05-全校课表.html\',\'全校课表\')">🏫 全校课表</button>' +
+            '<button class="shortcut-btn" onclick="parent.openNewTab(\'05-教师课表.html\',\'教师课表\')">👨‍🏫 教师课表</button>'}</div>
+        <div class="info-card"><h3>📌 提示</h3><ul><li>左侧可管理多个项目，支持新建、切换、重命名、删除</li><li>点击"保存"按钮可随时保存当前项目进度</li><li>支持导出项目备份文件，导入恢复项目</li></ul></div>
+        </body></html>`;
+        iframe.src = URL.createObjectURL(new Blob([welcomeHtml], {type: 'text/html'}));
+    }
+    
+    function openNewTab(page, name) {
+        if (isTeacher && !["05-全校课表.html","05-班级课表.html","05-教师课表.html"].includes(page)) {
+            alert("教师仅可查看课表");
+            return;
+        }
+        if (tabs.find(t => t.page === page)) return switchToTab(tabs.find(t => t.page === page).id);
+        if (tabs.length >= MAX_TABS) return alert(`最多${MAX_TABS}个标签`);
+        const id = `tab_${Date.now()}_${tabCounter++}`;
+        const tabEl = document.createElement("div");
+        tabEl.className = "tab";
+        tabEl.setAttribute("data-tab-id", id);
+        tabEl.innerHTML = `<span>📄 ${escapeHtml(name)}</span><span class="tab-close">✕</span>`;
+        document.getElementById("tabsBar").insertBefore(tabEl, document.querySelector('.tab[data-tab-id="welcome"]').nextSibling);
+        const paneEl = document.createElement("div");
+        paneEl.className = "iframe-pane";
+        paneEl.setAttribute("data-pane-id", id);
+        paneEl.innerHTML = `<iframe src="${page}"></iframe>`;
+        document.getElementById("iframeContainer").appendChild(paneEl);
+        tabs.push({id, name, page, tabEl, paneEl});
+        tabEl.querySelector(".tab-close").onclick = (e) => { e.stopPropagation(); closeTab(id); };
+        tabEl.onclick = () => switchToTab(id);
+        switchToTab(id);
+    }
+    
+    function switchToTab(id) {
+        activeTabId = id;
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelector(`.tab[data-tab-id="${id}"]`)?.classList.add('active');
+        document.querySelectorAll('.iframe-pane').forEach(p => p.classList.remove('active'));
+        document.querySelector(`.iframe-pane[data-pane-id="${id}"]`)?.classList.add('active');
+    }
+    
+    function closeTab(id) {
+        if (id === "welcome") return alert("控制台不能关闭");
+        const idx = tabs.findIndex(t => t.id === id);
+        if (idx === -1) return;
+        if (activeTabId === id) switchToTab(idx > 0 ? tabs[idx-1].id : (tabs[idx+1]?.id || "welcome"));
+        tabs[idx].tabEl.remove();
+        tabs[idx].paneEl.remove();
+        tabs.splice(idx,1);
+    }
+    
+    function escapeHtml(str) { return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
+    
+    renderMenu();
+    initWelcomePage();
+    window.openNewTab = openNewTab;
+</script>
+</body>
+</html>
