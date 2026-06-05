@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户管理 - 智能排课系统</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .top-bar {
+            background: linear-gradient(135deg, #1e3c72 0%, #2b4c7c 100%);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .logo { font-size: 24px; font-weight: bold; }
+        .logo span { color: #ffd700; }
+        .user-info { display: flex; align-items: center; gap: 15px; }
+        .user-name { background: rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 20px; font-size: 14px; }
+        .back-btn, .logout-btn { background: rgba(255,255,255,0.2); color: white; border: none; padding: 6px 16px; border-radius: 20px; cursor: pointer; }
+        .back-btn:hover, .logout-btn:hover { background: #dc3545; }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card h3 {
+            color: #1e3c72;
+            margin-top: 0;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #1e3c72;
+            padding-bottom: 8px;
+        }
+        
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            background: #1e3c72;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn:hover { background: #2b4c7c; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-warning { background: #ffc107; color: #333; }
+        .btn-warning:hover { background: #e0a800; }
+        
+        .user-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        .user-table th, .user-table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+            vertical-align: middle;
+        }
+        .user-table th {
+            background: #1e3c72;
+            color: white;
+        }
+        .user-table tr:hover { background: #f5f5f5; }
+        
+        .status-active {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .status-disabled {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .action-btn {
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            border: none;
+        }
+        .action-btn.edit { background: #ffc107; color: #333; }
+        .action-btn.delete { background: #dc3545; color: white; }
+        .action-btn.reset { background: #17a2b8; color: white; }
+        .action-btn.toggle { background: #6c757d; color: white; }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            width: 450px;
+            max-width: 90%;
+        }
+        .modal-content h3 {
+            color: #1e3c72;
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 2000;
+            animation: fadeOut 2s ease-in-out;
+        }
+        .toast.error { background: #dc3545; }
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; visibility: hidden; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="top-bar">
+        <div class="logo">智能<span>排课系统</span> - 用户管理</div>
+        <div class="user-info">
+            <span class="user-name" id="userNameDisplay"></span>
+            <button class="back-btn" id="backBtn">← 返回目录</button>
+            <button class="logout-btn" id="logoutBtn">退出登录</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>👥 用户管理</h3>
+        
+        <div class="toolbar">
+            <button id="addUserBtn" class="btn btn-success">+ 添加用户</button>
+        </div>
+        
+        <table class="user-table">
+            <thead>
+                <tr><th>ID</th><th>用户名</th><th>姓名</th><th>角色</th><th>邮箱</th><th>电话</th><th>状态</th><th>操作</th> </thead>
+            <tbody id="userList"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 添加/编辑用户模态框 -->
+<div id="userModal" class="modal">
+    <div class="modal-content">
+        <h3 id="modalTitle">添加用户</h3>
+        <div class="form-group">
+            <label>用户名</label>
+            <input type="text" id="username" placeholder="登录账号">
+        </div>
+        <div class="form-group" id="passwordGroup">
+            <label>密码</label>
+            <input type="password" id="password" placeholder="密码">
+        </div>
+        <div class="form-group">
+            <label>姓名</label>
+            <input type="text" id="fullname" placeholder="真实姓名">
+        </div>
+        <div class="form-group">
+            <label>角色</label>
+            <select id="role">
+                <option value="admin">管理员</option>
+                <option value="teacher">教师</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>邮箱</label>
+            <input type="email" id="email" placeholder="邮箱">
+        </div>
+        <div class="form-group">
+            <label>电话</label>
+            <input type="tel" id="phone" placeholder="电话">
+        </div>
+        <div class="modal-buttons">
+            <button id="cancelBtn" class="btn btn-danger">取消</button>
+            <button id="saveBtn" class="btn btn-success">保存</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const USERS_KEY = "pk_users";
+    const CURRENT_USER_KEY = "currentUser";
+    
+    let users = [];
+    let editingId = null;
+    let currentUser = null;
+    
+    function showToast(msg, isErr) {
+        let t = document.createElement("div");
+        t.className = "toast" + (isErr ? " error" : "");
+        t.innerText = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 2000);
+    }
+    
+    function loadUsers() {
+        let u = localStorage.getItem(USERS_KEY);
+        if (u) {
+            users = JSON.parse(u);
+        } else {
+            // 初始化默认用户
+            users = [
+                {
+                    id: 1,
+                    username: "admin",
+                    password: "123456",
+                    fullname: "管理员",
+                    role: "admin",
+                    roleName: "管理员",
+                    email: "admin@example.com",
+                    phone: "",
+                    status: "active",
+                    createTime: new Date().toISOString()
+                },
+                {
+                    id: 2,
+                    username: "teacher",
+                    password: "123456",
+                    fullname: "张老师",
+                    role: "teacher",
+                    roleName: "教师",
+                    email: "teacher@example.com",
+                    phone: "",
+                    status: "active",
+                    createTime: new Date().toISOString()
+                }
+            ];
+            saveUsers();
+        }
+        renderUserList();
+    }
+    
+    function saveUsers() {
+        localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    }
+    
+    function getRoleName(role) {
+        switch(role) {
+            case 'admin': return '管理员';
+            case 'teacher': return '教师';
+            default: return role;
+        }
+    }
+    
+    function renderUserList() {
+        let tbody = document.getElementById("userList");
+        tbody.innerHTML = "";
+        
+        for (let user of users) {
+            let tr = document.createElement("tr");
+            let statusClass = user.status === 'active' ? 'status-active' : 'status-disabled';
+            let statusText = user.status === 'active' ? '启用' : '禁用';
+            
+            tr.innerHTML = `
+                <td>${user.id}</td>
+                <td>${escapeHtml(user.username)}</div>
+                <td>${escapeHtml(user.fullname)}</div>
+                <td>${getRoleName(user.role)}</div>
+                <td>${escapeHtml(user.email || '')}</div>
+                <td>${escapeHtml(user.phone || '')}</div>
+                <td class="${statusClass}">${statusText}</div>
+                <td class="action-buttons">
+                    <button class="action-btn edit" data-id="${user.id}">✏️ 编辑</button>
+                    <button class="action-btn reset" data-id="${user.id}">🔑 重置密码</button>
+                    <button class="action-btn toggle" data-id="${user.id}">${user.status === 'active' ? '🔒 禁用' : '✅ 启用'}</button>
+                    <button class="action-btn delete" data-id="${user.id}">🗑️ 删除</button>
+                </div>
+            `;
+            tbody.appendChild(tr);
+        }
+        
+        // 绑定按钮事件
+        document.querySelectorAll('.action-btn.edit').forEach(btn => {
+            btn.onclick = () => openEditModal(parseInt(btn.getAttribute('data-id')));
+        });
+        document.querySelectorAll('.action-btn.reset').forEach(btn => {
+            btn.onclick = () => resetPassword(parseInt(btn.getAttribute('data-id')));
+        });
+        document.querySelectorAll('.action-btn.toggle').forEach(btn => {
+            btn.onclick = () => toggleUserStatus(parseInt(btn.getAttribute('data-id')));
+        });
+        document.querySelectorAll('.action-btn.delete').forEach(btn => {
+            btn.onclick = () => deleteUser(parseInt(btn.getAttribute('data-id')));
+        });
+    }
+    
+    function openAddModal() {
+        editingId = null;
+        document.getElementById("modalTitle").innerText = "添加用户";
+        document.getElementById("passwordGroup").style.display = "block";
+        document.getElementById("username").value = "";
+        document.getElementById("password").value = "";
+        document.getElementById("fullname").value = "";
+        document.getElementById("role").value = "teacher";
+        document.getElementById("email").value = "";
+        document.getElementById("phone").value = "";
+        document.getElementById("userModal").style.display = "flex";
+    }
+    
+    function openEditModal(id) {
+        editingId = id;
+        let user = users.find(u => u.id == id);
+        if (!user) return;
+        
+        document.getElementById("modalTitle").innerText = "编辑用户";
+        document.getElementById("passwordGroup").style.display = "none";
+        document.getElementById("username").value = user.username;
+        document.getElementById("password").value = "";
+        document.getElementById("fullname").value = user.fullname;
+        document.getElementById("role").value = user.role;
+        document.getElementById("email").value = user.email || "";
+        document.getElementById("phone").value = user.phone || "";
+        document.getElementById("userModal").style.display = "flex";
+    }
+    
+    function closeModal() {
+        document.getElementById("userModal").style.display = "none";
+        editingId = null;
+    }
+    
+    function saveUser() {
+        let username = document.getElementById("username").value.trim();
+        let password = document.getElementById("password").value;
+        let fullname = document.getElementById("fullname").value.trim();
+        let role = document.getElementById("role").value;
+        let email = document.getElementById("email").value.trim();
+        let phone = document.getElementById("phone").value.trim();
+        
+        if (!username) {
+            showToast("请输入用户名", true);
+            return;
+        }
+        if (!fullname) {
+            showToast("请输入姓名", true);
+            return;
+        }
+        
+        if (editingId === null) {
+            // 添加用户
+            if (!password) {
+                showToast("请输入密码", true);
+                return;
+            }
+            // 检查用户名是否重复
+            if (users.some(u => u.username === username)) {
+                showToast("用户名已存在", true);
+                return;
+            }
+            let newId = Math.max(0, ...users.map(u => u.id), 0) + 1;
+            users.push({
+                id: newId,
+                username: username,
+                password: password,
+                fullname: fullname,
+                role: role,
+                roleName: getRoleName(role),
+                email: email,
+                phone: phone,
+                status: "active",
+                createTime: new Date().toISOString()
+            });
+            showToast("✅ 用户已添加");
+        } else {
+            // 编辑用户
+            let user = users.find(u => u.id == editingId);
+            if (user) {
+                // 检查用户名是否重复（排除自己）
+                if (users.some(u => u.username === username && u.id !== editingId)) {
+                    showToast("用户名已存在", true);
+                    return;
+                }
+                user.username = username;
+                user.fullname = fullname;
+                user.role = role;
+                user.roleName = getRoleName(role);
+                user.email = email;
+                user.phone = phone;
+                showToast("✅ 用户已更新");
+            }
+        }
+        saveUsers();
+        renderUserList();
+        closeModal();
+    }
+    
+    function resetPassword(id) {
+        let user = users.find(u => u.id == id);
+        if (!user) return;
+        let newPassword = prompt("请输入新密码", "123456");
+        if (newPassword && newPassword.trim()) {
+            user.password = newPassword.trim();
+            saveUsers();
+            showToast(`✅ 用户 ${user.username} 的密码已重置`);
+        }
+    }
+    
+    function toggleUserStatus(id) {
+        let user = users.find(u => u.id == id);
+        if (!user) return;
+        if (currentUser && currentUser.id === id) {
+            showToast("不能禁用或启用当前登录用户", true);
+            return;
+        }
+        user.status = user.status === 'active' ? 'disabled' : 'active';
+        saveUsers();
+        renderUserList();
+        showToast(`✅ 用户 ${user.username} 已${user.status === 'active' ? '启用' : '禁用'}`);
+    }
+    
+    function deleteUser(id) {
+        let user = users.find(u => u.id == id);
+        if (!user) return;
+        if (currentUser && currentUser.id === id) {
+            showToast("不能删除当前登录用户", true);
+            return;
+        }
+        if (confirm(`确定删除用户 "${user.username}" 吗？`)) {
+            users = users.filter(u => u.id !== id);
+            saveUsers();
+            renderUserList();
+            showToast("✅ 用户已删除");
+        }
+    }
+    
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+    
+    function displayCurrentUser() {
+        let user = localStorage.getItem(CURRENT_USER_KEY);
+        if (user) {
+            try {
+                currentUser = JSON.parse(user);
+                document.getElementById("userNameDisplay").innerText = currentUser.name + " (" + currentUser.roleName + ")";
+                // 非管理员不能访问用户管理
+                if (currentUser.role !== 'admin') {
+                    document.getElementById("addUserBtn").style.display = "none";
+                    showToast("您没有权限管理用户", true);
+                    setTimeout(() => {
+                        window.location.href = "02-目录.html";
+                    }, 1500);
+                }
+            } catch(e) {}
+        } else {
+            window.location.href = "01-登录.html";
+        }
+    }
+    
+    function goBack() { window.location.href = "02-目录.html"; }
+    function logout() { localStorage.removeItem(CURRENT_USER_KEY); window.location.href = "01-登录.html"; }
+    
+    function init() {
+        displayCurrentUser();
+        loadUsers();
+        
+        document.getElementById("addUserBtn").onclick = openAddModal;
+        document.getElementById("backBtn").onclick = goBack;
+        document.getElementById("logoutBtn").onclick = logout;
+        document.getElementById("cancelBtn").onclick = closeModal;
+        document.getElementById("saveBtn").onclick = saveUser;
+        
+        window.onclick = function(e) {
+            if (e.target === document.getElementById("userModal")) closeModal();
+        };
+    }
+    
+    init();
+</script>
+</body>
+</html>
