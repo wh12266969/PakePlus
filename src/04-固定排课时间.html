@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>固定排课时间 - 智能排课系统</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        
+        .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        .card h3 { color: #1e3c72; margin-top: 0; margin-bottom: 15px; border-bottom: 2px solid #1e3c72; padding-bottom: 8px; }
+        .card h4 { color: #1e3c72; margin: 20px 0 10px 0; font-size: 16px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .info-box {
+            background: #e7f3ff; border-left: 4px solid #1e3c72; padding: 10px 15px;
+            margin-bottom: 20px; font-size: 13px; border-radius: 6px;
+        }
+        
+        .config-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+        .config-table th, .config-table td { border: 1px solid #ddd; padding: 10px 8px; text-align: left; vertical-align: top; }
+        .config-table th { background: #f5f5f5; font-weight: 600; }
+        
+        .btn-delete { background: #dc3545; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+        .btn-delete:hover { background: #c82333; }
+        .btn-edit { background: #ffc107; color: #333; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; margin-right: 5px; }
+        .btn-edit:hover { background: #e0a800; }
+        .checkbox-col { width: 30px; text-align: center; }
+        
+        .toolbar { display: flex; gap: 10px; margin: 10px 0; flex-wrap: wrap; justify-content: space-between; }
+        .btn { background: #1e3c72; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .btn:hover { background: #2b4c7c; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
+        .btn-warning { background: #ffc107; color: #333; }
+        .btn-warning:hover { background: #e0a800; }
+        .btn-secondary { background: #6c757d; }
+        .btn-info { background: #17a2b8; }
+        
+        .search-input { padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px; width: 200px; font-size: 13px; }
+        .filter-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+        
+        .timetable-selector { background: #f8f9fa; border-radius: 8px; padding: 15px; margin: 10px 0; }
+        .timetable-grid { width: 100%; border-collapse: collapse; }
+        .timetable-grid th, .timetable-grid td { border: 1px solid #ddd; padding: 10px; text-align: center; cursor: pointer; }
+        .timetable-grid th { background: #1e3c72; color: white; }
+        .timetable-grid td { background: white; transition: 0.2s; }
+        .timetable-grid td:hover { background: #e8f4fd; }
+        .timetable-grid td.selected { background: #28a745; color: white; }
+        .selected-time-info { margin-top: 10px; padding: 8px; background: #e8f4fd; border-radius: 4px; font-size: 13px; }
+        
+        .modal {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); z-index: 1000;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background: white; border-radius: 12px; padding: 20px;
+            width: 800px; max-width: 95%; max-height: 85vh; overflow-y: auto;
+        }
+        .modal-content h4 { margin-top: 0; color: #1e3c72; }
+        .modal-content input, .modal-content select { width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        .modal-buttons { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+        
+        .radio-group { display: flex; gap: 20px; margin: 10px 0; }
+        .radio-group label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+        
+        .plan-list { max-height: 250px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; margin: 10px 0; }
+        .plan-item { padding: 10px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .plan-item:hover { background: #e8f4fd; }
+        .plan-item.selected { background: #1e3c72; color: white; }
+        .plan-item input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; margin: 0; }
+        .plan-info { flex: 1; font-size: 13px; }
+        .plan-class { font-weight: bold; color: #1e3c72; }
+        .plan-course { color: #28a745; }
+        .selected-plans-info { background: #e8f4fd; border-radius: 4px; padding: 8px; margin: 10px 0; font-size: 12px; }
+        
+        .filter-tabs { display: flex; gap: 5px; margin-bottom: 10px; border-bottom: 1px solid #ddd; padding-bottom: 8px; }
+        .filter-tab { padding: 5px 12px; cursor: pointer; border-radius: 20px; font-size: 12px; background: #f0f2f5; }
+        .filter-tab.active { background: #1e3c72; color: white; }
+        
+        .search-result { max-height: 150px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px; }
+        .search-item { padding: 8px; cursor: pointer; border-bottom: 1px solid #eee; }
+        .search-item:hover { background: #e8f4fd; }
+        .search-item.selected { background: #1e3c72; color: white; }
+        
+        .toast { position: fixed; bottom: 30px; right: 30px; background: #28a745; color: white; padding: 12px 20px; border-radius: 8px; z-index: 2000; animation: fadeOut 2s ease-in-out; }
+        .toast.error { background: #dc3545; }
+        @keyframes fadeOut { 0% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
+        
+        .save-bar { position: sticky; bottom: 0; background: white; padding: 15px 0; margin-top: 20px; display: flex; gap: 15px; justify-content: space-between; border-top: 1px solid #ddd; flex-wrap: wrap; }
+        .save-btn { padding: 10px 20px; font-size: 14px; font-weight: bold; background: #28a745; }
+        .apply-btn { padding: 10px 20px; font-size: 14px; font-weight: bold; background: #ffc107; color: #333; }
+        .clear-locks-btn { padding: 10px 20px; font-size: 14px; font-weight: bold; background: #dc3545; }
+        
+        .type-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+        .type-badge.must { background: #28a745; color: white; }
+        .type-badge.forbidden { background: #dc3545; color: white; }
+        .time-tag { display: inline-block; background: #e9ecef; padding: 2px 6px; border-radius: 4px; margin: 2px; font-size: 11px; }
+        
+        .progress-bar { background: #e9ecef; border-radius: 10px; overflow: hidden; margin: 10px 0; }
+        .progress-fill { background: #28a745; height: 20px; width: 0%; transition: width 0.3s; text-align: center; color: white; font-size: 11px; line-height: 20px; }
+        
+        .teacher-plan-section {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            background: #f9fafb;
+        }
+        .teacher-name-title {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #1e3c72;
+        }
+        .teacher-plan-options {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-left: 15px;
+        }
+        .teacher-plan-options label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .warning-no-plan {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .search-select {
+            position: relative;
+        }
+        .search-select input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .search-select-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+        }
+        .search-select-dropdown div {
+            padding: 8px;
+            cursor: pointer;
+        }
+        .search-select-dropdown div:hover {
+            background: #e8f4fd;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <h3>📌 固定排课规则管理</h3>
+        
+        <div class="info-box">
+            💡 <strong>规则说明</strong><br>
+            • <strong>必须排</strong>：强制将课程排在该时间，并锁定课表（不可手动修改）<br>
+            • <strong>禁止排</strong>：该时间不能排任何课程（作为硬约束）<br>
+            • <strong>教师固定</strong>：必须选择教学计划（班级+课程）<br>
+            • <strong>教师组固定</strong>：需为每位教师选择教学计划（可多选）<br>
+            • <strong>班级固定</strong>：必须排需选择课程，禁止排无需课程<br>
+            • <strong>课程固定</strong>：可指定适用班级
+        </div>
+
+        <!-- 教师固定 -->
+        <h4>👨‍🏫 教师固定规则 <button id="addTeacherFixedBtn" class="btn btn-success" style="padding:4px 12px;">+ 添加</button></h4>
+        <div class="filter-bar"><input type="text" id="teacherSearchFilter" class="search-input" placeholder="🔍 搜索教师..."><label><input type="checkbox" id="teacherSelectAll"> 全选</label></div>
+        <table class="config-table"><thead><tr><th class="checkbox-col"><input type="checkbox" id="teacherBatchSelect"></th><th>教师</th><th>班级-课程</th><th>类型</th><th>时间</th><th>备注</th><th>操作</th></thead><tbody id="teacherFixedList"></tbody></table>
+        <button id="batchDeleteTeacherBtn" class="btn btn-danger" style="margin-top:5px; display:none;">🗑️ 批量删除</button>
+
+        <!-- 教师组固定 -->
+        <h4>👥 教师组固定规则 <button id="addGroupFixedBtn" class="btn btn-success" style="padding:4px 12px;">+ 添加</button></h4>
+        <div class="filter-bar"><input type="text" id="groupSearchFilter" class="search-input" placeholder="🔍 搜索教师组..."><label><input type="checkbox" id="groupSelectAll"> 全选</label></div>
+        <table class="config-table"><thead><tr><th class="checkbox-col"><input type="checkbox" id="groupBatchSelect"></th><th>教师组</th><th>教师</th><th>班级-课程</th><th>类型</th><th>时间</th><th>备注</th><th>操作</th></thead><tbody id="groupFixedList"></tbody></table>
+        <button id="batchDeleteGroupBtn" class="btn btn-danger" style="margin-top:5px; display:none;">🗑️ 批量删除</button>
+
+        <!-- 班级固定 -->
+        <h4>🏫 班级固定规则 <button id="addClassFixedBtn" class="btn btn-success" style="padding:4px 12px;">+ 添加</button></h4>
+        <div class="filter-bar"><input type="text" id="classSearchFilter" class="search-input" placeholder="🔍 搜索班级..."><label><input type="checkbox" id="classSelectAll"> 全选</label></div>
+        <table class="config-table"><thead><tr><th class="checkbox-col"><input type="checkbox" id="classBatchSelect"></th><th>班级</th><th>课程</th><th>类型</th><th>时间</th><th>备注</th><th>操作</th></thead><tbody id="classFixedList"></tbody></table>
+        <button id="batchDeleteClassBtn" class="btn btn-danger" style="margin-top:5px; display:none;">🗑️ 批量删除</button>
+
+        <!-- 课程固定 -->
+        <h4>📖 课程固定规则 <button id="addCourseFixedBtn" class="btn btn-success" style="padding:4px 12px;">+ 添加</button></h4>
+        <div class="filter-bar"><input type="text" id="courseSearchFilter" class="search-input" placeholder="🔍 搜索课程..."><label><input type="checkbox" id="courseSelectAll"> 全选</label></div>
+        <table class="config-table"><thead><tr><th class="checkbox-col"><input type="checkbox" id="courseBatchSelect"></th><th>课程</th><th>适用班级</th><th>类型</th><th>时间</th><th>备注</th><th>操作</th></thead><tbody id="courseFixedList"></tbody></table>
+        <button id="batchDeleteCourseBtn" class="btn btn-danger" style="margin-top:5px; display:none;">🗑️ 批量删除</button>
+
+        <div class="save-bar">
+            <div>
+                <button id="applyMustRulesBtn" class="apply-btn">📅 应用必须排规则</button>
+                <button id="applyForbiddenRulesBtn" class="btn btn-warning" style="margin-left:10px;">🚫 应用禁止排规则到约束</button>
+                <button id="clearLocksBtn" class="clear-locks-btn" style="margin-left:10px;">🔓 清除锁定</button>
+            </div>
+            <div><button id="saveBtn" class="save-btn">💾 保存规则</button></div>
+        </div>
+        <div id="progressArea" style="display:none; margin-top:15px;"><div class="progress-bar"><div id="progressFill" class="progress-fill">0%</div></div><div id="progressMsg" style="font-size:12px; color:#666; text-align:center;"></div></div>
+    </div>
+</div>
+
+<!-- 教师固定模态框 -->
+<div id="teacherFixedModal" class="modal" style="display:none;"><div class="modal-content"><h4 id="teacherModalTitle">添加教师固定</h4><input type="hidden" id="editTeacherIndex" value="-1">
+<div class="filter-tabs"><div class="filter-tab active" data-filter="teacher">👨‍🏫 按教师</div><div class="filter-tab" data-filter="course">📚 按科目</div><div class="filter-tab" data-filter="class">🏫 按班级</div></div>
+<div id="teacherSearchArea"><label>搜索教师：</label><input type="text" id="teacherSearchInput" placeholder="🔍 输入教师姓名"><div id="teacherSearchResult" class="search-result"></div></div>
+<div id="courseSearchArea" style="display:none;"><label>搜索科目：</label><input type="text" id="courseSearchInput" placeholder="🔍 输入课程名称"><div id="courseSearchResult" class="search-result"></div></div>
+<div id="classSearchArea" style="display:none;"><label>搜索班级：</label><input type="text" id="classSearchInputForPlan" placeholder="🔍 输入班级名称"><div id="classSearchResultForPlan" class="search-result"></div></div>
+<label>📋 教学计划（可多选）：</label><div id="planListContainer" class="plan-list"></div><div id="selectedPlansInfo" class="selected-plans-info">已选 0 条</div>
+<div class="radio-group"><label><input type="radio" name="teacherFixedType" value="must" checked> 必须排（锁定课表）</label><label><input type="radio" name="teacherFixedType" value="forbidden"> 禁止排</label></div>
+<label>选择时间（可多选）：</label><div id="teacherTimeSelector" class="timetable-selector"></div><div id="teacherSelectedTime" class="selected-time-info">未选择</div>
+<label>备注：</label><input type="text" id="teacherRemark" placeholder="可选">
+<div class="modal-buttons"><button id="cancelTeacherFixedBtn" class="btn btn-danger">取消</button><button id="confirmTeacherFixedBtn" class="btn btn-success">确认</button></div></div></div>
+
+<!-- 教师组固定模态框 -->
+<div id="groupFixedModal" class="modal" style="display:none;">
+    <div class="modal-content" style="width: 750px;">
+        <h4 id="groupModalTitle">添加教师组固定</h4>
+        <input type="hidden" id="editGroupIndex" value="-1">
+        
+        <label>选择教师组：</label>
+        <input type="text" id="groupSearchInput" placeholder="🔍 输入教师组名称">
+        <div id="groupSearchResult" class="search-result"></div>
+        
+        <div class="radio-group">
+            <label><input type="radio" name="groupFixedType" value="must" checked> 必须排（锁定课表）</label>
+            <label><input type="radio" name="groupFixedType" value="forbidden"> 禁止排</label>
+        </div>
+        
+        <div class="form-group">
+            <label>教师组类型：</label>
+            <select id="groupType">
+                <option value="normal">普通教师组</option>
+                <option value="headteacher">班主任组</option>
+            </select>
+            <div id="headteacherTip" style="font-size:12px; color:#28a745; margin-top:5px; display:none;">💡 班主任组：标记为班主任组，便于统计管理</div>
+        </div>
+        
+        <label style="margin-top: 10px;">📋 为每位教师选择教学计划（可多选）：</label>
+        <div id="teacherPlanList" style="max-height: 450px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; margin: 10px 0; background: #fff;"></div>
+        
+        <label>选择时间（可多选）：</label>
+        <div id="groupTimeSelector" class="timetable-selector"></div>
+        <div id="groupSelectedTime" class="selected-time-info">未选择</div>
+        
+        <label>备注：</label>
+        <input type="text" id="groupRemark" placeholder="可选">
+        
+        <div class="modal-buttons">
+            <button id="cancelGroupFixedBtn" class="btn btn-danger">取消</button>
+            <button id="confirmGroupFixedBtn" class="btn btn-success">确认</button>
+        </div>
+    </div>
+</div>
+
+<!-- 班级固定模态框 -->
+<div id="classFixedModal" class="modal" style="display:none;"><div class="modal-content"><h4 id="classModalTitle">添加班级固定</h4><input type="hidden" id="editClassIndex" value="-1">
+<div class="radio-group"><label><input type="radio" name="classFixedType" value="must" checked> 必须排（需选课程）</label><label><input type="radio" name="classFixedType" value="forbidden"> 禁止排（无需课程）</label></div>
+<label>选择班级（可多选）：</label><div id="classMultiSelect" style="max-height:150px; overflow-y:auto; border:1px solid #ddd; border-radius:4px; margin:10px 0;"></div>
+<div id="classCourseArea" style="display:block;"><label>选择课程：</label><div class="search-select"><input type="text" id="classCourseSearch" placeholder="🔍 搜索课程" style="width:100%; padding:8px;"><div id="classCourseDropdown" class="search-result" style="display:none;"></div><input type="hidden" id="classCourseId"></div></div>
+<label>选择时间（可多选）：</label><div id="classTimeSelector" class="timetable-selector"></div><div id="classSelectedTime" class="selected-time-info">未选择</div>
+<label>备注：</label><input type="text" id="classRemark" placeholder="可选">
+<div class="modal-buttons"><button id="cancelClassFixedBtn" class="btn btn-danger">取消</button><button id="confirmClassFixedBtn" class="btn btn-success">确认</button></div></div></div>
+
+<!-- 课程固定模态框 -->
+<div id="courseFixedModal" class="modal" style="display:none;"><div class="modal-content"><h4 id="courseModalTitle">添加课程固定</h4><input type="hidden" id="editCourseIndex" value="-1">
+<label>搜索课程：</label><input type="text" id="courseSearchInputForCourse" placeholder="🔍 输入课程名称"><div id="courseSearchResultForCourse" class="search-result"></div>
+<label>适用班级：</label><select id="courseApplyClass"></select>
+<div class="radio-group"><label><input type="radio" name="courseFixedType" value="must" checked> 必须排</label><label><input type="radio" name="courseFixedType" value="forbidden"> 禁止排</label></div>
+<label>选择时间（可多选）：</label><div id="courseTimeSelector" class="timetable-selector"></div><div id="courseSelectedTime" class="selected-time-info">未选择</div>
+<label>备注：</label><input type="text" id="courseRemark" placeholder="可选">
+<div class="modal-buttons"><button id="cancelCourseFixedBtn" class="btn btn-danger">取消</button><button id="confirmCourseFixedBtn" class="btn btn-success">确认</button></div></div></div>
+
+<script>
+const FIXED_RULES_KEY="pk_fixedRules",TEACHERS_KEY="pk_teachers",COURSES_KEY="pk_courses",CLASSES_KEY="pk_classes",GROUPS_KEY="pk_teacherGroups",SCHEDULE_CONFIG_KEY="pk_scheduleConfig",SCHEDULES_KEY="pk_schedules",PLANS_KEY="pk_plans";
+let weekdays=["星期一","星期二","星期三","星期四","星期五"],periods=["第1节","第2节","第3节","第4节","第5节","第6节"];
+let teachers=[],courses=[],classes=[],groups=[],plans=[],schedules={};
+let rules={teacherFixed:[],groupFixed:[],classFixed:[],courseFixed:[]};
+let currentTeacher=null,currentGroup=null,currentClass=null,currentCourse=null,currentSelectedTimes=[],selectedPlanIds=new Set(),currentFilteredPlans=[];
+let teacherPlanSelections=new Map();
+
+function initPeriods(){let sc=localStorage.getItem(SCHEDULE_CONFIG_KEY);if(sc)try{let c=JSON.parse(sc);periods=[];for(let i=1;i<=(c.dayPeriods||6);i++)periods.push("第"+i+"节");weekdays=c.selectedWeekdays||["星期一","星期二","星期三","星期四","星期五"];}catch(e){}}
+function loadBaseData(){teachers=JSON.parse(localStorage.getItem(TEACHERS_KEY)||"[]");courses=JSON.parse(localStorage.getItem(COURSES_KEY)||"[]");classes=JSON.parse(localStorage.getItem(CLASSES_KEY)||"[]");groups=JSON.parse(localStorage.getItem(GROUPS_KEY)||"[]");plans=JSON.parse(localStorage.getItem(PLANS_KEY)||"[]");let s=localStorage.getItem(SCHEDULES_KEY);if(s)try{schedules=JSON.parse(s);}catch(e){schedules={};}updateClassSelect();}
+function getGroupMemberIds(g){if(!g)return[];if(g.memberIds)return g.memberIds;if(g.members)return g.members;if(g.teacherIds)return g.teacherIds;return[];}
+function getGroupMemberNames(g){let ids=getGroupMemberIds(g);return ids.map(id=>{let t=teachers.find(t=>t.id==id);return t?t.name:"未知ID:"+id;}).join("、");}
+function loadRules(){let s=localStorage.getItem(FIXED_RULES_KEY);if(s)try{let r=JSON.parse(s);rules.teacherFixed=r.teacherFixed||[];rules.groupFixed=r.groupFixed||[];rules.classFixed=r.classFixed||[];rules.courseFixed=r.courseFixed||[];}catch(e){}renderAll();}
+function updateClassSelect(){let sel=document.getElementById("courseApplyClass");if(sel){sel.innerHTML='<option value="all">全部班级</option>';for(let c of classes)sel.innerHTML+=`<option value="${c.id}">${escapeHtml(c.name)}</option>`;}}
+function getCourseNameById(id){let c=courses.find(c=>c.id==id);return c?c.name:"未知";}
+function getTeacherNameById(id){let t=teachers.find(t=>t.id==id);return t?t.name:"未知";}
+function getClassNameById(id){let c=classes.find(c=>c.id==id);return c?c.name:"未知";}
+function escapeHtml(s){if(!s)return '';return s.replace(/[&<>]/g,m=>m==='&'?'&amp;':m==='<'?'&lt;':'&gt;');}
+function showToast(msg,isErr){let t=document.createElement("div");t.className="toast"+(isErr?" error":"");t.innerText=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3000);}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+function saveRules(){localStorage.setItem(FIXED_RULES_KEY,JSON.stringify(rules));showToast("✅ 规则已保存");}
+function goBack(){window.location.href="02-目录.html";}
+function logout(){localStorage.removeItem("currentUser");window.location.href="01-登录.html";}
+function displayCurrentUser(){let u=localStorage.getItem("currentUser");if(u){try{let a=JSON.parse(u);document.getElementById("userNameDisplay").innerText=a.name+" ("+a.roleName+")";}catch(e){}}else window.location.href="01-登录.html";}
+
+function renderTimetableSelector(containerId,onSelect,currentTimes=[]){let c=document.getElementById(containerId),selected=[...currentTimes];let html='<table class="timetable-grid"><thead><tr><th></th>';for(let w of weekdays)html+=`<th>${w}</th>`;html+=`</thead><tbody>`;for(let p of periods){html+=`<tr><td class="time-label">${p}</td>`;for(let w of weekdays){let isSel=selected.some(t=>t.week===w&&t.period===p);html+=`<td data-week="${w}" data-period="${p}" class="time-cell ${isSel?'selected':''}">${isSel?'●':'○'}</td>`;}html+=`</tr>`;}html+=`</tbody></table>`;c.innerHTML=html;c.querySelectorAll('.time-cell').forEach(cell=>{cell.onclick=()=>{let week=cell.dataset.week,period=cell.dataset.period,idx=selected.findIndex(t=>t.week===week&&t.period===period);if(idx===-1){selected.push({week,period});cell.classList.add('selected');cell.innerHTML='●';}else{selected.splice(idx,1);cell.classList.remove('selected');cell.innerHTML='○';}if(onSelect)onSelect(selected);};});return selected;}
+function updateSelectedTimeDisplay(selected,containerId){let c=document.getElementById(containerId);if(!selected||selected.length===0)c.innerHTML='已选时间：未选择<br><span style="font-size:11px;color:#666;">（点击格子可多选）</span>';else{let str=selected.map(t=>`${t.week} ${t.period}`).join('、');c.innerHTML=`已选时间：${str}<br><span style="font-size:11px;color:#666;">（点击格子可多选）</span>`;}}
+
+function renderAll(){renderTeacherFixed();renderGroupFixed();renderClassFixed();renderCourseFixed();}
+
+// 渲染教师固定列表
+function renderTeacherFixed(){
+    let tb=document.getElementById("teacherFixedList");
+    let filter=document.getElementById("teacherSearchFilter").value.toLowerCase();
+    tb.innerHTML="";
+    let hasData=false;
+    for(let i=0;i<rules.teacherFixed.length;i++){
+        let item=rules.teacherFixed[i];
+        if(!item.teacherName.toLowerCase().includes(filter)) continue;
+        hasData=true;
+        let typeText=item.type==="must"?"必须排":"禁止排",typeClass=item.type==="must"?"must":"forbidden";
+        let timeStr=(item.times||[]).map(t=>`<span class="time-tag">${t.week} ${t.period}</span>`).join("");
+        let tr=document.createElement("tr");
+        tr.innerHTML=`<td class="checkbox-col"><input type="checkbox" class="teacher-checkbox" data-idx="${i}"></td>
+                    <td>${escapeHtml(item.teacherName)}</td>
+                    <td>${escapeHtml(item.className||"")}-${escapeHtml(item.courseName||"")}</td>
+                    <td><span class="type-badge ${typeClass}">${typeText}</span></td>
+                    <td>${timeStr||"-"}</td>
+                    <td>${escapeHtml(item.remark)||"-"}</td>
+                    <td><button class="btn-edit" onclick="editTeacherFixed(${i})">编辑</button><button class="btn-delete" onclick="deleteTeacherFixed(${i})">删除</button></td>`;
+        tb.appendChild(tr);
+    }
+    if(!hasData) tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:#999;">暂无数据</td></tr>';
+    bindBatchSelectEvents("teacher");
+}
+
+// 渲染教师组固定列表
+function renderGroupFixed(){
+    let tb=document.getElementById("groupFixedList");
+    let filter=document.getElementById("groupSearchFilter").value.toLowerCase();
+    tb.innerHTML="";
+    let hasData=false;
+    for(let i=0;i<rules.groupFixed.length;i++){
+        let item=rules.groupFixed[i];
+        if(!item.groupName.toLowerCase().includes(filter)) continue;
+        hasData=true;
+        let typeText=item.type==="must"?"必须排":"禁止排",typeClass=item.type==="must"?"must":"forbidden";
+        let timeStr=(item.times||[]).map(t=>`<span class="time-tag">${t.week} ${t.period}</span>`).join("");
+        let courseDisplay = `${escapeHtml(item.className||"")}-${escapeHtml(item.courseName||"")}`;
+        let tr=document.createElement("tr");
+        tr.innerHTML=`<td class="checkbox-col"><input type="checkbox" class="group-checkbox" data-idx="${i}"></td>
+                    <td>${escapeHtml(item.groupName)}${item.groupType==="headteacher"?` <span style="color:#28a745;">(班主任组)</span>`:""}</td>
+                    <td>${escapeHtml(item.teacherName||"-")}</td>
+                    <td>${courseDisplay}</td>
+                    <td><span class="type-badge ${typeClass}">${typeText}</span></td>
+                    <td>${timeStr||"-"}</td>
+                    <td>${escapeHtml(item.remark)||"-"}</td>
+                    <td><button class="btn-edit" onclick="editGroupFixed(${i})">编辑</button><button class="btn-delete" onclick="deleteGroupFixed(${i})">删除</button></td>`;
+        tb.appendChild(tr);
+    }
+    if(!hasData) tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:#999;">暂无数据</div><tr>';
+    bindBatchSelectEvents("group");
+}
+
+function renderClassFixed(){
+    let tb=document.getElementById("classFixedList");
+    let filter=document.getElementById("classSearchFilter").value.toLowerCase();
+    tb.innerHTML="";
+    let hasData=false;
+    for(let i=0;i<rules.classFixed.length;i++){
+        let item=rules.classFixed[i];
+        if(!item.className.toLowerCase().includes(filter)) continue;
+        hasData=true;
+        let typeText=item.type==="must"?"必须排":"禁止排",typeClass=item.type==="must"?"must":"forbidden";
+        let timeStr=(item.times||[]).map(t=>`<span class="time-tag">${t.week} ${t.period}</span>`).join("");
+        let courseDisplay=item.courseName?escapeHtml(item.courseName):"-";
+        let tr=document.createElement("tr");
+        tr.innerHTML=`<td class="checkbox-col"><input type="checkbox" class="class-checkbox" data-idx="${i}"></td>
+                    <td>${escapeHtml(item.className)}</div>
+                    <td>${courseDisplay}</div>
+                    <td><span class="type-badge ${typeClass}">${typeText}</span></div>
+                    <td>${timeStr||"-"}</div>
+                    <td>${escapeHtml(item.remark)||"-"}</div>
+                    <td><button class="btn-edit" onclick="editClassFixed(${i})">编辑</button><button class="btn-delete" onclick="deleteClassFixed(${i})">删除</button></div>`;
+        tb.appendChild(tr);
+    }
+    if(!hasData) tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:#999;">暂无数据</div></tr>';
+    bindBatchSelectEvents("class");
+}
+
+function renderCourseFixed(){
+    let tb=document.getElementById("courseFixedList");
+    let filter=document.getElementById("courseSearchFilter").value.toLowerCase();
+    tb.innerHTML="";
+    let hasData=false;
+    for(let i=0;i<rules.courseFixed.length;i++){
+        let item=rules.courseFixed[i];
+        if(!item.course.toLowerCase().includes(filter)) continue;
+        hasData=true;
+        let typeText=item.type==="must"?"必须排":"禁止排",typeClass=item.type==="must"?"must":"forbidden";
+        let applyText=item.applyClass==="all"?"全部班级":item.applyClassName;
+        let timeStr=(item.times||[]).map(t=>`<span class="time-tag">${t.week} ${t.period}</span>`).join("");
+        let tr=document.createElement("tr");
+        tr.innerHTML=`<td class="checkbox-col"><input type="checkbox" class="course-checkbox" data-idx="${i}"></div>
+                    <td>${escapeHtml(item.course)}</div>
+                    <td>${applyText}</div>
+                    <td><span class="type-badge ${typeClass}">${typeText}</span></div>
+                    <td>${timeStr||"-"}</div>
+                    <td>${escapeHtml(item.remark)||"-"}</div>
+                    <td><button class="btn-edit" onclick="editCourseFixed(${i})">编辑</button><button class="btn-delete" onclick="deleteCourseFixed(${i})">删除</button></div>`;
+        tb.appendChild(tr);
+    }
+    if(!hasData) tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:#999;">暂无数据</div></tr>';
+    bindBatchSelectEvents("course");
+}
+
+function bindBatchSelectEvents(type){
+    let headerCheck = document.getElementById(`${type}BatchSelect`);
+    if(!headerCheck) return;
+    headerCheck.onchange = function(){
+        let checkboxes = document.querySelectorAll(`.${type}-checkbox`);
+        checkboxes.forEach(cb => cb.checked = headerCheck.checked);
+        updateBatchDeleteButtonVisibility(type);
+    };
+}
+
+function updateBatchDeleteButtonVisibility(type){
+    let checkboxes = document.querySelectorAll(`.${type}-checkbox`);
+    let anyChecked = Array.from(checkboxes).some(cb => cb.checked);
+    let btn = document.getElementById(`batchDelete${type.charAt(0).toUpperCase()+type.slice(1)}Btn`);
+    if(btn) btn.style.display = anyChecked ? "inline-block" : "none";
+}
+
+// 全选筛选后的项
+document.getElementById("teacherSelectAll")?.addEventListener("change", function(e){
+    let filter = document.getElementById("teacherSearchFilter").value.toLowerCase();
+    let checkboxes = document.querySelectorAll(".teacher-checkbox");
+    checkboxes.forEach((cb, idx) => {
+        let item = rules.teacherFixed[idx];
+        if(item && item.teacherName.toLowerCase().includes(filter)) cb.checked = e.target.checked;
+    });
+    updateBatchDeleteButtonVisibility("teacher");
+});
+document.getElementById("groupSelectAll")?.addEventListener("change", function(e){
+    let filter = document.getElementById("groupSearchFilter").value.toLowerCase();
+    let checkboxes = document.querySelectorAll(".group-checkbox");
+    checkboxes.forEach((cb, idx) => {
+        let item = rules.groupFixed[idx];
+        if(item && item.groupName.toLowerCase().includes(filter)) cb.checked = e.target.checked;
+    });
+    updateBatchDeleteButtonVisibility("group");
+});
+document.getElementById("classSelectAll")?.addEventListener("change", function(e){
+    let filter = document.getElementById("classSearchFilter").value.toLowerCase();
+    let checkboxes = document.querySelectorAll(".class-checkbox");
+    checkboxes.forEach((cb, idx) => {
+        let item = rules.classFixed[idx];
+        if(item && item.className.toLowerCase().includes(filter)) cb.checked = e.target.checked;
+    });
+    updateBatchDeleteButtonVisibility("class");
+});
+document.getElementById("courseSelectAll")?.addEventListener("change", function(e){
+    let filter = document.getElementById("courseSearchFilter").value.toLowerCase();
+    let checkboxes = document.querySelectorAll(".course-checkbox");
+    checkboxes.forEach((cb, idx) => {
+        let item = rules.courseFixed[idx];
+        if(item && item.course.toLowerCase().includes(filter)) cb.checked = e.target.checked;
+    });
+    updateBatchDeleteButtonVisibility("course");
+});
+
+// 批量删除
+document.getElementById("batchDeleteTeacherBtn")?.addEventListener("click", function(){
+    let selected = [];
+    document.querySelectorAll(".teacher-checkbox:checked").forEach(cb => {
+        let idx = parseInt(cb.getAttribute("data-idx"));
+        if(!isNaN(idx)) selected.push(idx);
+    });
+    if(selected.length === 0) return;
+    if(confirm(`确定删除选中的 ${selected.length} 条教师固定规则？`)){
+        rules.teacherFixed = rules.teacherFixed.filter((_, i) => !selected.includes(i));
+        renderTeacherFixed();
+        showToast("已删除");
+    }
+});
+document.getElementById("batchDeleteGroupBtn")?.addEventListener("click", function(){
+    let selected = [];
+    document.querySelectorAll(".group-checkbox:checked").forEach(cb => {
+        let idx = parseInt(cb.getAttribute("data-idx"));
+        if(!isNaN(idx)) selected.push(idx);
+    });
+    if(selected.length === 0) return;
+    if(confirm(`确定删除选中的 ${selected.length} 条教师组固定规则？`)){
+        rules.groupFixed = rules.groupFixed.filter((_, i) => !selected.includes(i));
+        renderGroupFixed();
+        showToast("已删除");
+    }
+});
+document.getElementById("batchDeleteClassBtn")?.addEventListener("click", function(){
+    let selected = [];
+    document.querySelectorAll(".class-checkbox:checked").forEach(cb => {
+        let idx = parseInt(cb.getAttribute("data-idx"));
+        if(!isNaN(idx)) selected.push(idx);
+    });
+    if(selected.length === 0) return;
+    if(confirm(`确定删除选中的 ${selected.length} 条班级固定规则？`)){
+        rules.classFixed = rules.classFixed.filter((_, i) => !selected.includes(i));
+        renderClassFixed();
+        showToast("已删除");
+    }
+});
+document.getElementById("batchDeleteCourseBtn")?.addEventListener("click", function(){
+    let selected = [];
+    document.querySelectorAll(".course-checkbox:checked").forEach(cb => {
+        let idx = parseInt(cb.getAttribute("data-idx"));
+        if(!isNaN(idx)) selected.push(idx);
+    });
+    if(selected.length === 0) return;
+    if(confirm(`确定删除选中的 ${selected.length} 条课程固定规则？`)){
+        rules.courseFixed = rules.courseFixed.filter((_, i) => !selected.includes(i));
+        renderCourseFixed();
+        showToast("已删除");
+    }
+});
+
+window.deleteTeacherFixed=function(i){if(confirm("确定删除？")){rules.teacherFixed.splice(i,1);renderTeacherFixed();showToast("已删除");}};
+window.deleteGroupFixed=function(i){if(confirm("确定删除？")){rules.groupFixed.splice(i,1);renderGroupFixed();showToast("已删除");}};
+window.deleteClassFixed=function(i){if(confirm("确定删除？")){rules.classFixed.splice(i,1);renderClassFixed();showToast("已删除");}};
+window.deleteCourseFixed=function(i){if(confirm("确定删除？")){rules.courseFixed.splice(i,1);renderCourseFixed();showToast("已删除");}};
+
+window.editTeacherFixed=function(i){let item=rules.teacherFixed[i];document.getElementById("teacherModalTitle").innerText="✏️ 编辑教师固定";document.getElementById("editTeacherIndex").value=i;currentTeacher={id:item.teacherId,name:item.teacherName};document.getElementById("teacherSearchInput").value=item.teacherName;selectedPlanIds.clear();if(item.planId)selectedPlanIds.add(item.planId);let filtered=plans.filter(p=>p.teacherId==item.teacherId);currentFilteredPlans=filtered;renderPlanList(filtered);document.querySelector(`input[name="teacherFixedType"][value="${item.type}"]`).checked=true;currentSelectedTimes=[...item.times];renderTimetableSelector("teacherTimeSelector",(t)=>{currentSelectedTimes=t;updateSelectedTimeDisplay(t,"teacherSelectedTime");},currentSelectedTimes);updateSelectedTimeDisplay(currentSelectedTimes,"teacherSelectedTime");document.getElementById("teacherRemark").value=item.remark||"";document.getElementById("teacherFixedModal").style.display="flex";};
+
+window.editGroupFixed=function(i){
+    let item=rules.groupFixed[i];
+    document.getElementById("groupModalTitle").innerText="✏️ 编辑教师组固定";
+    document.getElementById("editGroupIndex").value=i;
+    currentGroup={id:item.groupId,name:item.groupName};
+    document.getElementById("groupSearchInput").value=item.groupName;
+    document.querySelector(`input[name="groupFixedType"][value="${item.type}"]`).checked=true;
+    document.getElementById("groupType").value=item.groupType||"normal";
+    // 恢复教师的教学计划选择
+    teacherPlanSelections.clear();
+    // 这里需要根据实际保存的数据结构恢复，由于groupFixed存储的是单条规则，编辑时需要聚合
+    showToast("编辑功能开发中，请删除后重新添加", true);
+    document.getElementById("groupFixedModal").style.display="flex";
+};
+
+window.editClassFixed=function(i){let item=rules.classFixed[i];document.getElementById("classModalTitle").innerText="✏️ 编辑班级固定";document.getElementById("editClassIndex").value=i;document.querySelector(`input[name="classFixedType"][value="${item.type}"]`).checked=true;let courseArea=document.getElementById("classCourseArea");if(item.type==="must")courseArea.style.display="block";else courseArea.style.display="none";if(item.courseId){document.getElementById("classCourseSearch").value=getCourseNameById(item.courseId);document.getElementById("classCourseId").value=item.courseId;}renderClassMultiSelect([item.classId]);currentSelectedTimes=[...item.times];renderTimetableSelector("classTimeSelector",(t)=>{currentSelectedTimes=t;updateSelectedTimeDisplay(t,"classSelectedTime");},currentSelectedTimes);updateSelectedTimeDisplay(currentSelectedTimes,"classSelectedTime");document.getElementById("classRemark").value=item.remark||"";document.getElementById("classFixedModal").style.display="flex";};
+
+window.editCourseFixed=function(i){let item=rules.courseFixed[i];document.getElementById("courseModalTitle").innerText="✏️ 编辑课程固定";document.getElementById("editCourseIndex").value=i;currentCourse={id:item.courseId,name:item.course};document.getElementById("courseSearchInputForCourse").value=item.course;document.getElementById("courseApplyClass").value=item.applyClass;document.querySelector(`input[name="courseFixedType"][value="${item.type}"]`).checked=true;currentSelectedTimes=[...item.times];renderTimetableSelector("courseTimeSelector",(t)=>{currentSelectedTimes=t;updateSelectedTimeDisplay(t,"courseSelectedTime");},currentSelectedTimes);updateSelectedTimeDisplay(currentSelectedTimes,"courseSelectedTime");document.getElementById("courseRemark").value=item.remark||"";document.getElementById("courseFixedModal").style.display="flex";};
+
+// 教师组教学计划选择（多选模式）
+function renderTeacherPlanList(groupId, isEdit = false, editItem = null){
+    let group = groups.find(g => g.id == groupId);
+    if(!group){ document.getElementById("teacherPlanList").innerHTML = '<div style="padding:20px;text-align:center;color:#999;">请先选择教师组</div>'; return; }
+    let memberIds = getGroupMemberIds(group);
+    if(memberIds.length === 0){ document.getElementById("teacherPlanList").innerHTML = '<div style="padding:20px;text-align:center;color:#999;">该教师组暂无成员</div>'; return; }
+    let html = '';
+    for(let teacherId of memberIds){
+        let teacher = teachers.find(t => t.id == teacherId);
+        if(!teacher) continue;
+        let teacherPlans = plans.filter(p => p.teacherId == teacherId);
+        if(teacherPlans.length === 0){
+            html += `<div class="warning-no-plan"><strong>${escapeHtml(teacher.name)}</strong> <span style="color:#856404;">⚠️ 暂无教学计划</span></div>`;
+            continue;
+        }
+        // 获取已保存的选择
+        let savedSelections = teacherPlanSelections.get(teacherId) || [];
+        let savedPlanIds = savedSelections.map(s => s.planId);
+        
+        html += `<div class="teacher-plan-section">
+            <div class="teacher-name-title">👨‍🏫 ${escapeHtml(teacher.name)} <span style="font-size:11px; color:#28a745;">（可多选）</span></div>
+            <div class="teacher-plan-options">`;
+        for(let plan of teacherPlans){
+            let className = getClassNameById(plan.classId);
+            let courseName = getCourseNameById(plan.courseId);
+            let isChecked = savedPlanIds.includes(plan.id);
+            html += `<label>
+                <input type="checkbox" name="teacher_plan_${teacherId}" value="${plan.id}" 
+                    data-teacher-id="${teacherId}" data-class-id="${plan.classId}" 
+                    data-class-name="${className}" data-course-id="${plan.courseId}" 
+                    data-course-name="${courseName}" ${isChecked ? 'checked' : ''}>
+                <span>📖 ${escapeHtml(className)} - ${escapeHtml(courseName)}</span>
+                <span style="font-size:11px; color:#666;">（周课时：${plan.hoursPerWeek}节）</span>
+            </label>`;
+        }
+        html += `</div></div>`;
+    }
+    document.getElementById("teacherPlanList").innerHTML = html;
+    
+    // 绑定复选框变化事件
+    document.querySelectorAll('#teacherPlanList input[type="checkbox"]').forEach(checkbox => {
+        checkbox.addEventListener('change', function(){
+            let tid = parseInt(this.getAttribute('data-teacher-id'));
+            let selections = teacherPlanSelections.get(tid) || [];
+            let planId = parseInt(this.value);
+            let classId = parseInt(this.getAttribute('data-class-id'));
+            let className = this.getAttribute('data-class-name');
+            let courseId = parseInt(this.getAttribute('data-course-id'));
+            let courseName = this.getAttribute('data-course-name');
+            
+            if(this.checked){
+                if(!selections.some(s => s.planId === planId)){
+                    selections.push({ planId, classId, className, courseId, courseName });
+                }
+            } else {
+                selections = selections.filter(s => s.planId !== planId);
+            }
+            teacherPlanSelections.set(tid, selections);
+        });
+    });
+}
+
+function renderPlanList(plansToShow){let container=document.getElementById("planListContainer");if(!plansToShow||plansToShow.length===0){container.innerHTML='<div style="padding:20px;text-align:center;color:#999;">暂无教学计划</div>';document.getElementById("selectedPlansInfo").innerHTML="已选 0 条";return;}container.innerHTML="";for(let plan of plansToShow){let className=getClassNameById(plan.classId),courseName=getCourseNameById(plan.courseId),teacherName=getTeacherNameById(plan.teacherId),isChecked=selectedPlanIds.has(plan.id);let div=document.createElement("div");div.className="plan-item"+(isChecked?" selected":"");div.setAttribute("data-plan-id",plan.id);div.innerHTML=`<input type="checkbox" class="plan-checkbox" data-id="${plan.id}" ${isChecked?"checked":""}><div class="plan-info"><div><span class="plan-class">${escapeHtml(className)}</span> - <span class="plan-course">${escapeHtml(courseName)}</span></div><div style="font-size:11px;">👨‍🏫 ${escapeHtml(teacherName)} | 周课时：${plan.hoursPerWeek}节</div></div>`;let cb=div.querySelector(".plan-checkbox");cb.onclick=(e)=>{e.stopPropagation();if(cb.checked)selectedPlanIds.add(plan.id);else selectedPlanIds.delete(plan.id);updateSelectedPlansInfo();div.classList.toggle("selected",cb.checked);};div.onclick=(e)=>{if(e.target.type!=="checkbox"){cb.checked=!cb.checked;if(cb.checked)selectedPlanIds.add(plan.id);else selectedPlanIds.delete(plan.id);updateSelectedPlansInfo();div.classList.toggle("selected",cb.checked);}};container.appendChild(div);}updateSelectedPlansInfo();}
+function updateSelectedPlansInfo(){document.getElementById("selectedPlansInfo").innerHTML=`✅ 已选 ${selectedPlanIds.size} 条教学计划`;}
+function filterPlansByTeacher(id){return plans.filter(p=>p.teacherId==id);}
+function filterPlansByCourse(id){return plans.filter(p=>p.courseId==id);}
+function filterPlansByClass(id){return plans.filter(p=>p.classId==id);}
+function setupTeacherSearch(){let input=document.getElementById("teacherSearchInput"),result=document.getElementById("teacherSearchResult");input.oninput=function(){let kw=this.value.toLowerCase();let filtered=teachers.filter(t=>t.name&&t.name.toLowerCase().includes(kw));result.innerHTML=filtered.map(t=>`<div class="search-item" data-id="${t.id}" data-name="${escapeHtml(t.name)}"><div class="item-title">${escapeHtml(t.name)}</div><div class="item-desc">任课：${(t.courseIds||[]).map(id=>getCourseNameById(id)).join("、")||"无"}</div></div>`).join('');result.querySelectorAll('.search-item').forEach(item=>{item.onclick=()=>{result.querySelectorAll('.search-item').forEach(i=>i.classList.remove('selected'));item.classList.add('selected');let tid=parseInt(item.dataset.id),tname=item.dataset.name;currentTeacher={id:tid,name:tname};input.value=tname;let filteredPlans=filterPlansByTeacher(tid);currentFilteredPlans=filteredPlans;renderPlanList(filteredPlans);};});};}
+function setupCourseSearch(){let input=document.getElementById("courseSearchInput"),result=document.getElementById("courseSearchResult");input.oninput=function(){let kw=this.value.toLowerCase();let filtered=courses.filter(c=>c.name&&c.name.toLowerCase().includes(kw));result.innerHTML=filtered.map(c=>`<div class="search-item" data-id="${c.id}" data-name="${escapeHtml(c.name)}"><div class="item-title">${escapeHtml(c.name)}</div></div>`).join('');result.querySelectorAll('.search-item').forEach(item=>{item.onclick=()=>{result.querySelectorAll('.search-item').forEach(i=>i.classList.remove('selected'));item.classList.add('selected');let cid=parseInt(item.dataset.id),cname=item.dataset.name;input.value=cname;let filteredPlans=filterPlansByCourse(cid);currentFilteredPlans=filteredPlans;renderPlanList(filteredPlans);currentTeacher=null;};});};}
+function setupClassSearchForPlan(){let input=document.getElementById("classSearchInputForPlan"),result=document.getElementById("classSearchResultForPlan");input.oninput=function(){let kw=this.value.toLowerCase();let filtered=classes.filter(c=>c.name&&c.name.toLowerCase().includes(kw));result.innerHTML=filtered.map(c=>`<div class="search-item" data-id="${c.id}" data-name="${escapeHtml(c.name)}"><div class="item-title">${escapeHtml(c.name)}</div></div>`).join('');result.querySelectorAll('.search-item').forEach(item=>{item.onclick=()=>{result.querySelectorAll('.search-item').forEach(i=>i.classList.remove('selected'));item.classList.add('selected');let cid=parseInt(item.dataset.id),cname=item.dataset.name;input.value=cname;let filteredPlans=filterPlansByClass(cid);currentFilteredPlans=filteredPlans;renderPlanList(filteredPlans);currentTeacher=null;};});};}
+
+function openTeacherFixedModal(){document.getElementById("teacherFixedModal").style.display="flex";}
+function closeTeacherFixedModal(){document.getElementById("teacherFixedModal").style.display="none";document.getElementById("editTeacherIndex").value="-1";selectedPlanIds.clear();currentSelectedTimes=[];}
+function confirmTeacherFixed(){if(selectedPlanIds.size===0){showToast("请至少选择一条教学计划",true);return;}if(!currentSelectedTimes.length){showToast("请至少选择一个时间",true);return;}let type=document.querySelector('input[name="teacherFixedType"]:checked').value;let remark=document.getElementById("teacherRemark").value;let selectedPlans=currentFilteredPlans.filter(p=>selectedPlanIds.has(p.id));let editIdx=parseInt(document.getElementById("editTeacherIndex").value);if(editIdx>=0&&editIdx<rules.teacherFixed.length){let p=selectedPlans[0];rules.teacherFixed[editIdx]={teacherId:p.teacherId,teacherName:getTeacherNameById(p.teacherId),classId:p.classId,className:getClassNameById(p.classId),courseId:p.courseId,courseName:getCourseNameById(p.courseId),planId:p.id,type:type,times:currentSelectedTimes,remark:remark};showToast("✅ 已更新");}else{for(let p of selectedPlans){rules.teacherFixed.push({teacherId:p.teacherId,teacherName:getTeacherNameById(p.teacherId),classId:p.classId,className:getClassNameById(p.classId),courseId:p.courseId,courseName:getCourseNameById(p.courseId),planId:p.id,type:type,times:currentSelectedTimes,remark:remark});}showToast(`✅ 已添加 ${selectedPlans.length} 条`);}renderTeacherFixed();closeTeacherFixedModal();}
+
+function openGroupFixedModal(){
+    currentGroup=null;currentSelectedTimes=[];teacherPlanSelections.clear();
+    let input=document.getElementById("groupSearchInput"),result=document.getElementById("groupSearchResult");
+    input.value="";input.oninput=function(){let kw=this.value.toLowerCase();let filtered=groups.filter(g=>g.name&&g.name.toLowerCase().includes(kw));result.innerHTML=filtered.map(g=>`<div class="search-item" data-id="${g.id}" data-name="${escapeHtml(g.name)}"><div class="item-title">${escapeHtml(g.name)}</div><div class="item-desc">成员：${getGroupMemberNames(g)}</div></div>`).join('');result.querySelectorAll('.search-item').forEach(item=>{item.onclick=()=>{result.querySelectorAll('.search-item').forEach(i=>i.classList.remove('selected'));item.classList.add('selected');currentGroup={id:parseInt(item.dataset.id),name:item.dataset.name};input.value=item.dataset.name;renderTeacherPlanList(currentGroup.id);};});};input.oninput();
+    renderTimetableSelector("groupTimeSelector",t=>{currentSelectedTimes=t;updateSelectedTimeDisplay(t,"groupSelectedTime");},[]);
+    updateSelectedTimeDisplay([],"groupSelectedTime");
+    document.getElementById("groupRemark").value="";
+    document.getElementById("groupType").value="normal";
+    document.getElementById("groupFixedModal").style.display="flex";
+}
+function closeGroupFixedModal(){document.getElementById("groupFixedModal").style.display="none";document.getElementById("editGroupIndex").value="-1";teacherPlanSelections.clear();}
+function confirmGroupFixed(){
+    if(!currentGroup){showToast("请选择教师组",true);return;}
+    if(!currentSelectedTimes.length){showToast("请至少选择一个时间",true);return;}
+    let type=document.querySelector('input[name="groupFixedType"]:checked').value;
+    let groupType=document.getElementById("groupType").value;
+    let remark=document.getElementById("groupRemark").value;
+    let editIdx=parseInt(document.getElementById("editGroupIndex").value);
+    let newRules = [];
+    let group = groups.find(g => g.id == currentGroup.id);
+    if(group){
+        let memberIds = getGroupMemberIds(group);
+        for(let teacherId of memberIds){
+            let selections = teacherPlanSelections.get(teacherId) || [];
+            if(selections.length === 0){
+                console.warn(`教师 ${teacherId} 未选择教学计划`);
+                continue;
+            }
+            let teacher = teachers.find(t => t.id == teacherId);
+            // 为每位教师创建多条规则（每个教学计划一条）
+            for(let sel of selections){
+                newRules.push({
+                    groupId: currentGroup.id,
+                    groupName: currentGroup.name,
+                    teacherId: teacherId,
+                    teacherName: teacher ? teacher.name : "未知教师",
+                    classId: sel.classId,
+                    className: sel.className,
+                    courseId: sel.courseId,
+                    courseName: sel.courseName,
+                    planId: sel.planId,
+                    type: type,
+                    times: currentSelectedTimes,
+                    remark: remark + (remark ? " | " : "") + "教师组：" + currentGroup.name,
+                    groupType: groupType
+                });
+            }
+        }
+    }
+    if(editIdx >= 0 && editIdx < rules.groupFixed.length){
+        // 编辑模式下，先删除原规则，再添加新规则
+        rules.groupFixed.splice(editIdx, 1);
+        for(let r of newRules) rules.groupFixed.push(r);
+        showToast(`✅ 已更新，共 ${newRules.length} 条规则`);
+    } else {
+        for(let r of newRules) rules.groupFixed.push(r);
+        showToast(`✅ 已添加 ${newRules.length} 条教师组固定规则`);
+    }
+    renderGroupFixed();
+    closeGroupFixedModal();
+}
+
+function renderClassMultiSelect(selectedIds=[]){let container=document.getElementById("classMultiSelect");if(classes.length===0){container.innerHTML='<div style="padding:10px;text-align:center;color:#999;">暂无班级</div>';return;}container.innerHTML="";for(let cls of classes){let isChecked=selectedIds.includes(cls.id);let div=document.createElement("div");div.style.cssText="padding:8px 10px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:8px; cursor:pointer;";div.onclick=function(e){if(e.target.type!=='checkbox'){let cb=div.querySelector('input');cb.checked=!cb.checked;let event=new Event('change');cb.dispatchEvent(event);}};div.innerHTML=`<input type="checkbox" class="class-item-cb" data-id="${cls.id}" data-name="${escapeHtml(cls.name)}" ${isChecked?"checked":""} style="width:16px; height:16px; margin:0; cursor:pointer;"><span style="flex:1; font-size:13px;">${escapeHtml(cls.name)}</span>`;container.appendChild(div);}}
+function getSelectedClassIds(){let ids=[];document.querySelectorAll("#classMultiSelect .class-item-cb:checked").forEach(cb=>ids.push(parseInt(cb.dataset.id)));return ids;}
+function setupClassCourseSearch(){let input=document.getElementById("classCourseSearch"),dropdown=document.getElementById("classCourseDropdown");input.oninput=function(){let kw=this.value.toLowerCase();let filtered=courses.filter(c=>c.name.toLowerCase().includes(kw));if(filtered.length>0){dropdown.innerHTML=filtered.map(c=>`<div data-id="${c.id}" data-name="${escapeHtml(c.name)}">${escapeHtml(c.name)}</div>`).join('');dropdown.style.display="block";dropdown.querySelectorAll('div').forEach(div=>{div.onclick=()=>{let id=parseInt(div.dataset.id),name=div.dataset.name;input.value=name;document.getElementById("classCourseId").value=id;dropdown.style.display="none";};});}else dropdown.style.display="none";};input.onclick=()=>{let kw=input.value.toLowerCase();let filtered=courses.filter(c=>c.name.toLowerCase().includes(kw));if(filtered.length>0){dropdown.innerHTML=filtered.map(c=>`<div data-id="${c.id}" data-name="${escapeHtml(c.name)}">${escapeHtml(c.name)}</div>`).join('');dropdown.style.display="block";}};document.addEventListener("click",function(e){if(e.target!==input&&!dropdown.contains(e.target))dropdown.style.display="none";});}
+function openClassFixedModal(){document.getElementById("classModalTitle").innerText="添加班级固定";document.getElementById("editClassIndex").value="-1";renderClassMultiSelect([]);document.getElementById("classCourseSearch").value="";document.getElementById("classCourseId").value="";currentSelectedTimes=[];renderTimetableSelector("classTimeSelector",t=>{currentSelectedTimes=t;updateSelectedTimeDisplay(t,"classSelectedTime");},[]);updateSelectedTimeDisplay([],"classSelectedTime");document.getElementById("classRemark").value="";document.getElementById("classFixedModal").style.display="flex";let typeRadios=document.querySelectorAll('input[name="classFixedType"]');typeRadios.forEach(radio=>{radio.onchange=function(){let area=document.getElementById("classCourseArea");area.style.display=this.value==="must"?"block":"none";};});}
+function closeClassFixedModal(){document.getElementById("classFixedModal").style.display="none";document.getElementById("editClassIndex").value="-1";}
+function confirmClassFixed(){let type=document.querySelector('input[name="classFixedType"]:checked').value;let selectedClassIds=getSelectedClassIds();if(selectedClassIds.length===0){showToast("请至少选择一个班级",true);return;}if(!currentSelectedTimes.length){showToast("请至少选择一个时间",true);return;}let courseId=null,courseName=null;if(type==="must"){courseId=document.getElementById("classCourseId").value;if(!courseId){showToast("请选择课程",true);return;}courseName=getCourseNameById(parseInt(courseId));}let remark=document.getElementById("classRemark").value;let editIdx=parseInt(document.getElementById("editClassIndex").value);if(editIdx>=0&&editIdx<rules.classFixed.length){let item=rules.classFixed[editIdx];item.classId=selectedClassIds[0];item.className=getClassNameById(selectedClassIds[0]);item.type=type;item.times=currentSelectedTimes;item.remark=remark;if(type==="must"){item.courseId=parseInt(courseId);item.courseName=courseName;}else{delete item.courseId;delete item.courseName;}showToast("✅ 已更新");}else{for(let cid of selectedClassIds){let className=getClassNameById(cid);let rule={classId:cid,className:className,type:type,times:currentSelectedTimes,remark:remark};if(type==="must"){rule.courseId=parseInt(courseId);rule.courseName=courseName;}rules.classFixed.push(rule);}showToast(`✅ 已添加 ${selectedClassIds.length} 条`);}renderClassFixed();closeClassFixedModal();}
+
+function openCourseFixedModal(){currentCourse=null;currentSelectedTimes=[];updateClassSelect();let input=document.getElementById("courseSearchInputForCourse"),result=document.getElementById("courseSearchResultForCourse");input.value="";input.oninput=function(){let kw=this.value.toLowerCase();let filtered=courses.filter(c=>c.name&&c.name.toLowerCase().includes(kw));result.innerHTML=filtered.map(c=>`<div class="search-item" data-id="${c.id}" data-name="${escapeHtml(c.name)}"><div class="item-title">${escapeHtml(c.name)}</div></div>`).join('');result.querySelectorAll('.search-item').forEach(item=>{item.onclick=()=>{result.querySelectorAll('.search-item').forEach(i=>i.classList.remove('selected'));item.classList.add('selected');currentCourse={id:parseInt(item.dataset.id),name:item.dataset.name};input.value=item.dataset.name;};});};input.oninput();renderTimetableSelector("courseTimeSelector",t=>{currentSelectedTimes=t;updateSelectedTimeDisplay(t,"courseSelectedTime");},[]);updateSelectedTimeDisplay([],"courseSelectedTime");document.getElementById("courseRemark").value="";document.getElementById("courseFixedModal").style.display="flex";}
+function closeCourseFixedModal(){document.getElementById("courseFixedModal").style.display="none";document.getElementById("editCourseIndex").value="-1";}
+function confirmCourseFixed(){if(!currentCourse){showToast("请选择课程",true);return;}if(!currentSelectedTimes.length){showToast("请至少选择一个时间",true);return;}let type=document.querySelector('input[name="courseFixedType"]:checked').value;let applyClass=document.getElementById("courseApplyClass").value;let remark=document.getElementById("courseRemark").value;let editIdx=parseInt(document.getElementById("editCourseIndex").value);let newRule={courseId:currentCourse.id,course:currentCourse.name,applyClass:applyClass,applyClassName:applyClass==="all"?"全部班级":(classes.find(c=>c.id==applyClass)?.name||""),type:type,times:currentSelectedTimes,remark:remark};if(editIdx>=0&&editIdx<rules.courseFixed.length){rules.courseFixed[editIdx]=newRule;showToast("✅ 已更新");}else{rules.courseFixed.push(newRule);showToast("✅ 已添加");}renderCourseFixed();closeCourseFixedModal();}
+
+// 应用必须排规则
+async function applyMustRulesToSchedules(){
+    let mustRules=[];
+    for(let r of rules.teacherFixed)if(r.type==="must"&&r.times.length)mustRules.push({type:"teacher",id:r.teacherId,name:r.teacherName,classId:r.classId,courseId:r.courseId,courseName:r.courseName,times:r.times,remark:r.remark});
+    for(let r of rules.classFixed)if(r.type==="must"&&r.times.length&&r.courseId)mustRules.push({type:"class",id:r.classId,name:r.className,courseId:r.courseId,courseName:r.courseName,times:r.times,remark:r.remark});
+    for(let r of rules.courseFixed)if(r.type==="must"&&r.times.length)mustRules.push({type:"course",id:r.courseId,name:r.course,applyClass:r.applyClass,times:r.times,remark:r.remark});
+    for(let r of rules.groupFixed)if(r.type==="must"&&r.times.length&&r.classId&&r.courseId)mustRules.push({type:"teacher",id:r.teacherId,name:r.teacherName,classId:r.classId,courseId:r.courseId,courseName:r.courseName,times:r.times,remark:r.remark});
+    if(mustRules.length===0){showToast("没有必须排规则",true);return;}
+    let newSched=JSON.parse(JSON.stringify(schedules));let applied=0,conflict=0;
+    let pa=document.getElementById("progressArea"),pf=document.getElementById("progressFill"),pm=document.getElementById("progressMsg");pa.style.display="block";
+    for(let idx=0;idx<mustRules.length;idx++){let r=mustRules[idx];let pct=Math.round(idx/mustRules.length*100);pf.style.width=pct+"%";pf.innerText=pct+"%";pm.innerText=`处理: ${r.name||r.courseName} (${idx+1}/${mustRules.length})`;await sleep(10);
+        if(r.type==="teacher"||r.type==="class"){let classId=r.classId,courseId=r.courseId,courseName=r.courseName,teacherName=r.name;if(classId&&courseId){for(let t of r.times){let key=t.week+"-"+t.period;if(!newSched[classId]?.[key]){if(!newSched[classId])newSched[classId]={};newSched[classId][key]={courseId:courseId,teacherId:r.id,courseName:courseName,teacherName:teacherName,locked:true,lockedReason:`必须排规则：${teacherName} ${t.week}${t.period}上${courseName}${r.remark?" ("+r.remark+")":""}`};applied++;}else conflict++;}}}
+        else if(r.type==="course"){let targets=r.applyClass==="all"?classes.map(c=>c.id):[parseInt(r.applyClass)];for(let cid of targets){let plan=plans.find(p=>p.classId==cid&&p.courseId==r.id);if(!plan)continue;for(let t of r.times){let key=t.week+"-"+t.period;if(!newSched[cid]?.[key]){if(!newSched[cid])newSched[cid]={};newSched[cid][key]={courseId:r.id,teacherId:plan.teacherId,courseName:r.name,teacherName:getTeacherNameById(plan.teacherId),locked:true,lockedReason:`课程固定：${r.name} ${t.week}${t.period}上课${r.remark?" ("+r.remark+")":""}`};applied++;}else conflict++;}}}}
+    pf.style.width="100%";pf.innerText="100%";pm.innerText="完成";localStorage.setItem(SCHEDULES_KEY,JSON.stringify(newSched));schedules=newSched;setTimeout(()=>pa.style.display="none",2000);showToast(`✅ 应用完成！添加${applied}节，冲突${conflict}处`);}
+
+// 应用禁止排规则
+function applyForbiddenRulesToConstraints(){
+    let forbiddenTeacherFixed=rules.teacherFixed.filter(r=>r.type==="forbidden");
+    let forbiddenGroupFixed=rules.groupFixed.filter(r=>r.type==="forbidden");
+    let forbiddenClassFixed=rules.classFixed.filter(r=>r.type==="forbidden");
+    let forbiddenCourseFixed=rules.courseFixed.filter(r=>r.type==="forbidden");
+    
+    let teacherFreeTimes=[];
+    for(let r of forbiddenTeacherFixed) for(let t of r.times) teacherFreeTimes.push({teacherId:r.teacherId,weekday:t.week,period:t.period,reason:r.remark});
+    for(let r of forbiddenGroupFixed) for(let t of r.times) teacherFreeTimes.push({teacherId:r.teacherId,weekday:t.week,period:t.period,reason:r.remark});
+    
+    let classFreeTimes=[];
+    for(let r of forbiddenClassFixed) for(let t of r.times) classFreeTimes.push({classId:r.classId,weekday:t.week,period:t.period,reason:r.remark});
+    
+    let courseFreeTimes=[];
+    for(let r of forbiddenCourseFixed) for(let t of r.times) courseFreeTimes.push({courseId:r.courseId,applyClass:r.applyClass,weekday:t.week,period:t.period,reason:r.remark});
+    
+    let existingRules=JSON.parse(localStorage.getItem("pk_scheduleRules")||"{}");
+    existingRules.teacherFreeTimes=teacherFreeTimes;
+    existingRules.classFreeTimes=classFreeTimes;
+    existingRules.courseFreeTimes=courseFreeTimes;
+    localStorage.setItem("pk_scheduleRules",JSON.stringify(existingRules));
+    showToast(`✅ 已应用禁止排规则：教师${teacherFreeTimes.length}条，班级${classFreeTimes.length}条，课程${courseFreeTimes.length}条`);
+}
+
+function clearAllLocks(){if(!confirm("清除所有锁定标记？"))return;let ns=JSON.parse(JSON.stringify(schedules));let cnt=0;for(let cid in ns)for(let tk in ns[cid])if(ns[cid][tk]?.locked){delete ns[cid][tk].locked;delete ns[cid][tk].lockedReason;cnt++;}localStorage.setItem(SCHEDULES_KEY,JSON.stringify(ns));schedules=ns;showToast(`✅ 已清除 ${cnt} 个锁定`);}
+
+function init(){
+    displayCurrentUser();initPeriods();loadBaseData();loadRules();
+    document.getElementById("addTeacherFixedBtn").onclick=()=>{document.getElementById("editTeacherIndex").value="-1";document.getElementById("teacherModalTitle").innerText="添加教师固定";selectedPlanIds.clear();currentSelectedTimes=[];currentTeacher=null;document.getElementById("teacherSearchInput").value="";document.getElementById("courseSearchInput").value="";document.getElementById("classSearchInputForPlan").value="";document.getElementById("planListContainer").innerHTML='<div style="padding:20px;text-align:center;color:#999;">请先搜索选择教师、科目或班级</div>';updateSelectedTimeDisplay([],"teacherSelectedTime");renderTimetableSelector("teacherTimeSelector",(t)=>{currentSelectedTimes=t;updateSelectedTimeDisplay(t,"teacherSelectedTime");},[]);document.getElementById("teacherRemark").value="";openTeacherFixedModal();};
+    document.getElementById("addGroupFixedBtn").onclick=()=>{document.getElementById("editGroupIndex").value="-1";document.getElementById("groupModalTitle").innerText="添加教师组固定";openGroupFixedModal();};
+    document.getElementById("addClassFixedBtn").onclick=()=>{document.getElementById("editClassIndex").value="-1";openClassFixedModal();};
+    document.getElementById("addCourseFixedBtn").onclick=()=>{document.getElementById("editCourseIndex").value="-1";document.getElementById("courseModalTitle").innerText="添加课程固定";openCourseFixedModal();};
+    document.getElementById("saveBtn").onclick=saveRules;
+    document.getElementById("applyMustRulesBtn").onclick=applyMustRulesToSchedules;
+    document.getElementById("applyForbiddenRulesBtn").onclick=applyForbiddenRulesToConstraints;
+    document.getElementById("clearLocksBtn").onclick=clearAllLocks;
+    document.getElementById("cancelTeacherFixedBtn").onclick=closeTeacherFixedModal;
+    document.getElementById("confirmTeacherFixedBtn").onclick=confirmTeacherFixed;
+    document.getElementById("cancelGroupFixedBtn").onclick=closeGroupFixedModal;
+    document.getElementById("confirmGroupFixedBtn").onclick=confirmGroupFixed;
+    document.getElementById("cancelClassFixedBtn").onclick=closeClassFixedModal;
+    document.getElementById("confirmClassFixedBtn").onclick=confirmClassFixed;
+    document.getElementById("cancelCourseFixedBtn").onclick=closeCourseFixedModal;
+    document.getElementById("confirmCourseFixedBtn").onclick=confirmCourseFixed;
+    document.getElementById("teacherSearchFilter").oninput=()=>renderTeacherFixed();
+    document.getElementById("groupSearchFilter").oninput=()=>renderGroupFixed();
+    document.getElementById("classSearchFilter").oninput=()=>renderClassFixed();
+    document.getElementById("courseSearchFilter").oninput=()=>renderCourseFixed();
+    document.getElementById("groupType").onchange=e=>{let tip=document.getElementById("headteacherTip");tip.style.display=e.target.value==="headteacher"?"block":"none";};
+    setupTeacherSearch();setupCourseSearch();setupClassSearchForPlan();setupClassCourseSearch();
+    document.querySelectorAll('.filter-tab').forEach(tab=>{tab.onclick=()=>{document.querySelectorAll('.filter-tab').forEach(t=>t.classList.remove('active'));tab.classList.add('active');let ft=tab.dataset.filter;document.getElementById("teacherSearchArea").style.display=ft==="teacher"?"block":"none";document.getElementById("courseSearchArea").style.display=ft==="course"?"block":"none";document.getElementById("classSearchArea").style.display=ft==="class"?"block":"none";document.getElementById("planListContainer").innerHTML='<div style="padding:20px;text-align:center;color:#999;">请先搜索选择教师、科目或班级</div>';selectedPlanIds.clear();updateSelectedPlansInfo();};});
+    window.onclick=e=>{if(e.target===document.getElementById("teacherFixedModal"))closeTeacherFixedModal();if(e.target===document.getElementById("groupFixedModal"))closeGroupFixedModal();if(e.target===document.getElementById("classFixedModal"))closeClassFixedModal();if(e.target===document.getElementById("courseFixedModal"))closeCourseFixedModal();};
+}
+init();
+</script>
+</body>
+</html>
