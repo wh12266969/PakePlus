@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教室管理 - 智能排课系统</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card h3 {
+            color: #1e3c72;
+            margin-top: 0;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #1e3c72;
+            padding-bottom: 8px;
+        }
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+        .form-group {
+            flex: 1;
+            min-width: 150px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        button {
+            background: #1e3c72;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #2b4c7c;
+        }
+        button.danger {
+            background: #dc3545;
+        }
+        button.danger:hover {
+            background: #c82333;
+        }
+        button.success {
+            background: #28a745;
+        }
+        button.warning {
+            background: #ffc107;
+            color: #333;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        .data-table th, .data-table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        .data-table th {
+            background: #1e3c72;
+            color: white;
+        }
+        .data-table tr:hover {
+            background: #f5f5f5;
+        }
+        
+        .import-area {
+            background: #f8f9fa;
+            border: 1px dashed #1e3c72;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .tip {
+            background: #e7f3ff;
+            border-left: 4px solid #1e3c72;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            border-radius: 6px;
+        }
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 2000;
+            animation: fadeOut 2s ease-in-out;
+        }
+        .toast.error {
+            background: #dc3545;
+        }
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; visibility: hidden; }
+        }
+        
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .search-box {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .search-box input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            width: 200px;
+        }
+        .room-type-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+        }
+        .room-type-normal { background: #e8f4fd; color: #1e3c72; }
+        .room-type-computer { background: #d4edda; color: #155724; }
+        .room-type-lab { background: #fff3cd; color: #856404; }
+        .room-type-multimedia { background: #e2d4f0; color: #6f42c1; }
+    </style>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <h3>🏢 教室管理</h3>
+        <div class="tip">
+            💡 说明：教室用于排课时分配上课地点。<br>
+            • 教室类型：普通教室、机房、实验室、多媒体教室等<br>
+            • 容量：教室可容纳的学生人数<br>
+            • 所属专业：可选，用于专业教室管理
+        </div>
+        
+        <div class="import-area">
+            <span>📊 Excel批量导入：</span>
+            <input type="file" id="excelFile" accept=".xlsx, .xls, .csv">
+            <button id="importBtn" class="success">导入教室</button>
+            <button id="downloadTemplateBtn">下载模板</button>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>教室名称</label>
+                <input type="text" id="roomName" placeholder="例如：101教室">
+            </div>
+            <div class="form-group">
+                <label>教室类型</label>
+                <select id="roomType">
+                    <option value="普通教室">普通教室</option>
+                    <option value="机房">机房</option>
+                    <option value="实验室">实验室</option>
+                    <option value="多媒体教室">多媒体教室</option>
+                    <option value="阶梯教室">阶梯教室</option>
+                    <option value="语音室">语音室</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>容量（座位数）</label>
+                <input type="number" id="roomCapacity" value="50" min="1" max="500">
+            </div>
+            <div class="form-group">
+                <label>所属专业/类别</label>
+                <select id="majorSelect">
+                    <option value="">-- 全校通用 --</option>
+                </select>
+            </div>
+            <button id="addBtn">➕ 手动添加</button>
+        </div>
+        
+        <div class="toolbar">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="搜索教室名称...">
+                <button id="searchBtn">🔍 搜索</button>
+                <button id="clearSearchBtn">清除</button>
+            </div>
+            <div>
+                <button id="clearAllBtn" class="danger">🗑️ 清空所有教室</button>
+            </div>
+        </div>
+        
+        <table class="data-table" id="roomTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>教室名称</th>
+                    <th>教室类型</th>
+                    <th>容量</th>
+                    <th>所属专业</th>
+                    <th>操作</th>
+                 </thead>
+            <tbody id="roomTableBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // 数据存储key
+    const ROOMS_KEY = "pk_rooms";
+    const MAJORS_KEY = "pk_majors";
+    
+    let rooms = [];
+    let majors = [];
+    let searchKeyword = "";
+    
+    function showToast(message, isError = false) {
+        let toast = document.createElement("div");
+        toast.className = "toast" + (isError ? " error" : "");
+        toast.innerText = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2000);
+    }
+    
+    function loadMajors() {
+        let saved = localStorage.getItem(MAJORS_KEY);
+        if (saved) {
+            try {
+                majors = JSON.parse(saved);
+            } catch(e) {
+                majors = [];
+            }
+        }
+        if (!majors.length) {
+            majors = [
+                { id: 1, name: "计算机专业", code: "CS001", remark: "" },
+                { id: 2, name: "网络专业", code: "NET001", remark: "" },
+                { id: 3, name: "软件专业", code: "SW001", remark: "" },
+                { id: 4, name: "电子商务专业", code: "EC001", remark: "" }
+            ];
+            saveMajors();
+        }
+        updateMajorSelect();
+    }
+    
+    function saveMajors() {
+        localStorage.setItem(MAJORS_KEY, JSON.stringify(majors));
+    }
+    
+    function updateMajorSelect() {
+        let select = document.getElementById("majorSelect");
+        select.innerHTML = '<option value="">-- 全校通用 --</option>';
+        for (let major of majors) {
+            select.innerHTML += `<option value="${major.id}">${escapeHtml(major.name)}</option>`;
+        }
+    }
+    
+    function getMajorName(majorId) {
+        if (!majorId) return "全校通用";
+        let major = majors.find(m => m.id == majorId);
+        return major ? major.name : "未知专业";
+    }
+    
+    function getRoomTypeClass(type) {
+        switch(type) {
+            case "普通教室": return "room-type-normal";
+            case "机房": return "room-type-computer";
+            case "实验室": return "room-type-lab";
+            case "多媒体教室": return "room-type-multimedia";
+            default: return "room-type-normal";
+        }
+    }
+    
+    function loadRooms() {
+        let saved = localStorage.getItem(ROOMS_KEY);
+        if (saved) {
+            try {
+                rooms = JSON.parse(saved);
+            } catch(e) {
+                rooms = [];
+            }
+        }
+        if (!rooms.length) {
+            rooms = [
+                { id: 401, name: "101教室", type: "普通教室", capacity: 50, majorId: null },
+                { id: 402, name: "102教室", type: "普通教室", capacity: 50, majorId: null },
+                { id: 403, name: "机房A", type: "机房", capacity: 60, majorId: 1 },
+                { id: 404, name: "机房B", type: "机房", capacity: 60, majorId: 2 },
+                { id: 405, name: "网络实验室", type: "实验室", capacity: 40, majorId: 2 },
+                { id: 406, name: "多媒体报告厅", type: "多媒体教室", capacity: 200, majorId: null }
+            ];
+            saveRooms();
+        }
+        renderTable();
+    }
+    
+    function saveRooms() {
+        localStorage.setItem(ROOMS_KEY, JSON.stringify(rooms));
+    }
+    
+    function renderTable() {
+        let tbody = document.getElementById("roomTableBody");
+        tbody.innerHTML = "";
+        
+        let filteredRooms = rooms;
+        if (searchKeyword) {
+            filteredRooms = rooms.filter(r => r.name.includes(searchKeyword));
+        }
+        
+        if (filteredRooms.length === 0) {
+            let row = tbody.insertRow();
+            let cell = row.insertCell(0);
+            cell.colSpan = 6;
+            cell.textContent = searchKeyword ? "没有找到匹配的教室" : "暂无教室数据，请点击「手动添加」或「导入」";
+            cell.style.textAlign = "center";
+            cell.style.color = "#999";
+            return;
+        }
+        
+        for (let room of filteredRooms) {
+            let row = tbody.insertRow();
+            row.insertCell(0).innerText = room.id;
+            row.insertCell(1).innerText = room.name;
+            row.insertCell(2).innerHTML = `<span class="room-type-badge ${getRoomTypeClass(room.type)}">${escapeHtml(room.type)}</span>`;
+            row.insertCell(3).innerText = room.capacity + " 人";
+            row.insertCell(4).innerText = getMajorName(room.majorId);
+            
+            let delCell = row.insertCell(5);
+            let delBtn = document.createElement("button");
+            delBtn.innerText = "删除";
+            delBtn.className = "danger";
+            delBtn.style.padding = "4px 12px";
+            delBtn.onclick = (function(id) {
+                return function() {
+                    if (confirm(`确定删除教室"${room.name}"吗？`)) {
+                        rooms = rooms.filter(r => r.id !== id);
+                        saveRooms();
+                        renderTable();
+                        showToast(`✅ 已删除教室：${room.name}`);
+                    }
+                };
+            })(room.id);
+            delCell.appendChild(delBtn);
+        }
+    }
+    
+    function addRoom() {
+        let name = document.getElementById("roomName").value.trim();
+        let type = document.getElementById("roomType").value;
+        let capacity = parseInt(document.getElementById("roomCapacity").value);
+        let majorId = document.getElementById("majorSelect").value;
+        
+        if (!name) {
+            showToast("请输入教室名称", true);
+            return;
+        }
+        
+        let exists = rooms.some(r => r.name === name);
+        if (exists) {
+            showToast("教室名称已存在", true);
+            return;
+        }
+        
+        let newId = Date.now();
+        rooms.push({
+            id: newId,
+            name: name,
+            type: type,
+            capacity: capacity || 50,
+            majorId: majorId ? parseInt(majorId) : null
+        });
+        saveRooms();
+        renderTable();
+        
+        document.getElementById("roomName").value = "";
+        
+        showToast(`✅ 已添加教室：${name}`);
+    }
+    
+    function importRooms(file) {
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            let data = new Uint8Array(e.target.result);
+            let workbook = XLSX.read(data, { type: 'array' });
+            let sheet = workbook.Sheets[workbook.SheetNames[0]];
+            let rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+            
+            if (rows.length < 2) {
+                showToast("文件至少需要两行数据（表头+数据）", true);
+                return;
+            }
+            
+            let newCount = 0;
+            let skipCount = 0;
+            let errorCount = 0;
+            
+            for (let i = 1; i < rows.length; i++) {
+                let row = rows[i];
+                let name = row[0] ? String(row[0]).trim() : "";
+                let type = row[1] ? String(row[1]).trim() : "普通教室";
+                let capacity = parseInt(row[2]) || 50;
+                let majorName = row[3] ? String(row[3]).trim() : "";
+                
+                if (name === "") continue;
+                
+                let majorId = null;
+                if (majorName && majorName !== "全校通用") {
+                    let major = majors.find(m => m.name === majorName);
+                    if (!major) {
+                        errorCount++;
+                        continue;
+                    }
+                    majorId = major.id;
+                }
+                
+                let exists = rooms.some(r => r.name === name);
+                if (!exists) {
+                    rooms.push({
+                        id: Date.now() + i,
+                        name: name,
+                        type: type,
+                        capacity: capacity,
+                        majorId: majorId
+                    });
+                    newCount++;
+                } else {
+                    skipCount++;
+                }
+            }
+            
+            saveRooms();
+            renderTable();
+            
+            let msg = `✅ 导入完成！新增 ${newCount} 个教室`;
+            if (skipCount > 0) msg += `，跳过 ${skipCount} 个重复`;
+            if (errorCount > 0) msg += `，失败 ${errorCount} 个（专业不存在）`;
+            showToast(msg);
+        };
+        reader.readAsArrayBuffer(file);
+    }
+    
+    function clearAllRooms() {
+        if (confirm("⚠️ 警告：这将删除所有教室数据！\n\n确定要继续吗？")) {
+            rooms = [];
+            saveRooms();
+            renderTable();
+            showToast("✅ 已清空所有教室");
+        }
+    }
+    
+    function searchRooms() {
+        searchKeyword = document.getElementById("searchInput").value.trim();
+        renderTable();
+        if (searchKeyword) {
+            let count = rooms.filter(r => r.name.includes(searchKeyword)).length;
+            showToast(`搜索 "${searchKeyword}"，共找到 ${count} 个教室`);
+        }
+    }
+    
+    function clearSearch() {
+        document.getElementById("searchInput").value = "";
+        searchKeyword = "";
+        renderTable();
+        showToast("已清除搜索");
+    }
+    
+    function downloadTemplate() {
+        let template = [
+            ["教室名称", "教室类型", "容量", "所属专业"],
+            ["101教室", "普通教室", "50", "全校通用"],
+            ["102教室", "普通教室", "50", "全校通用"],
+            ["机房A", "机房", "60", "计算机专业"],
+            ["网络实验室", "实验室", "40", "网络专业"]
+        ];
+        let ws = XLSX.utils.aoa_to_sheet(template);
+        let wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "教室模板");
+        XLSX.writeFile(wb, "教室模板.xlsx");
+        showToast("模板下载成功");
+    }
+    
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]);
+    }
+    
+    function init() {
+        loadMajors();
+        loadRooms();
+        
+        document.getElementById("addBtn").onclick = addRoom;
+        document.getElementById("importBtn").onclick = () => {
+            let file = document.getElementById("excelFile").files[0];
+            if (file) {
+                importRooms(file);
+            } else {
+                showToast("请先选择Excel文件", true);
+            }
+        };
+        document.getElementById("downloadTemplateBtn").onclick = downloadTemplate;
+        document.getElementById("clearAllBtn").onclick = clearAllRooms;
+        document.getElementById("searchBtn").onclick = searchRooms;
+        document.getElementById("clearSearchBtn").onclick = clearSearch;
+        
+        document.getElementById("searchInput").addEventListener("keypress", function(e) {
+            if (e.key === "Enter") searchRooms();
+        });
+    }
+    
+    init();
+</script>
+</body>
+</html>
