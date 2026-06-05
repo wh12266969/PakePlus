@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>智能课表系统 - 主课+早读自习合并显示</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', Roboto, sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .card-header {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #1e3c72;
+            border-left: 4px solid #1e3c72;
+            padding-left: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .control-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            gap: 16px;
+            row-gap: 10px;
+        }
+        .control-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .control-item label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #4b5563;
+        }
+        .control-item select, .control-item input {
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid #d1d5db;
+            font-size: 12px;
+            background: white;
+            min-width: 130px;
+        }
+        .control-item button {
+            padding: 6px 16px;
+            border-radius: 6px;
+            border: none;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            background: #1e3c72;
+            color: white;
+        }
+        .control-item button:hover { background: #2b4c7c; }
+        .control-item button.btn-secondary { background: #6c757d; }
+        .control-item button.btn-success { background: #28a745; }
+        .control-item button.btn-warning { background: #ffc107; color: #333; }
+        
+        /* 样式调整面板 */
+        .style-panel {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        .style-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 10px;
+        }
+        .style-tab {
+            padding: 6px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            background: #e9ecef;
+        }
+        .style-tab.active {
+            background: #1e3c72;
+            color: white;
+        }
+        .style-section {
+            display: none;
+        }
+        .style-section.active {
+            display: block;
+        }
+        .style-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+        .style-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 120px;
+        }
+        .style-item label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #4b5563;
+        }
+        .style-item input {
+            width: 100px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid #d1d5db;
+            font-size: 12px;
+        }
+        .style-item input[type="range"] {
+            width: 150px;
+        }
+        .template-buttons {
+            display: flex;
+            gap: 10px;
+            margin-left: auto;
+        }
+        
+        .extra-rows-list {
+            margin-top: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .extra-row-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            border-bottom: 1px solid #e5e7eb;
+            background: #f9fafb;
+        }
+        .extra-row-item:last-child { border-bottom: none; }
+        .extra-row-info { display: flex; align-items: center; gap: 10px; flex: 1; }
+        .extra-row-icon { font-size: 18px; }
+        .extra-row-name { font-weight: 500; font-size: 13px; }
+        .extra-row-position { font-size: 10px; color: #6c757d; }
+        .extra-row-actions { display: flex; gap: 6px; }
+        .btn-sm { padding: 4px 8px; font-size: 10px; border-radius: 4px; }
+        
+        .timetable-wrapper { overflow-x: auto; margin-top: 16px; }
+        .timetable {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            min-width: 600px;
+            table-layout: fixed;
+        }
+        .timetable th, .timetable td {
+            border: 1px solid #d1d5db;
+            padding: 10px 8px;
+            text-align: center;
+            vertical-align: middle;
+        }
+        .timetable th {
+            background: #1e3c72;
+            color: white;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+        .timetable .period-cell {
+            background: #e8f4fd;
+            font-weight: 600;
+            color: #1e3c72;
+        }
+        .timetable .empty-cell { color: #adb5bd; }
+        .timetable .morning-cell { background: #e6f7e6; }
+        .timetable .self-cell { background: #fff9e6; }
+        .timetable .custom-cell { 
+            background: #f0f0ff; 
+            cursor: pointer;
+            text-align: center;
+            vertical-align: middle;
+        }
+        .timetable .custom-cell:hover { background: #e0e0ff; }
+        
+        .timetable-header { text-align: center; margin-bottom: 20px; }
+        .timetable-title { font-size: 18px; font-weight: bold; color: #1e3c72; margin-bottom: 8px; }
+        .timetable-subtitle { font-size: 12px; color: #4b5563; display: flex; justify-content: center; gap: 40px; flex-wrap: wrap; }
+        
+        /* 打印/PDF 样式 - 使用固定值，不使用变量 */
+        @media print {
+            body { background: white; padding: 0; margin: 0; }
+            .no-print { display: none !important; }
+            .print-page { 
+                page-break-after: always; 
+                page-break-inside: avoid; 
+                margin: 0; 
+                padding: 8mm 12mm 8mm 12mm;
+                box-sizing: border-box;
+            }
+            .print-page:last-child { page-break-after: auto; }
+            .print-timetable { 
+                width: 100%; 
+                border-collapse: collapse; 
+                font-size: 10pt; 
+                table-layout: fixed;
+            }
+            .print-timetable th, .print-timetable td { 
+                border: 1px solid #000; 
+                padding: 6px 3px; 
+                text-align: center; 
+                vertical-align: middle;
+                word-break: break-word;
+            }
+            .print-timetable th { 
+                background: #f0f0f0; 
+                font-weight: bold;
+                height: 36px;
+            }
+            .print-timetable .period-cell { 
+                background: #f0f0f0; 
+                font-weight: bold;
+                font-size: 11pt;
+                width: 12%;
+            }
+            .print-timetable td {
+                height: 32px;
+            }
+            .print-timetable .course-name { 
+                font-weight: bold; 
+                font-size: 10pt;
+            }
+            .print-timetable .teacher-name { 
+                font-size: 8pt; 
+                color: #333; 
+            }
+            .print-header { text-align: center; margin-bottom: 8px; }
+            .print-title { 
+                font-size: 14pt; 
+                font-weight: bold; 
+                margin-bottom: 4px; 
+            }
+            .print-info-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 10pt; }
+            .print-weekday-cell {
+                width: 14%;
+            }
+            @page { size: A4 portrait; margin: 0; }
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            width: 600px;
+            max-width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .modal-header h3 { margin: 0; color: #1e3c72; font-size: 16px; }
+        .close-modal { font-size: 24px; cursor: pointer; background: none; border: none; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 12px; }
+        .form-group input, .form-group select { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #d1d5db; font-size: 13px; }
+        .position-row { display: flex; align-items: center; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
+        .position-row .position-label { font-size: 12px; font-weight: 600; color: #333; white-space: nowrap; margin: 0; }
+        .position-select { flex: 1; min-width: 200px; padding: 8px 10px; border-radius: 6px; border: 1px solid #d1d5db; font-size: 13px; background: white; }
+        .radio-group { display: flex; gap: 20px; margin-top: 8px; }
+        .radio-group label { display: flex; align-items: center; gap: 6px; font-weight: normal; cursor: pointer; }
+        .modal-buttons { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
+        
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #28a745;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            z-index: 2000;
+            animation: fadeOut 2s ease-in-out;
+            font-size: 12px;
+        }
+        .toast.error { background: #dc3545; }
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; visibility: hidden; }
+        }
+        
+        .export-group { display: flex; gap: 8px; }
+        .batch-edit-content { max-width: 600px; }
+        .batch-edit-grid { display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto; margin: 15px 0; }
+        .batch-edit-row { display: flex; align-items: center; gap: 10px; padding: 8px; border-bottom: 1px solid #eee; }
+        .batch-edit-day { width: 80px; font-weight: bold; }
+        .batch-edit-input { flex: 1; padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; }
+        
+        .style-value {
+            font-size: 11px;
+            color: #666;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card no-print">
+        <div class="card-header">📅 课表控制面板</div>
+        <div class="control-bar">
+            <div class="control-item">
+                <label>📖 课表标题</label>
+                <input type="text" id="timetableTitle" value="课程表" style="width:160px">
+            </div>
+            <div class="control-item">
+                <label>🏫 班级选择</label>
+                <select id="classSelect" style="width:140px"></select>
+            </div>
+            <div class="control-item">
+                <label>📊 显示模式</label>
+                <select id="displayMode" style="width:130px">
+                    <option value="fullName">科目全称</option>
+                    <option value="shortName">科目简称</option>
+                    <option value="teacherName">科目+教师</option>
+                </select>
+            </div>
+            <div class="control-item">
+                <label>📄 导出方式</label>
+                <div class="export-group">
+                    <button id="exportPdfBtn" class="btn-warning">📑 导出PDF</button>
+                    <button id="exportExcelBtn" class="btn-success">📊 导出Excel</button>
+                </div>
+            </div>
+            <div class="control-item">
+                <label>&nbsp;</label>
+                <button id="printCurrentBtn" class="btn-secondary">🖨️ 打印当前</button>
+            </div>
+            <div class="control-item">
+                <label>➕ 额外行</label>
+                <button id="addExtraRowBtn" class="btn-success">+ 添加</button>
+            </div>
+        </div>
+        
+        <!-- 样式调整面板 -->
+        <div class="style-panel">
+            <div class="style-tabs">
+                <div class="style-tab active" data-tab="col">📏 列宽调整</div>
+                <div class="style-tab" data-tab="row">📐 行高调整</div>
+                <div class="style-tab" data-tab="font">🔤 字体大小</div>
+                <div class="style-tab" data-tab="margin">📄 页面边距</div>
+            </div>
+            
+            <div id="tab-col" class="style-section active">
+                <div class="style-row">
+                    <div class="style-item">
+                        <label>节次列宽</label>
+                        <input type="range" id="colPeriod" min="8" max="20" step="0.5" value="12">
+                        <span id="colPeriodVal" class="style-value">12%</span>
+                    </div>
+                    <div class="style-item">
+                        <label>星期列宽</label>
+                        <input type="range" id="colWeekday" min="10" max="25" step="0.5" value="14">
+                        <span id="colWeekdayVal" class="style-value">14%</span>
+                    </div>
+                    <div class="template-buttons">
+                        <button id="templateCompact" class="btn-sm btn-secondary">紧凑型</button>
+                        <button id="templateStandard" class="btn-sm btn-primary">标准型</button>
+                        <button id="TemplateWide" class="btn-sm btn-secondary">宽松型</button>
+                        <button id="saveTemplateBtn" class="btn-sm btn-success">💾 保存模板</button>
+                        <button id="exportConfigBtn" class="btn-sm btn-warning">📎 导出配置</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="tab-row" class="style-section">
+                <div class="style-row">
+                    <div class="style-item">
+                        <label>表头行高</label>
+                        <input type="range" id="rowHeader" min="25" max="60" step="1" value="40">
+                        <span id="rowHeaderVal" class="style-value">40px</span>
+                    </div>
+                    <div class="style-item">
+                        <label>内容行高</label>
+                        <input type="range" id="rowContent" min="25" max="60" step="1" value="35">
+                        <span id="rowContentVal" class="style-value">35px</span>
+                    </div>
+                    <button id="resetRowBtn" class="btn-sm btn-secondary">重置默认</button>
+                </div>
+            </div>
+            
+            <div id="tab-font" class="style-section">
+                <div class="style-row">
+                    <div class="style-item">
+                        <label>标题字体</label>
+                        <input type="range" id="fontTitle" min="12" max="24" step="1" value="16">
+                        <span id="fontTitleVal" class="style-value">16pt</span>
+                    </div>
+                    <div class="style-item">
+                        <label>节次字体</label>
+                        <input type="range" id="fontPeriod" min="9" max="16" step="1" value="11">
+                        <span id="fontPeriodVal" class="style-value">11pt</span>
+                    </div>
+                    <div class="style-item">
+                        <label>内容字体</label>
+                        <input type="range" id="fontContent" min="8" max="14" step="1" value="10">
+                        <span id="fontContentVal" class="style-value">10pt</span>
+                    </div>
+                    <div class="style-item">
+                        <label>教师字体</label>
+                        <input type="range" id="fontTeacher" min="6" max="12" step="1" value="8">
+                        <span id="fontTeacherVal" class="style-value">8pt</span>
+                    </div>
+                    <button id="resetFontBtn" class="btn-sm btn-secondary">重置默认</button>
+                </div>
+            </div>
+            
+            <div id="tab-margin" class="style-section">
+                <div class="style-row">
+                    <div class="style-item">
+                        <label>上边距</label>
+                        <input type="range" id="marginTop" min="5" max="25" step="1" value="10">
+                        <span id="marginTopVal" class="style-value">10mm</span>
+                    </div>
+                    <div class="style-item">
+                        <label>下边距</label>
+                        <input type="range" id="marginBottom" min="5" max="25" step="1" value="10">
+                        <span id="marginBottomVal" class="style-value">10mm</span>
+                    </div>
+                    <div class="style-item">
+                        <label>左边距</label>
+                        <input type="range" id="marginLeft" min="10" max="30" step="1" value="15">
+                        <span id="marginLeftVal" class="style-value">15mm</span>
+                    </div>
+                    <div class="style-item">
+                        <label>右边距</label>
+                        <input type="range" id="marginRight" min="10" max="30" step="1" value="15">
+                        <span id="marginRightVal" class="style-value">15mm</span>
+                    </div>
+                    <button id="resetMarginBtn" class="btn-sm btn-secondary">重置默认</button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="extraRowsList" class="extra-rows-list"></div>
+    </div>
+    <div class="card">
+        <div id="timetableContainer"></div>
+    </div>
+</div>
+
+<!-- 添加额外行弹窗 -->
+<div id="extraRowModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle">添加额外行</h3>
+            <button class="close-modal">&times;</button>
+        </div>
+        <div class="form-group">
+            <label>📝 行名称</label>
+            <input type="text" id="rowName" placeholder="如：大课间操、午自习、眼保健操">
+        </div>
+        <div class="form-group">
+            <label>🎨 图标（可选）</label>
+            <input type="text" id="rowIcon" placeholder="如：🏃 🍱 👀" value="📌">
+        </div>
+        <div class="form-group">
+            <label>📌 显示方式</label>
+            <div class="radio-group">
+                <label><input type="radio" name="displayType" value="merged" checked> 合并居中</label>
+                <label><input type="radio" name="displayType" value="separate"> 分格显示</label>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>📍 插入位置</label>
+            <div class="position-row">
+                <span class="position-label">插入位置：</span>
+                <select id="positionSelect" class="position-select"></select>
+            </div>
+        </div>
+        <input type="hidden" id="editRowId" value="">
+        <div class="modal-buttons">
+            <button id="cancelModalBtn" class="btn-secondary">取消</button>
+            <button id="confirmModalBtn" class="btn-success">确认</button>
+        </div>
+    </div>
+</div>
+
+<!-- 批量编辑弹窗 -->
+<div id="batchEditModal" class="modal">
+    <div class="modal-content batch-edit-content">
+        <div class="modal-header">
+            <h3 id="batchEditTitle">批量编辑</h3>
+            <button class="close-modal" onclick="closeBatchEditModal()">&times;</button>
+        </div>
+        <div id="batchEditBody"></div>
+        <div class="modal-buttons">
+            <button id="cancelBatchBtn" class="btn-secondary">取消</button>
+            <button id="applyAllClassesBtn" class="btn-success">应用到所有班级</button>
+            <button id="confirmBatchBtn" class="btn-primary">确认保存</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const CLASSES_KEY = "pk_classes";
+    const COURSES_KEY = "pk_courses";
+    const TEACHERS_KEY = "pk_teachers";
+    const SCHEDULES_KEY = "pk_schedules";
+    const SCHEDULE_CONFIG_KEY = "pk_scheduleConfig";
+    const MORNING_TIMETABLE_KEY = "morningTimetable";
+    const MORNING_DAILY_CONFIG_KEY = "morningDailyConfig";
+    const EXTRA_ROWS_KEY = "customTimetableRows";
+    const EXTRA_DATA_KEY = "customTimetableData";
+    const STYLE_CONFIG_KEY = "pdfStyleConfig";
+    
+    let classes = [], courses = [], teachers = [], schedules = {};
+    let scheduleConfig = { weekDays: 5, dayPeriods: 6 };
+    let morningTimetableMap = new Map();
+    let morningDailyConfig = {};
+    let extraRows = [], extraData = {};
+    let currentClassId = null;
+    let weekdaysAll = ["星期一", "星期二", "星期三", "星期四", "星期五"];
+    let basePeriods = [], morningPeriods = [], selfPeriods = [];
+    
+    let styleConfig = {
+        colPeriod: 12,
+        colWeekday: 14,
+        rowHeader: 40,
+        rowContent: 35,
+        fontTitle: 16,
+        fontPeriod: 11,
+        fontContent: 10,
+        fontTeacher: 8,
+        marginTop: 10,
+        marginBottom: 10,
+        marginLeft: 15,
+        marginRight: 15
+    };
+    
+    const weekEnMap = { "星期一": "Monday", "星期二": "Tuesday", "星期三": "Wednesday", "星期四": "Thursday", "星期五": "Friday" };
+    
+    const templates = {
+        compact: { colPeriod: 10, colWeekday: 12, rowHeader: 30, rowContent: 25, fontTitle: 14, fontPeriod: 10, fontContent: 9, fontTeacher: 7, marginTop: 8, marginBottom: 8, marginLeft: 10, marginRight: 10 },
+        standard: { colPeriod: 12, colWeekday: 14, rowHeader: 40, rowContent: 35, fontTitle: 16, fontPeriod: 11, fontContent: 10, fontTeacher: 8, marginTop: 10, marginBottom: 10, marginLeft: 15, marginRight: 15 },
+        wide: { colPeriod: 15, colWeekday: 17, rowHeader: 50, rowContent: 45, fontTitle: 18, fontPeriod: 12, fontContent: 11, fontTeacher: 9, marginTop: 12, marginBottom: 12, marginLeft: 20, marginRight: 20 }
+    };
+    
+    function loadStyleConfig() {
+        let saved = localStorage.getItem(STYLE_CONFIG_KEY);
+        if (saved) { try { let config = JSON.parse(saved); styleConfig = { ...styleConfig, ...config }; } catch(e) {} }
+        applyStyleToUI();
+    }
+    
+    function saveStyleConfig() { localStorage.setItem(STYLE_CONFIG_KEY, JSON.stringify(styleConfig)); showToast("样式已保存"); }
+    
+    function applyStyleToUI() {
+        document.getElementById('colPeriod').value = styleConfig.colPeriod;
+        document.getElementById('colPeriodVal').innerText = styleConfig.colPeriod + '%';
+        document.getElementById('colWeekday').value = styleConfig.colWeekday;
+        document.getElementById('colWeekdayVal').innerText = styleConfig.colWeekday + '%';
+        document.getElementById('rowHeader').value = styleConfig.rowHeader;
+        document.getElementById('rowHeaderVal').innerText = styleConfig.rowHeader + 'px';
+        document.getElementById('rowContent').value = styleConfig.rowContent;
+        document.getElementById('rowContentVal').innerText = styleConfig.rowContent + 'px';
+        document.getElementById('fontTitle').value = styleConfig.fontTitle;
+        document.getElementById('fontTitleVal').innerText = styleConfig.fontTitle + 'pt';
+        document.getElementById('fontPeriod').value = styleConfig.fontPeriod;
+        document.getElementById('fontPeriodVal').innerText = styleConfig.fontPeriod + 'pt';
+        document.getElementById('fontContent').value = styleConfig.fontContent;
+        document.getElementById('fontContentVal').innerText = styleConfig.fontContent + 'pt';
+        document.getElementById('fontTeacher').value = styleConfig.fontTeacher;
+        document.getElementById('fontTeacherVal').innerText = styleConfig.fontTeacher + 'pt';
+        document.getElementById('marginTop').value = styleConfig.marginTop;
+        document.getElementById('marginTopVal').innerText = styleConfig.marginTop + 'mm';
+        document.getElementById('marginBottom').value = styleConfig.marginBottom;
+        document.getElementById('marginBottomVal').innerText = styleConfig.marginBottom + 'mm';
+        document.getElementById('marginLeft').value = styleConfig.marginLeft;
+        document.getElementById('marginLeftVal').innerText = styleConfig.marginLeft + 'mm';
+        document.getElementById('marginRight').value = styleConfig.marginRight;
+        document.getElementById('marginRightVal').innerText = styleConfig.marginRight + 'mm';
+    }
+    
+    function applyTemplate(templateName) {
+        let template = templates[templateName];
+        if (template) { styleConfig = { ...styleConfig, ...template }; applyStyleToUI(); saveStyleConfig(); showToast(`已应用${templateName === 'compact' ? '紧凑型' : (templateName === 'standard' ? '标准型' : '宽松型')}模板`); }
+    }
+    
+    function exportConfig() {
+        let blob = new Blob([JSON.stringify(styleConfig, null, 2)], { type: 'application/json' });
+        let url = URL.createObjectURL(blob);
+        let a = document.createElement('a');
+        a.href = url;
+        a.download = `pdf_style_config_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast("配置已导出");
+    }
+    
+    function importConfig(file) {
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            try { let config = JSON.parse(e.target.result); styleConfig = { ...styleConfig, ...config }; applyStyleToUI(); saveStyleConfig(); showToast("配置已导入"); } 
+            catch(err) { showToast("配置文件格式错误", true); }
+        };
+        reader.readAsText(file);
+    }
+    
+    function loadAllData() {
+        try { let c = localStorage.getItem(CLASSES_KEY); classes = c ? JSON.parse(c) : []; } catch(e) { classes = []; }
+        try { let cs = localStorage.getItem(COURSES_KEY); courses = cs ? JSON.parse(cs) : []; } catch(e) { courses = []; }
+        try { let t = localStorage.getItem(TEACHERS_KEY); teachers = t ? JSON.parse(t) : []; } catch(e) { teachers = []; }
+        try { let s = localStorage.getItem(SCHEDULES_KEY); schedules = s ? JSON.parse(s) : {}; } catch(e) { schedules = {}; }
+        
+        try {
+            let sc = localStorage.getItem(SCHEDULE_CONFIG_KEY);
+            if (sc) { let parsed = JSON.parse(sc); scheduleConfig = parsed; basePeriods = []; for (let i = 1; i <= (parsed.dayPeriods || 6); i++) basePeriods.push("第" + i + "节"); }
+            else { basePeriods = ["第1节", "第2节", "第3节", "第4节", "第5节", "第6节"]; }
+        } catch(e) { basePeriods = ["第1节", "第2节", "第3节", "第4节", "第5节", "第6节"]; }
+        
+        try { let mdc = localStorage.getItem(MORNING_DAILY_CONFIG_KEY); morningDailyConfig = mdc ? JSON.parse(mdc) : {}; } catch(e) { morningDailyConfig = {}; }
+        try {
+            let mt = localStorage.getItem(MORNING_TIMETABLE_KEY);
+            if (mt) { let parsed = JSON.parse(mt); if (Array.isArray(parsed)) morningTimetableMap = new Map(parsed); else if (parsed && typeof parsed === 'object') morningTimetableMap = new Map(Object.entries(parsed)); }
+        } catch(e) { morningTimetableMap = new Map(); }
+        
+        try { let er = localStorage.getItem(EXTRA_ROWS_KEY); extraRows = er ? JSON.parse(er) : []; } catch(e) { extraRows = []; }
+        try { let ed = localStorage.getItem(EXTRA_DATA_KEY); extraData = ed ? JSON.parse(ed) : {}; } catch(e) { extraData = {}; }
+        
+        generateMorningAndSelfPeriods();
+        if (classes.length > 0 && !currentClassId) currentClassId = classes[0].id;
+        loadStyleConfig();
+        renderClassSelect();
+        renderExtraRowsList();
+        renderTimetable();
+    }
+    
+    function generateMorningAndSelfPeriods() {
+        morningPeriods = []; selfPeriods = [];
+        let maxMorning = 0, maxSelf = 0;
+        for (let wk of weekdaysAll) {
+            let wkEn = weekEnMap[wk];
+            let cfg = morningDailyConfig[wkEn];
+            if (cfg) { maxMorning = Math.max(maxMorning, cfg.morning || 0); maxSelf = Math.max(maxSelf, cfg.self || 0); }
+        }
+        if (maxMorning === 0) maxMorning = 1;
+        if (maxSelf === 0) maxSelf = 1;
+        for (let i = 1; i <= maxMorning; i++) morningPeriods.push("早读" + i);
+        for (let i = 1; i <= maxSelf; i++) selfPeriods.push("自习" + i);
+    }
+    
+    function getClassName(id) { let cls = classes.find(c => c.id == id); return cls ? cls.name : "未知班级"; }
+    function getHeadTeacherName(classId) { let cls = classes.find(c => c.id == classId); return cls && cls.teacher ? cls.teacher : "未设置"; }
+    function getCourseName(courseId, mode) {
+        let course = courses.find(c => c.id == courseId);
+        if (!course) return "未知";
+        if (mode === "shortName" && course.shortName) return course.shortName;
+        return course.name;
+    }
+    
+    function getLessonFromMainSchedule(classId, day, period) {
+        let schedule = schedules[classId];
+        if (!schedule) return null;
+        let lesson = schedule[day + "-" + period];
+        if (lesson) return { type: "main", courseId: lesson.courseId, teacherId: lesson.teacherId, courseName: lesson.courseName, teacherName: lesson.teacherName };
+        return null;
+    }
+    
+    function getLessonFromMorningSchedule(classId, day, period) {
+        let className = getClassName(classId);
+        let dayEn = weekEnMap[day];
+        let lesson = morningTimetableMap.get(`${className}|${dayEn}|${period}`);
+        if (lesson) return { type: lesson.type === '早读' ? 'morning' : 'self', courseName: lesson.subject, teacherName: lesson.teacher };
+        return null;
+    }
+    
+    function getExtraData(classId, day, rowId) { return extraData[`${classId}|${day}|${rowId}`] || ""; }
+    function setExtraData(classId, day, rowId, value) { extraData[`${classId}|${day}|${rowId}`] = value; localStorage.setItem(EXTRA_DATA_KEY, JSON.stringify(extraData)); }
+    function setExtraDataForAllClasses(rowId, day, value) { for (let cls of classes) extraData[`${cls.id}|${day}|${rowId}`] = value; localStorage.setItem(EXTRA_DATA_KEY, JSON.stringify(extraData)); }
+    
+    function getFullPeriodOrder() {
+        let order = [];
+        for (let p of morningPeriods) order.push({ type: "morning", name: p, isCustom: false });
+        for (let p of basePeriods) order.push({ type: "main", name: p, isCustom: false });
+        for (let p of selfPeriods) order.push({ type: "self", name: p, isCustom: false });
+        for (let row of extraRows) {
+            let insertIndex = -1;
+            if (row.position === "top") insertIndex = 0;
+            else if (row.position === "bottom") insertIndex = order.length;
+            else if (row.positionType && row.positionName) {
+                for (let i = 0; i < order.length; i++) {
+                    if (order[i].type === row.positionType && order[i].name === row.positionName) { insertIndex = i + 1; break; }
+                }
+            }
+            let newRow = { type: "custom", name: row.name, icon: row.icon, id: row.id, displayType: row.displayType || "merged", isCustom: true };
+            if (insertIndex >= 0 && insertIndex <= order.length) order.splice(insertIndex, 0, newRow);
+            else order.push(newRow);
+        }
+        return order;
+    }
+    
+    function getActiveWeekdays(classId) {
+        let fullOrder = getFullPeriodOrder();
+        let activeDays = [];
+        for (let day of weekdaysAll) {
+            let hasData = false;
+            for (let period of fullOrder) {
+                if (period.isCustom) continue;
+                let lesson = period.type === "main" ? getLessonFromMainSchedule(classId, day, period.name) : getLessonFromMorningSchedule(classId, day, period.name);
+                if (lesson) { hasData = true; break; }
+            }
+            if (hasData) activeDays.push(day);
+        }
+        if (activeDays.length === 0) return weekdaysAll;
+        return activeDays;
+    }
+    
+    function renderClassSelect() {
+        let select = document.getElementById("classSelect");
+        if (!select) return;
+        select.innerHTML = "";
+        if (classes.length === 0) { let opt = document.createElement("option"); opt.textContent = "暂无班级"; opt.disabled = true; select.appendChild(opt); return; }
+        for (let cls of classes) { let opt = document.createElement("option"); opt.value = cls.id; opt.textContent = cls.name; if (currentClassId === cls.id) opt.selected = true; select.appendChild(opt); }
+        select.onchange = function() { currentClassId = parseInt(this.value); renderTimetable(); };
+    }
+    
+    function renderExtraRowsList() {
+        let container = document.getElementById("extraRowsList");
+        if (!container) return;
+        if (extraRows.length === 0) { container.innerHTML = '<div style="padding:12px;text-align:center;color:#999;">暂无额外行，点击"+ 添加"按钮添加</div>'; return; }
+        let html = '';
+        for (let i = 0; i < extraRows.length; i++) {
+            let row = extraRows[i];
+            let posText = row.positionName ? `位于 ${row.positionName} 之后` : (row.position === "top" ? "位于顶部" : "位于底部");
+            let dispText = row.displayType === "merged" ? "合并居中" : "分格显示";
+            html += `<div class="extra-row-item"><div class="extra-row-info"><span class="extra-row-icon">${row.icon || "📌"}</span><div><span class="extra-row-name">${escapeHtml(row.name)}</span><div class="extra-row-position">${posText} | ${dispText}</div></div></div><div class="extra-row-actions"><button class="btn-sm btn-secondary" onclick="moveExtraRow(${i},'up')">⬆️</button><button class="btn-sm btn-secondary" onclick="moveExtraRow(${i},'down')">⬇️</button><button class="btn-sm" onclick="editExtraRow(${i})">✏️</button><button class="btn-sm btn-danger" onclick="deleteExtraRow(${i})">🗑️</button><button class="btn-sm btn-info" onclick="batchEditExtraRow(${i})">📝批量</button></div></div>`;
+        }
+        container.innerHTML = html;
+    }
+    
+    function getPositionOptions() {
+        let fullOrder = getFullPeriodOrder();
+        let options = [{ value: "top", label: "🔝 最顶部" }];
+        for (let i = 0; i < fullOrder.length; i++) {
+            let p = fullOrder[i];
+            let label = p.isCustom ? (p.icon || "📌") + " " + p.name : p.name;
+            options.push({ value: `after_${p.type}_${p.name}`, label: `📌 在「${label}」之后` });
+        }
+        options.push({ value: "bottom", label: "🔽 最底部" });
+        return options;
+    }
+    
+    function openAddExtraRowModal() {
+        document.getElementById("modalTitle").innerText = "添加额外行";
+        document.getElementById("rowName").value = "";
+        document.getElementById("rowIcon").value = "📌";
+        document.getElementById("editRowId").value = "";
+        document.querySelector('input[name="displayType"][value="merged"]').checked = true;
+        let select = document.getElementById("positionSelect");
+        select.innerHTML = "";
+        for (let opt of getPositionOptions()) { let option = document.createElement("option"); option.value = opt.value; option.textContent = opt.label; select.appendChild(option); }
+        document.getElementById("extraRowModal").style.display = "flex";
+    }
+    
+    function editExtraRow(index) {
+        let row = extraRows[index];
+        document.getElementById("modalTitle").innerText = "编辑额外行";
+        document.getElementById("rowName").value = row.name;
+        document.getElementById("rowIcon").value = row.icon || "📌";
+        document.getElementById("editRowId").value = index;
+        document.querySelector(`input[name="displayType"][value="${row.displayType || "merged"}"]`).checked = true;
+        let select = document.getElementById("positionSelect");
+        select.innerHTML = "";
+        let posVal = row.position === "top" ? "top" : (row.position === "bottom" ? "bottom" : `after_${row.positionType}_${row.positionName}`);
+        for (let opt of getPositionOptions()) { let option = document.createElement("option"); option.value = opt.value; option.textContent = opt.label; if (opt.value === posVal) option.selected = true; select.appendChild(option); }
+        document.getElementById("extraRowModal").style.display = "flex";
+    }
+    
+    function deleteExtraRow(index) {
+        if (confirm("确定删除该额外行吗？")) { extraRows.splice(index, 1); localStorage.setItem(EXTRA_ROWS_KEY, JSON.stringify(extraRows)); renderExtraRowsList(); renderTimetable(); }
+    }
+    
+    function moveExtraRow(index, dir) {
+        if (dir === "up" && index > 0) [extraRows[index-1], extraRows[index]] = [extraRows[index], extraRows[index-1]];
+        else if (dir === "down" && index < extraRows.length-1) [extraRows[index+1], extraRows[index]] = [extraRows[index], extraRows[index+1]];
+        localStorage.setItem(EXTRA_ROWS_KEY, JSON.stringify(extraRows)); renderExtraRowsList(); renderTimetable();
+    }
+    
+    function confirmExtraRow() {
+        let name = document.getElementById("rowName").value.trim();
+        if (!name) { showToast("请输入行名称", true); return; }
+        let icon = document.getElementById("rowIcon").value.trim() || "📌";
+        let displayType = document.querySelector('input[name="displayType"]:checked').value;
+        let posVal = document.getElementById("positionSelect").value;
+        if (!posVal) { showToast("请选择插入位置", true); return; }
+        let position = "bottom", positionType = null, positionName = null;
+        if (posVal === "top") position = "top";
+        else if (posVal === "bottom") position = "bottom";
+        else if (posVal.startsWith("after_")) { position = "after"; let parts = posVal.substring(6).split("_"); positionType = parts[0]; positionName = parts[1]; }
+        let newRow = { id: "row_" + Date.now() + "_" + Math.random().toString(36).substr(2,6), name: name, icon: icon, displayType: displayType, position: position, positionType: positionType, positionName: positionName };
+        let editIdx = document.getElementById("editRowId").value;
+        if (editIdx !== "") extraRows[parseInt(editIdx)] = newRow;
+        else extraRows.push(newRow);
+        localStorage.setItem(EXTRA_ROWS_KEY, JSON.stringify(extraRows)); renderExtraRowsList(); renderTimetable(); closeModal(); showToast(editIdx !== "" ? "已编辑" : "已添加");
+    }
+    
+    function closeModal() { document.getElementById("extraRowModal").style.display = "none"; }
+    function closeBatchEditModal() { document.getElementById("batchEditModal").style.display = "none"; }
+    
+    function batchEditExtraRow(index) {
+        let row = extraRows[index];
+        let activeWeekdays = getActiveWeekdays(currentClassId);
+        document.getElementById("batchEditTitle").innerHTML = `批量编辑 - ${row.name}`;
+        let html = '<div class="batch-edit-grid">';
+        for (let day of activeWeekdays) { let val = getExtraData(currentClassId, day, row.id); html += `<div class="batch-edit-row"><div class="batch-edit-day">${day}</div><input type="text" class="batch-edit-input" data-day="${day}" value="${escapeHtml(val)}" placeholder="输入内容..."></div>`; }
+        html += '</div>';
+        document.getElementById("batchEditBody").innerHTML = html;
+        document.getElementById("batchEditModal").style.display = "flex";
+        document.getElementById("confirmBatchBtn").onclick = () => { document.querySelectorAll(".batch-edit-input").forEach(inp => { let day = inp.getAttribute("data-day"); setExtraData(currentClassId, day, row.id, inp.value); }); renderTimetable(); closeBatchEditModal(); showToast("已保存"); };
+        document.getElementById("applyAllClassesBtn").onclick = () => { document.querySelectorAll(".batch-edit-input").forEach(inp => { let day = inp.getAttribute("data-day"); setExtraDataForAllClasses(row.id, day, inp.value); }); renderTimetable(); closeBatchEditModal(); showToast("已应用到所有班级"); };
+        document.getElementById("cancelBatchBtn").onclick = () => closeBatchEditModal();
+    }
+    
+    function formatCellContent(lesson, displayMode, isPrint = false) {
+        if (!lesson) return "—";
+        let courseName = lesson.courseName;
+        let teacherName = lesson.teacherName || "";
+        if (displayMode === "shortName") {
+            if (lesson.type === "main") { let course = courses.find(c => c.id == lesson.courseId); courseName = (course && course.shortName) ? course.shortName : lesson.courseName; }
+            else { let course = courses.find(c => c.name === lesson.courseName); courseName = (course && course.shortName) ? course.shortName : lesson.courseName; }
+        }
+        if (displayMode === "teacherName") {
+            if (isPrint) { return `<div><div class="course-name">${escapeHtml(courseName)}</div><div class="teacher-name">${escapeHtml(teacherName)}</div></div>`; }
+            else { return `<div><div class="course-name" style="font-weight:bold; font-size:13px;">${escapeHtml(courseName)}</div><div class="teacher-name" style="font-size:11px; color:#666;">${escapeHtml(teacherName)}</div></div>`; }
+        } else {
+            if (isPrint) { return `<div class="course-name">${escapeHtml(courseName)}</div>`; }
+            else { return escapeHtml(courseName); }
+        }
+    }
+    
+    function renderTimetable() {
+        if (!currentClassId || classes.length === 0) { document.getElementById("timetableContainer").innerHTML = '<div style="text-align:center;padding:40px;color:#999;">请先在班级管理中创建班级</div>'; return; }
+        let displayMode = document.getElementById("displayMode").value;
+        let title = document.getElementById("timetableTitle").value || "课程表";
+        let className = getClassName(currentClassId);
+        let headTeacher = getHeadTeacherName(currentClassId);
+        let fullOrder = getFullPeriodOrder();
+        let activeWeekdays = getActiveWeekdays(currentClassId);
+        let colWidth = Math.floor((100 - styleConfig.colPeriod) / activeWeekdays.length);
+        
+        let html = `<div class="timetable-header"><div class="timetable-title">${escapeHtml(title)}</div><div class="timetable-subtitle"><span>🏫 班级：${escapeHtml(className)}</span><span>👨‍🏫 班主任：${escapeHtml(headTeacher)}</span></div></div>
+            <div class="timetable-wrapper"><table class="timetable" style="table-layout:fixed;"><colgroup><col style="width:${styleConfig.colPeriod}%;">${activeWeekdays.map(() => `<col style="width:${colWidth}%;">`).join('')}</colgroup>
+            <thead><tr><th>节次</th>${activeWeekdays.map(day => `<th>${day}</th>`).join('')}</thead><tbody>`;
+        
+        for (let period of fullOrder) {
+            let periodLabel = period.isCustom ? (period.icon || "📌") + " " + period.name : period.name;
+            html += `<tr><td class="period-cell">${escapeHtml(periodLabel)}</div>`;
+            if (period.isCustom && period.displayType === "merged") {
+                let val = getExtraData(currentClassId, activeWeekdays[0], period.id);
+                html += `<td colspan="${activeWeekdays.length}" class="custom-cell" style="cursor:pointer;" onclick="editCustomCellForRow('${period.id}')">${escapeHtml(val) || "—"}</div>`;
+            } else {
+                for (let day of activeWeekdays) {
+                    if (period.isCustom) {
+                        let val = getExtraData(currentClassId, day, period.id);
+                        html += `<td class="custom-cell" style="cursor:pointer;" onclick="editCustomCell('${period.id}','${day}')">${escapeHtml(val) || "—"}</div>`;
+                    } else {
+                        let lesson = period.type === "main" ? getLessonFromMainSchedule(currentClassId, day, period.name) : getLessonFromMorningSchedule(currentClassId, day, period.name);
+                        let cellClass = period.type === "morning" ? "morning-cell" : (period.type === "self" ? "self-cell" : "data-cell");
+                        let content = lesson ? formatCellContent(lesson, displayMode, false) : "—";
+                        if (!lesson) cellClass = "empty-cell";
+                        html += `<td class="${cellClass}">${content}</div>`;
+                    }
+                }
+            }
+            html += `<tr>`;
+        }
+        html += `</tbody></table></div>`;
+        document.getElementById("timetableContainer").innerHTML = html;
+    }
+    
+    window.editCustomCell = function(rowId, day) { let val = prompt("编辑内容:", getExtraData(currentClassId, day, rowId)); if (val !== null) { setExtraData(currentClassId, day, rowId, val); renderTimetable(); } };
+    window.editCustomCellForRow = function(rowId) { let days = getActiveWeekdays(currentClassId); let val = prompt("编辑内容（将应用到所有星期）:", getExtraData(currentClassId, days[0], rowId)); if (val !== null) { for (let day of days) setExtraData(currentClassId, day, rowId, val); renderTimetable(); } };
+    
+    function exportToPdf() {
+        if (classes.length === 0) { showToast("没有班级数据可导出", true); return; }
+        
+        let title = document.getElementById("timetableTitle").value || "课程表";
+        let displayMode = document.getElementById("displayMode").value;
+        let fullOrder = getFullPeriodOrder();
+        
+        let allHtml = '';
+        for (let cls of classes) {
+            let activeWeekdays = getActiveWeekdays(cls.id);
+            if (activeWeekdays.length === 0) activeWeekdays = weekdaysAll;
+            let colWidth = Math.floor((100 - styleConfig.colPeriod) / activeWeekdays.length);
+            let rowsHtml = '';
+            for (let period of fullOrder) {
+                let periodLabel = period.isCustom ? (period.icon || "📌") + " " + period.name : period.name;
+                rowsHtml += `<tr><td class="period-cell" style="width:${styleConfig.colPeriod}%;">${escapeHtml(periodLabel)}</div>`;
+                if (period.isCustom && period.displayType === "merged") {
+                    let val = getExtraData(cls.id, activeWeekdays[0], period.id);
+                    rowsHtml += `<td colspan="${activeWeekdays.length}" style="width:${100-styleConfig.colPeriod}%;">${escapeHtml(val) || "—"}</div>`;
+                } else {
+                    for (let day of activeWeekdays) {
+                        if (period.isCustom) {
+                            let val = getExtraData(cls.id, day, period.id);
+                            rowsHtml += `<td style="width:${colWidth}%;">${escapeHtml(val) || "—"}</div>`;
+                        } else {
+                            let lesson = period.type === "main" ? getLessonFromMainSchedule(cls.id, day, period.name) : getLessonFromMorningSchedule(cls.id, day, period.name);
+                            if (lesson) { rowsHtml += `<td style="width:${colWidth}%;">${formatCellContent(lesson, displayMode, true)}</div>`; }
+                            else { rowsHtml += `<td style="width:${colWidth}%;">—</div>`; }
+                        }
+                    }
+                }
+                rowsHtml += `</tr>`;
+            }
+            allHtml += `<div class="print-page" style="page-break-after:always;page-break-inside:avoid;margin:0;padding:${styleConfig.marginTop}mm ${styleConfig.marginRight}mm ${styleConfig.marginBottom}mm ${styleConfig.marginLeft}mm;box-sizing:border-box;">
+                <div style="text-align:center;margin-bottom:8px;"><div style="font-size:${styleConfig.fontTitle}pt;font-weight:bold;margin-bottom:4px;">${escapeHtml(title)}</div></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:${styleConfig.fontContent}pt;"><span style="font-weight:bold;">🏫 班级：${escapeHtml(cls.name)}</span><span style="font-weight:bold;">👨‍🏫 班主任：${escapeHtml(cls.teacher || "未设置")}</span></div>
+                <table style="width:100%;border-collapse:collapse;font-size:${styleConfig.fontContent}pt;table-layout:fixed;">
+                    <colgroup><col style="width:${styleConfig.colPeriod}%;">${activeWeekdays.map(() => `<col style="width:${colWidth}%;">`).join('')}</colgroup>
+                    <thead><tr><th style="border:1px solid #000;padding:6px 3px;text-align:center;background:#f0f0f0;font-weight:bold;height:${styleConfig.rowHeader}px;">节次</th>${activeWeekdays.map(day => `<th style="border:1px solid #000;padding:6px 3px;text-align:center;background:#f0f0f0;font-weight:bold;height:${styleConfig.rowHeader}px;width:${colWidth}%;">${day}</th>`).join('')}</tr></thead>
+                    <tbody>${rowsHtml}</tbody>
+                </table>
+            </div>`;
+        }
+        
+        let printHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>课表导出</title><style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Microsoft YaHei','SimHei',Arial,sans-serif;background:white;margin:0;padding:0;}.print-page:last-child{page-break-after:auto;}td{border:1px solid #000;padding:6px 3px;text-align:center;vertical-align:middle;}th{border:1px solid #000;padding:6px 3px;text-align:center;vertical-align:middle;background:#f0f0f0;font-weight:bold;}.period-cell{background:#f0f0f0;font-weight:bold;}@page{size:A4 portrait;margin:0;}</style></head><body>${allHtml}</body></html>`;
+        
+        let iframe = document.createElement('iframe');
+        iframe.style.position = 'absolute';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = 'none';
+        document.body.appendChild(iframe);
+        
+        let iframeDoc = iframe.contentWindow.document;
+        iframeDoc.open();
+        iframeDoc.write(printHtml);
+        iframeDoc.close();
+        
+        iframe.onload = function() { setTimeout(function() { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(function() { document.body.removeChild(iframe); }, 1000); }, 500); };
+        setTimeout(function() { if (document.body.contains(iframe)) { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(function() { if (document.body.contains(iframe)) document.body.removeChild(iframe); }, 1000); } }, 1000);
+        
+        showToast("PDF导出窗口已打开，请选择'另存为PDF'");
+    }
+    
+    function exportToExcel() {
+        if (classes.length === 0) { showToast("没有班级数据可导出", true); return; }
+        
+        let title = document.getElementById("timetableTitle").value || "课程表";
+        let displayMode = document.getElementById("displayMode").value;
+        let fullOrder = getFullPeriodOrder();
+        
+        let wb = XLSX.utils.book_new();
+        
+        for (let cls of classes) {
+            let activeWeekdays = getActiveWeekdays(cls.id);
+            if (activeWeekdays.length === 0) activeWeekdays = weekdaysAll;
+            
+            let data = [];
+            data.push([title]);
+            data.push([]);
+            data.push([`班级：${cls.name}`, `班主任：${cls.teacher || "未设置"}`]);
+            data.push([]);
+            
+            let headerRow = ["节次", ...activeWeekdays];
+            data.push(headerRow);
+            
+            for (let period of fullOrder) {
+                let periodLabel = period.isCustom ? (period.icon || "📌") + " " + period.name : period.name;
+                
+                if (period.isCustom && period.displayType === "merged") {
+                    let val = getExtraData(cls.id, activeWeekdays[0], period.id);
+                    let row = [periodLabel];
+                    for (let i = 0; i < activeWeekdays.length; i++) {
+                        row.push(i === 0 ? (val || "") : "");
+                    }
+                    data.push(row);
+                } else {
+                    let courseRow = [periodLabel];
+                    let teacherRow = [""];
+                    
+                    for (let day of activeWeekdays) {
+                        if (period.isCustom) {
+                            let val = getExtraData(cls.id, day, period.id);
+                            courseRow.push(val || "");
+                            teacherRow.push("");
+                        } else {
+                            let lesson = period.type === "main" ? 
+                                getLessonFromMainSchedule(cls.id, day, period.name) : 
+                                getLessonFromMorningSchedule(cls.id, day, period.name);
+                            if (lesson) {
+                                let courseName = lesson.courseName;
+                                if (displayMode === "shortName") {
+                                    if (lesson.type === "main") { let course = courses.find(c => c.id == lesson.courseId); courseName = (course && course.shortName) ? course.shortName : lesson.courseName; }
+                                    else { let course = courses.find(c => c.name === lesson.courseName); courseName = (course && course.shortName) ? course.shortName : lesson.courseName; }
+                                }
+                                courseRow.push(courseName);
+                                teacherRow.push(lesson.teacherName || "");
+                            } else { courseRow.push(""); teacherRow.push(""); }
+                        }
+                    }
+                    data.push(courseRow);
+                    let hasTeacher = teacherRow.slice(1).some(v => v !== "");
+                    if (hasTeacher && displayMode === "teacherName") { data.push(teacherRow); }
+                }
+            }
+            
+            let ws = XLSX.utils.aoa_to_sheet(data);
+            ws['!cols'] = [{wch:14}, ...activeWeekdays.map(() => ({wch:16}))];
+            XLSX.utils.book_append_sheet(wb, ws, cls.name);
+        }
+        
+        XLSX.writeFile(wb, `课表_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.xlsx`);
+        showToast("Excel导出成功");
+    }
+    
+    function printCurrentClass() {
+        if (!currentClassId) { showToast("请先选择班级", true); return; }
+        
+        let title = document.getElementById("timetableTitle").value || "课程表";
+        let displayMode = document.getElementById("displayMode").value;
+        let fullOrder = getFullPeriodOrder();
+        let activeWeekdays = getActiveWeekdays(currentClassId);
+        let className = getClassName(currentClassId);
+        let headTeacher = getHeadTeacherName(currentClassId);
+        let colWidth = Math.floor((100 - styleConfig.colPeriod) / activeWeekdays.length);
+        
+        let rowsHtml = '';
+        for (let period of fullOrder) {
+            let periodLabel = period.isCustom ? (period.icon || "📌") + " " + period.name : period.name;
+            rowsHtml += `<tr><td class="period-cell" style="width:${styleConfig.colPeriod}%;">${escapeHtml(periodLabel)}</div>`;
+            if (period.isCustom && period.displayType === "merged") {
+                let val = getExtraData(currentClassId, activeWeekdays[0], period.id);
+                rowsHtml += `<td colspan="${activeWeekdays.length}" style="width:${100-styleConfig.colPeriod}%;">${escapeHtml(val) || "—"}</div>`;
+            } else {
+                for (let day of activeWeekdays) {
+                    if (period.isCustom) {
+                        let val = getExtraData(currentClassId, day, period.id);
+                        rowsHtml += `<td style="width:${colWidth}%;">${escapeHtml(val) || "—"}</div>`;
+                    } else {
+                        let lesson = period.type === "main" ? getLessonFromMainSchedule(currentClassId, day, period.name) : getLessonFromMorningSchedule(currentClassId, day, period.name);
+                        if (lesson) { rowsHtml += `<td style="width:${colWidth}%;">${formatCellContent(lesson, displayMode, true)}</div>`; }
+                        else { rowsHtml += `<td style="width:${colWidth}%;">—</div>`; }
+                    }
+                }
+            }
+            rowsHtml += `</tr>`;
+        }
+        
+        let printHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>课表打印</title>
+            <style>
+                *{margin:0;padding:0;box-sizing:border-box;}
+                body{font-family:'Microsoft YaHei','SimHei',Arial,sans-serif;margin:0;padding:20px;}
+                .print-timetable{width:100%;border-collapse:collapse;font-size:${styleConfig.fontContent}pt;table-layout:fixed;}
+                .print-timetable th,.print-timetable td{border:1px solid #000;padding:6px 3px;text-align:center;vertical-align:middle;}
+                .print-timetable th{background:#f0f0f0;font-weight:bold;height:${styleConfig.rowHeader}px;}
+                .print-timetable .period-cell{background:#f0f0f0;font-weight:bold;font-size:${styleConfig.fontPeriod}pt;}
+                .print-timetable td{height:${styleConfig.rowContent}px;}
+                .print-timetable .course-name{font-weight:bold;font-size:${styleConfig.fontContent}pt;}
+                .print-timetable .teacher-name{font-size:${styleConfig.fontTeacher}pt;color:#333;}
+                .print-header{text-align:center;margin-bottom:8px;}
+                .print-title{font-size:${styleConfig.fontTitle}pt;font-weight:bold;margin-bottom:4px;}
+                .print-info-row{display:flex;justify-content:space-between;margin-bottom:6px;font-size:${styleConfig.fontContent}pt;}
+                @page{size:A4 portrait;margin:${styleConfig.marginTop}mm ${styleConfig.marginRight}mm ${styleConfig.marginBottom}mm ${styleConfig.marginLeft}mm;}
+            </style>
+        </head><body>
+            <div class="print-header"><div class="print-title">${escapeHtml(title)}</div></div>
+            <div class="print-info-row"><span class="print-class">🏫 班级：${escapeHtml(className)}</span><span class="print-teacher">👨‍🏫 班主任：${escapeHtml(headTeacher)}</span></div>
+            <table class="print-timetable" style="width:100%;border-collapse:collapse;table-layout:fixed;">
+                <colgroup><col style="width:${styleConfig.colPeriod}%;">${activeWeekdays.map(() => `<col style="width:${colWidth}%;">`).join('')}</colgroup>
+                <thead><tr><th style="border:1px solid #000;padding:6px 3px;text-align:center;background:#f0f0f0;font-weight:bold;height:${styleConfig.rowHeader}px;">节次</th>${activeWeekdays.map(day => `<th style="border:1px solid #000;padding:6px 3px;text-align:center;background:#f0f0f0;font-weight:bold;height:${styleConfig.rowHeader}px;">${day}</th>`).join('')}</tr></thead>
+                <tbody>${rowsHtml}</tbody>
+            </table>
+        </body></html>`;
+        
+        let win = window.open('', '_blank');
+        win.document.write(printHtml);
+        win.document.close();
+        win.print();
+        win.close();
+    }
+    
+    function showToast(msg, isErr) {
+        let t = document.createElement("div");
+        t.className = "toast" + (isErr ? " error" : "");
+        t.innerText = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 2000);
+    }
+    
+    function escapeHtml(s) { if (!s) return ''; return s.replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;'); }
+    
+    window.moveExtraRow = moveExtraRow;
+    window.editExtraRow = editExtraRow;
+    window.deleteExtraRow = deleteExtraRow;
+    window.batchEditExtraRow = batchEditExtraRow;
+    window.editCustomCell = editCustomCell;
+    window.editCustomCellForRow = editCustomCellForRow;
+    window.closeBatchEditModal = closeBatchEditModal;
+    
+    function init() {
+        loadAllData();
+        
+        document.getElementById('colPeriod').oninput = function() { styleConfig.colPeriod = parseFloat(this.value); document.getElementById('colPeriodVal').innerText = styleConfig.colPeriod + '%'; };
+        document.getElementById('colWeekday').oninput = function() { styleConfig.colWeekday = parseFloat(this.value); document.getElementById('colWeekdayVal').innerText = styleConfig.colWeekday + '%'; };
+        document.getElementById('rowHeader').oninput = function() { styleConfig.rowHeader = parseInt(this.value); document.getElementById('rowHeaderVal').innerText = styleConfig.rowHeader + 'px'; };
+        document.getElementById('rowContent').oninput = function() { styleConfig.rowContent = parseInt(this.value); document.getElementById('rowContentVal').innerText = styleConfig.rowContent + 'px'; };
+        document.getElementById('fontTitle').oninput = function() { styleConfig.fontTitle = parseInt(this.value); document.getElementById('fontTitleVal').innerText = styleConfig.fontTitle + 'pt'; };
+        document.getElementById('fontPeriod').oninput = function() { styleConfig.fontPeriod = parseInt(this.value); document.getElementById('fontPeriodVal').innerText = styleConfig.fontPeriod + 'pt'; };
+        document.getElementById('fontContent').oninput = function() { styleConfig.fontContent = parseInt(this.value); document.getElementById('fontContentVal').innerText = styleConfig.fontContent + 'pt'; };
+        document.getElementById('fontTeacher').oninput = function() { styleConfig.fontTeacher = parseInt(this.value); document.getElementById('fontTeacherVal').innerText = styleConfig.fontTeacher + 'pt'; };
+        document.getElementById('marginTop').oninput = function() { styleConfig.marginTop = parseInt(this.value); document.getElementById('marginTopVal').innerText = styleConfig.marginTop + 'mm'; };
+        document.getElementById('marginBottom').oninput = function() { styleConfig.marginBottom = parseInt(this.value); document.getElementById('marginBottomVal').innerText = styleConfig.marginBottom + 'mm'; };
+        document.getElementById('marginLeft').oninput = function() { styleConfig.marginLeft = parseInt(this.value); document.getElementById('marginLeftVal').innerText = styleConfig.marginLeft + 'mm'; };
+        document.getElementById('marginRight').oninput = function() { styleConfig.marginRight = parseInt(this.value); document.getElementById('marginRightVal').innerText = styleConfig.marginRight + 'mm'; };
+        
+        document.getElementById('templateCompact').onclick = () => applyTemplate('compact');
+        document.getElementById('templateStandard').onclick = () => applyTemplate('standard');
+        document.getElementById('TemplateWide').onclick = () => applyTemplate('wide');
+        document.getElementById('saveTemplateBtn').onclick = () => saveStyleConfig();
+        document.getElementById('exportConfigBtn').onclick = () => exportConfig();
+        document.getElementById('resetRowBtn').onclick = () => applyTemplate('standard');
+        document.getElementById('resetFontBtn').onclick = () => applyTemplate('standard');
+        document.getElementById('resetMarginBtn').onclick = () => applyTemplate('standard');
+        
+        document.querySelectorAll('.style-tab').forEach(tab => { tab.onclick = function() { document.querySelectorAll('.style-tab').forEach(t => t.classList.remove('active')); document.querySelectorAll('.style-section').forEach(s => s.classList.remove('active')); this.classList.add('active'); document.getElementById('tab-' + this.dataset.tab).classList.add('active'); }; });
+        
+        let importBtn = document.createElement('button'); importBtn.className = 'btn-sm btn-secondary'; importBtn.innerText = '📁 导入配置'; importBtn.onclick = () => { let input = document.createElement('input'); input.type = 'file'; input.accept = '.json'; input.onchange = e => { if (e.target.files[0]) importConfig(e.target.files[0]); }; input.click(); };
+        document.querySelector('.template-buttons').appendChild(importBtn);
+        
+        document.getElementById("exportPdfBtn").onclick = exportToPdf;
+        document.getElementById("exportExcelBtn").onclick = exportToExcel;
+        document.getElementById("displayMode").onchange = () => renderTimetable();
+        document.getElementById("timetableTitle").oninput = () => renderTimetable();
+        document.getElementById("printCurrentBtn").onclick = printCurrentClass;
+        document.getElementById("addExtraRowBtn").onclick = openAddExtraRowModal;
+        document.getElementById("cancelModalBtn").onclick = closeModal;
+        document.getElementById("confirmModalBtn").onclick = confirmExtraRow;
+        document.querySelectorAll(".close-modal").forEach(btn => btn.onclick = closeModal);
+        window.onclick = (e) => { let modal = document.getElementById("extraRowModal"); if (e.target === modal) closeModal(); };
+    }
+    init();
+</script>
+</body>
+</html>
