@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手动调课 - 智能排课系统</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Roboto, 'Microsoft YaHei', sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        
+        .top-bar {
+            background: linear-gradient(135deg, #1e3c72 0%, #2b4c7c 100%);
+            color: white; padding: 14px 24px; border-radius: 14px;
+            display: flex; justify-content: flex-end;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .back-btn { background: rgba(255,255,255,0.2); border: none; padding: 8px 20px; border-radius: 30px; cursor: pointer; color: white; font-size: 14px; }
+        .back-btn:hover { background: #dc3545; }
+        
+        .main-layout { display: flex; gap: 20px; min-height: calc(100vh - 100px); }
+        .left-panel { width: 280px; flex-shrink: 0; background: white; border-radius: 16px; padding: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; flex-direction: column; }
+        .right-panel { flex: 1; background: white; border-radius: 16px; padding: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow-x: auto; }
+        
+        .panel-title { font-size: 16px; font-weight: bold; color: #1e3c72; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #1e3c72; }
+        
+        .class-list { flex: 1; overflow-y: auto; max-height: calc(100vh - 180px); }
+        .class-item { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; cursor: pointer; transition: 0.2s; }
+        .class-item:hover { background: #e8f4fd; border-color: #1e3c72; transform: translateX(3px); }
+        .class-item.active { background: #1e3c72; color: white; border-color: #1e3c72; }
+        .class-name { font-weight: bold; font-size: 15px; margin-bottom: 4px; }
+        .class-stats { font-size: 11px; display: flex; justify-content: space-between; margin-top: 8px; }
+        .class-stats .completed { color: #28a745; }
+        .class-stats .missing { color: #dc3545; }
+        .class-item.active .class-stats .completed,
+        .class-item.active .class-stats .missing { color: #ffd700; }
+        
+        .timetable-wrapper { overflow-x: auto; margin-top: 10px; }
+        .timetable-table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+        .timetable-table th, .timetable-table td { 
+            border: 1px solid #ddd; 
+            padding: 8px 6px; 
+            text-align: center; 
+            vertical-align: middle;
+            min-width: 85px;
+        }
+        .timetable-table th { background: #1e3c72; color: white; font-weight: bold; padding: 10px 6px; }
+        .timetable-table td { background: white; cursor: pointer; transition: 0.1s; height: 70px; }
+        .timetable-table td:hover { background: #f0f7ff; }
+        .timetable-table td:first-child { background: #e8f4fd; font-weight: bold; min-width: 70px; width: 70px; }
+        
+        /* 标记样式 */
+        .movable-to-empty { background: #d4edda !important; }
+        .placeable { background: #d4edda !important; }
+        .intersection { background: #f8d7da !important; border: 2px solid #dc3545 !important; }
+        .selected-empty { outline: 3px solid #ffc107; outline-offset: -1px; position: relative; z-index: 1; }
+        .highlight { background: #fff3cd !important; }
+        .class-consecutive { background: #fff3cd !important; }
+        .locked { background: #e9ecef !important; position: relative; }
+        .locked::after { content: "🔒"; position: absolute; top: 2px; right: 5px; font-size: 10px; color: #ff9800; }
+        .forced { position: relative; }
+        .forced::before { content: "⚠"; position: absolute; top: 2px; left: 5px; font-size: 10px; color: #dc3545; }
+        
+        .lesson-name { font-weight: bold; font-size: 12px; }
+        .lesson-teacher { font-size: 10px; color: #666; margin-top: 4px; }
+        .consecutive-mark { font-size: 10px; margin-left: 2px; }
+        .class-consecutive-mark { color: #ff9800; font-weight: bold; }
+        .cross-consecutive-mark { color: #2196f3; }
+        
+        .empty-cell { display: flex; align-items: center; justify-content: center; height: 100%; }
+        .add-btn { width: 26px; height: 26px; background: #28a745; color: white; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .add-btn:hover { background: #218838; transform: scale(1.05); }
+        
+        .course-info { margin-top: 20px; padding-top: 12px; border-top: 1px solid #e9ecef; }
+        .course-title { font-weight: bold; margin-bottom: 10px; color: #1e3c72; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+        .course-cards { display: flex; flex-wrap: wrap; gap: 8px; max-height: 200px; overflow-y: auto; }
+        .course-card { border-radius: 10px; padding: 6px 10px; min-width: 100px; cursor: pointer; transition: 0.1s; background: #f8f9fa; border-left: 3px solid #adb5bd; }
+        .course-card:hover { transform: translateY(-1px); box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+        .course-card.active { outline: 2px solid #ffc107; }
+        .course-card.complete { background: #e9ecef; border-left-color: #6c757d; }
+        .course-card.incomplete { background: #d4edda; border-left-color: #28a745; }
+        .course-card.overload { background: #f8d7da; border-left-color: #dc3545; }
+        .course-name { font-weight: bold; font-size: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .course-teacher { font-size: 10px; color: #6c757d; margin-top: 4px; }
+        .course-progress { font-size: 10px; margin-top: 4px; }
+        .course-consecutive { font-size: 9px; color: #ff9800; margin-top: 3px; }
+        
+        .action-bar { margin-top: 15px; display: flex; justify-content: flex-end; gap: 10px; }
+        .btn { padding: 6px 18px; border-radius: 30px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; transition: 0.2s; }
+        .btn-primary { background: #1e3c72; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        
+        .empty-tip { text-align: center; padding: 50px; color: #adb5bd; font-size: 14px; }
+        
+        /* 弹窗 */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; justify-content: center; align-items: center; }
+        .modal-content { background: white; border-radius: 20px; width: 420px; max-width: 90%; padding: 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .modal-title { font-size: 16px; font-weight: bold; margin-bottom: 15px; color: #1e3c72; text-align: center; }
+        .violation-list { margin: 10px 0; padding-left: 20px; max-height: 200px; overflow-y: auto; }
+        .violation-list li { margin: 5px 0; font-size: 12px; color: #dc3545; }
+        .modal-course-list { max-height: 350px; overflow-y: auto; margin-bottom: 15px; }
+        .modal-course-item { background: #f8f9fa; border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; transition: 0.1s; display: flex; justify-content: space-between; align-items: center; }
+        .modal-course-item:hover { background: #e8f4fd; transform: translateX(3px); }
+        .modal-course-name { font-weight: bold; font-size: 14px; }
+        .modal-course-progress { font-size: 12px; color: #666; }
+        .modal-buttons { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
+        .btn-cancel { background: #6c757d; color: white; padding: 6px 16px; border-radius: 30px; border: none; cursor: pointer; }
+        
+        .consecutive-positions-list { max-height: 300px; overflow-y: auto; margin-bottom: 15px; }
+        .consecutive-position-item { background: #f8f9fa; border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; transition: 0.1s; display: flex; justify-content: space-between; align-items: center; }
+        .consecutive-position-item:hover { background: #e8f4fd; transform: translateX(3px); }
+        .consecutive-position-name { font-weight: bold; font-size: 14px; }
+        .consecutive-position-detail { font-size: 12px; color: #666; }
+        
+        .toast { position: fixed; bottom: 30px; right: 30px; background: #28a745; color: white; padding: 10px 18px; border-radius: 30px; z-index: 2000; animation: fadeOut 2s ease-in-out; max-width: 400px; font-size: 13px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); white-space: normal; word-break: break-word; }
+        .toast.error { background: #dc3545; }
+        @keyframes fadeOut { 0% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
+        
+        .status-badge { display: inline-block; width: 18px; height: 18px; border-radius: 50%; text-align: center; line-height: 18px; font-size: 11px; font-weight: bold; margin-left: 5px; }
+        .status-complete { background: #6c757d; color: white; }
+        .status-incomplete { background: #28a745; color: white; }
+        .status-overload { background: #dc3545; color: white; }
+        
+        .context-menu { position: fixed; background: white; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 10000; overflow: hidden; }
+        .context-menu-item { padding: 8px 16px; cursor: pointer; font-size: 13px; transition: 0.1s; }
+        .context-menu-item:hover { background: #e8f4fd; }
+        .context-menu-item.danger { color: #dc3545; }
+        .context-menu-item.danger:hover { background: #f8d7da; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="top-bar">
+        <button class="back-btn" id="backBtn">← 返回</button>
+    </div>
+
+    <div class="main-layout">
+        <div class="left-panel">
+            <div class="panel-title">📚 班级列表</div>
+            <div id="classList" class="class-list"></div>
+            <div style="margin-top: 12px; font-size: 11px; color: #6c757d; padding-top: 8px; border-top: 1px solid #e9ecef;">
+                💡 操作说明：<br>
+                1️⃣ 点击班级查看课表<br>
+                2️⃣ 点击 [ + ] 添加课程<br>
+                3️⃣ 点击空闲格 → 🟢绿色格子为可移动位置<br>
+                4️⃣ 点击未完成课程卡片 → 🟢绿色格子为可放置位置<br>
+                5️⃣ 🔴红色格子 = 既是可移动又是可放置位置<br>
+                6️⃣ 右键课程 → 删除/锁定/解锁<br>
+                💡 已排完/超排课程可点击高亮查看，不可添加
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div id="timetablePanel">
+                <div class="empty-tip">👈 请从左侧选择一个班级</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ========== 存储KEY ==========
+    const PLANS_KEY = "pk_plans";
+    const CLASSES_KEY = "pk_classes";
+    const COURSES_KEY = "pk_courses";
+    const TEACHERS_KEY = "pk_teachers";
+    const SCHEDULES_KEY = "pk_schedules";
+    const SCHEDULE_CONFIG_KEY = "pk_scheduleConfig";
+    const RULES_KEY = "pk_scheduleRules";
+    
+    // ========== 全局变量 ==========
+    let plans = [], classes = [], courses = [], teachers = [], schedules = {}, scheduleConfig = {};
+    let weekdays = ["星期一", "星期二", "星期三", "星期四", "星期五"];
+    let periods = [];
+    let morningPeriodsList = [], afternoonPeriodsList = [];
+    let currentClassId = null;
+    let currentSchedule = null;
+    
+    // 状态变量
+    let selectedEmptyKey = null;
+    let movablePositions = new Set();
+    let selectedCourseId = null;
+    let highlightedCourseId = null;
+    let placeablePositions = new Set();
+    let intersectionPositions = new Set();
+    
+    // 规则配置
+    let teacherDailyLimits = [], teacherPeriodLimits = [], teacherFreeTimes = [];
+    let groupFreeTimes = [], schoolFreeTimes = [], courseCannotTimes = [], courseMustTimes = [], courseMutexGroups = [], teacherGroups = [];
+    let dailyCourseLimit = true;
+    let consecutivePairsStage1 = [], consecutivePairsStage2 = [];
+    
+    let pendingAddPosition = null;
+    
+    // ========== 辅助函数 ==========
+    function getClassName(id) { let c = classes.find(c => c.id == id); return c ? c.name : "未知班级"; }
+    function getCourseName(id) { let c = courses.find(c => c.id == id); return c ? c.name : "未知课程"; }
+    function getTeacherName(id) { let t = teachers.find(t => t.id == id); return t ? t.name : "未知教师"; }
+    function getPlan(classId, courseId) { return plans.find(p => p.classId == classId && p.courseId == courseId); }
+    function escapeHtml(s) { if(!s) return ''; return s.replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;'); }
+    
+    function getScheduledCount(classId, courseId, schedule) {
+        let sch = schedule || {};
+        let cnt = 0;
+        for(let key in sch) if(sch[key] && sch[key].courseId == courseId) cnt++;
+        return cnt;
+    }
+    
+    function getRemainingHours(classId, courseId, schedule) {
+        let plan = getPlan(classId, courseId);
+        if(!plan) return 0;
+        return plan.hoursPerWeek - getScheduledCount(classId, courseId, schedule);
+    }
+    
+    function getClassTotalStats(classId, schedule) {
+        let classPlans = plans.filter(p => p.classId == classId);
+        let totalReq = 0, totalSch = 0;
+        for(let plan of classPlans) {
+            totalReq += plan.hoursPerWeek;
+            totalSch += getScheduledCount(classId, plan.courseId, schedule);
+        }
+        return { totalRequired: totalReq, totalScheduled: totalSch, missing: totalReq - totalSch };
+    }
+    
+    function getConsecutivePairsFromRules() {
+        let pairs = { stage1: [], stage2: [] };
+        if(consecutivePairsStage1.length > 0) {
+            pairs.stage1 = consecutivePairsStage1;
+            pairs.stage2 = consecutivePairsStage2;
+        } else {
+            for(let i = 0; i < morningPeriodsList.length - 1; i++) pairs.stage1.push([morningPeriodsList[i], morningPeriodsList[i+1]]);
+            for(let i = 0; i < afternoonPeriodsList.length - 1; i++) pairs.stage1.push([afternoonPeriodsList[i], afternoonPeriodsList[i+1]]);
+        }
+        return pairs;
+    }
+    
+    // ========== 锁定功能 ==========
+    function isLessonLocked(classId, key) {
+        let sch = schedules[classId];
+        return sch && sch[key] && sch[key].locked === true;
+    }
+    
+    function setLessonLock(classId, key, locked) {
+        if(!schedules[classId]) schedules[classId] = {};
+        if(!schedules[classId][key]) return false;
+        schedules[classId][key].locked = locked;
+        localStorage.setItem(SCHEDULES_KEY, JSON.stringify(schedules));
+        if(currentClassId === classId) {
+            currentSchedule = JSON.parse(JSON.stringify(schedules[classId] || {}));
+            renderTimetableAndCourses();
+        }
+        renderClassList();
+        showToast(locked ? "已锁定课程" : "已解锁课程");
+        return true;
+    }
+    
+    // ========== 冲突检测函数 ==========
+    function checkSchoolFreeTime(day, period) { return schoolFreeTimes.some(sft => sft.weekday == day && sft.period == period); }
+    function checkTeacherFixedFreeTime(teacherId, day, period) { return teacherFreeTimes.some(ft => ft.teacherId == teacherId && ft.weekday == day && ft.period == period); }
+    function checkTeacherGroupFreeTime(teacherId, day, period) {
+        for(let gt of groupFreeTimes) {
+            let group = teacherGroups.find(g => g.id == gt.groupId);
+            if(group && (group.members || group.teacherIds || []).includes(teacherId) && gt.weekday == day && gt.period == period) return true;
+        }
+        return false;
+    }
+    function isCourseTimeAvailable(courseId, period) {
+        let must = courseMustTimes.some(limit => limit.courseId == courseId);
+        if(must) return courseMustTimes.some(limit => limit.courseId == courseId && limit.periods.includes(period));
+        return !courseCannotTimes.some(limit => limit.courseId == courseId && limit.periods.includes(period));
+    }
+    function checkTeacherConflict(teacherId, day, period, tempSch, excludeClassId) {
+        for(let cid in tempSch) {
+            if(excludeClassId && cid == excludeClassId) continue;
+            let sch = tempSch[cid];
+            if(sch && sch[day + "-" + period] && sch[day + "-" + period].teacherId == teacherId) return true;
+        }
+        return false;
+    }
+    function checkDailyLimit(classId, courseId, day, tempSch) {
+        if(!dailyCourseLimit) return false;
+        let plan = getPlan(classId, courseId);
+        if(plan && plan.consecutiveEnabled && plan.consecutiveCount > 0) return false;
+        let sch = tempSch[classId] || {};
+        for(let p of periods) if(sch[day + "-" + p] && sch[day + "-" + p].courseId == courseId) return true;
+        return false;
+    }
+    function checkTeacherDailyLimit(teacherId, day, tempSch, additional = 1) {
+        let limit = teacherDailyLimits.find(l => l.teacherId == teacherId);
+        if(!limit) return true;
+        let current = 0;
+        for(let cid in tempSch) {
+            let sch = tempSch[cid];
+            for(let key in sch) if(key.startsWith(day) && sch[key].teacherId == teacherId) current++;
+        }
+        return current + additional <= limit.maxHoursPerDay;
+    }
+    function getTeacherPeriodCount(teacherId, period, tempSch) {
+        let count = 0;
+        for(let cid in tempSch) {
+            let sch = tempSch[cid];
+            for(let w of weekdays) if(sch && sch[w + "-" + period] && sch[w + "-" + period].teacherId == teacherId) count++;
+        }
+        return count;
+    }
+    function checkTeacherPeriodLimit(teacherId, period, tempSch) {
+        let limit = teacherPeriodLimits.find(l => l.period == period);
+        if(!limit) return true;
+        return getTeacherPeriodCount(teacherId, period, tempSch) < limit.maxCountPerWeek;
+    }
+    function checkCourseMutex(classId, courseId, day, tempSch) {
+        let sch = tempSch[classId] || {};
+        for(let group of courseMutexGroups) {
+            if(group.courseIds.includes(courseId)) {
+                for(let otherId of group.courseIds) {
+                    if(otherId == courseId) continue;
+                    for(let p of periods) if(sch[day + "-" + p] && sch[day + "-" + p].courseId == otherId) return true;
+                }
+            }
+        }
+        return false;
+    }
+    
+    // 获取所有冲突原因（用于弹窗显示）
+    function getAllViolations(classId, teacherId, courseId, day, period, tempSch) {
+        let violations = [];
+        if(!classId || !teacherId || !courseId) return violations;
+        
+        if(checkSchoolFreeTime(day, period)) violations.push("⛔ 全校禁排时间");
+        if(checkTeacherFixedFreeTime(teacherId, day, period)) violations.push("⛔ 该教师此时段有固定禁排");
+        for(let gt of groupFreeTimes) {
+            let group = teacherGroups.find(g => g.id == gt.groupId);
+            if(group && (group.members || group.teacherIds || []).includes(teacherId) && gt.weekday == day && gt.period == period) {
+                violations.push("⛔ 该教师所在组此时段禁排");
+                break;
+            }
+        }
+        if(courseCannotTimes.some(limit => limit.courseId == courseId && limit.periods.includes(period))) violations.push("⛔ 该课程此时段禁排");
+        let mustTimes = courseMustTimes.filter(limit => limit.courseId == courseId);
+        if(mustTimes.length > 0 && !mustTimes.some(limit => limit.periods.includes(period))) violations.push("⛔ 该课程只能排在特定时间段");
+        
+        // 教师冲突（同一教师同一时间在其他班级上课）
+        for(let cid in tempSch) {
+            if(cid == classId) continue;
+            let sch = tempSch[cid];
+            if(sch && sch[day + "-" + period] && sch[day + "-" + period].teacherId == teacherId) {
+                let conflictClass = getClassName(parseInt(cid));
+                let conflictLesson = sch[day + "-" + period];
+                violations.push(`⛔ 教师冲突：此时段已在 ${conflictClass} 上 ${conflictLesson.courseName}`);
+                break;
+            }
+        }
+        
+        // 班级冲突（同一班级同一时间已有课）
+        let schedule = tempSch[classId] || {};
+        if(schedule[day + "-" + period]) {
+            let existingLesson = schedule[day + "-" + period];
+            violations.push(`⛔ 班级冲突：此时段已有 ${existingLesson.courseName}`);
+        }
+        
+        // 每日一节限制
+        if(dailyCourseLimit) {
+            let plan = getPlan(classId, courseId);
+            if(!plan || !(plan.consecutiveEnabled && plan.consecutiveCount > 0)) {
+                let sch = tempSch[classId] || {};
+                for(let p of periods) {
+                    if(sch[day + "-" + p] && sch[day + "-" + p].courseId == courseId) {
+                        violations.push("⛔ 同一天已排过该课程（每天最多1节）");
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // 教师每日上限
+        let dailyLimit = teacherDailyLimits.find(l => l.teacherId == teacherId);
+        if(dailyLimit) {
+            let current = 0;
+            for(let cid in tempSch) {
+                let sch = tempSch[cid];
+                for(let key in sch) if(key.startsWith(day) && sch[key].teacherId == teacherId) current++;
+            }
+            if(current + 1 > dailyLimit.maxHoursPerDay) violations.push(`⛔ 教师今日课时已达上限（${current}/${dailyLimit.maxHoursPerDay}节）`);
+        }
+        
+        // 教师节次上限
+        let periodLimit = teacherPeriodLimits.find(l => l.period == period);
+        if(periodLimit) {
+            let current = getTeacherPeriodCount(teacherId, period, tempSch);
+            if(current + 1 > periodLimit.maxCountPerWeek) violations.push(`⛔ 教师${period}本周已达上限（${current}/${periodLimit.maxCountPerWeek}节）`);
+        }
+        
+        // 课程互斥
+        for(let group of courseMutexGroups) {
+            if(group.courseIds.includes(courseId)) {
+                let sch = tempSch[classId] || {};
+                for(let otherId of group.courseIds) {
+                    if(otherId == courseId) continue;
+                    for(let p of periods) {
+                        if(sch[day + "-" + p] && sch[day + "-" + p].courseId == otherId) {
+                            violations.push(`⛔ 与课程【${getCourseName(otherId)}】互斥，不能在同一天`);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return violations;
+    }
+    
+    // 检查位置是否可用（用于标记）
+    function isPositionAvailable(classId, teacherId, courseId, day, period, tempSch) {
+        return getAllViolations(classId, teacherId, courseId, day, period, tempSch).length === 0;
+    }
+    
+    function addLesson(classId, teacherId, courseId, day, period, tempSch) {
+        let plan = getPlan(classId, courseId);
+        if(!plan) return false;
+        let remaining = plan.hoursPerWeek - getScheduledCount(classId, courseId, tempSch);
+        if(remaining <= 0) return false;
+        if(!isPositionAvailable(classId, teacherId, courseId, day, period, tempSch)) return false;
+        if(!tempSch[classId]) tempSch[classId] = {};
+        tempSch[classId][day + "-" + period] = { courseId, teacherId, courseName: getCourseName(courseId), teacherName: getTeacherName(teacherId) };
+        return true;
+    }
+    
+    function removeLesson(classId, day, period, tempSch) {
+        if(tempSch[classId]) delete tempSch[classId][day + "-" + period];
+    }
+    
+    function moveLesson(classId, srcKey, dstKey, tempSch) {
+        let srcLesson = tempSch[classId] ? tempSch[classId][srcKey] : null;
+        if(!srcLesson) return false;
+        let [srcDay, srcPeriod] = srcKey.split("-");
+        let [dstDay, dstPeriod] = dstKey.split("-");
+        if(tempSch[classId] && tempSch[classId][dstKey]) return false;
+        if(!isPositionAvailable(classId, srcLesson.teacherId, srcLesson.courseId, dstDay, dstPeriod, tempSch)) return false;
+        removeLesson(classId, srcDay, srcPeriod, tempSch);
+        addLesson(classId, srcLesson.teacherId, srcLesson.courseId, dstDay, dstPeriod, tempSch);
+        return true;
+    }
+    
+    function forceAddLesson(classId, teacherId, courseId, day, period, tempSch) {
+        if(!tempSch[classId]) tempSch[classId] = {};
+        tempSch[classId][day + "-" + period] = { courseId, teacherId, courseName: getCourseName(courseId), teacherName: getTeacherName(teacherId), forced: true };
+        return true;
+    }
+    
+    function showConflictConfirm(violations, onConfirm) {
+        let violationHtml = violations.map(v => `<li>${escapeHtml(v)}</li>`).join('');
+        let modalHtml = `
+            <div id="conflictModal" class="modal" style="display:flex;">
+                <div class="modal-content">
+                    <h4 style="color: #dc3545; margin-top: 0;">⚠️ 位置冲突 - 强制放置将违反以下规则</h4>
+                    <div style="background: #f8d7da; padding: 12px; border-radius: 8px; margin-bottom: 15px;">
+                        <ul class="violation-list">${violationHtml}</ul>
+                    </div>
+                    <div style="margin-bottom: 15px; font-size: 12px; color: #666;">强制放置会忽略上述冲突，可能导致排课数据异常。确定要继续吗？</div>
+                    <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                        <button id="cancelForceBtn" class="btn btn-secondary">取消</button>
+                        <button id="confirmForceBtn" class="btn btn-danger">⚠️ 强制放置</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.getElementById("confirmForceBtn").onclick = () => { document.getElementById("conflictModal").remove(); onConfirm(true); };
+        document.getElementById("cancelForceBtn").onclick = () => { document.getElementById("conflictModal").remove(); onConfirm(false); };
+    }
+    
+    // ========== 班内连排检测与添加 ==========
+    function isClassConsecutive(classId, day, period, tempSch) {
+        let schedule = tempSch[classId] || {};
+        let lesson = schedule[day + "-" + period];
+        if(!lesson) return false;
+        let plan = getPlan(classId, lesson.courseId);
+        if(!plan || !plan.consecutiveEnabled) return false;
+        let periodIdx = periods.indexOf(period);
+        if(periodIdx > 0 && schedule[day + "-" + periods[periodIdx-1]] && schedule[day + "-" + periods[periodIdx-1]].courseId == lesson.courseId) return true;
+        if(periodIdx < periods.length-1 && schedule[day + "-" + periods[periodIdx+1]] && schedule[day + "-" + periods[periodIdx+1]].courseId == lesson.courseId) return true;
+        return false;
+    }
+    
+    function removeConsecutiveBlock(classId, day, period, tempSch) {
+        let schedule = tempSch[classId] || {};
+        let lesson = schedule[day + "-" + period];
+        if(!lesson) return false;
+        let plan = getPlan(classId, lesson.courseId);
+        if(!plan || !plan.consecutiveEnabled) return false;
+        let periodIdx = periods.indexOf(period);
+        let left = periodIdx, right = periodIdx;
+        while(left > 0 && schedule[day + "-" + periods[left-1]] && schedule[day + "-" + periods[left-1]].courseId == lesson.courseId) left--;
+        while(right < periods.length-1 && schedule[day + "-" + periods[right+1]] && schedule[day + "-" + periods[right+1]].courseId == lesson.courseId) right++;
+        for(let i = left; i <= right; i++) {
+            if(tempSch[classId]) delete tempSch[classId][day + "-" + periods[i]];
+        }
+        return true;
+    }
+    
+    function getAvailableConsecutivePositions(classId, courseId, tempSch) {
+        let plan = getPlan(classId, courseId);
+        if(!plan || !plan.consecutiveEnabled) return [];
+        let size = plan.consecutiveSize || 2;
+        let positions = [];
+        let pairs = getConsecutivePairsFromRules();
+        let allPairs = [...pairs.stage1, ...pairs.stage2];
+        
+        for(let day of weekdays) {
+            for(let i = 0; i <= periods.length - size; i++) {
+                let startPeriod = periods[i];
+                let periodsToPlace = [];
+                for(let j = 0; j < size; j++) periodsToPlace.push(periods[i + j]);
+                
+                let valid = true;
+                for(let j = 0; j < size - 1; j++) {
+                    let isAllowed = false;
+                    for(let pair of allPairs) {
+                        if((pair[0] === periodsToPlace[j] && pair[1] === periodsToPlace[j+1]) ||
+                           (pair[0] === periodsToPlace[j+1] && pair[1] === periodsToPlace[j])) {
+                            isAllowed = true;
+                            break;
+                        }
+                    }
+                    if(!isAllowed) { valid = false; break; }
+                }
+                if(!valid) continue;
+                
+                let allAvailable = true;
+                for(let j = 0; j < size; j++) {
+                    if(!isPositionAvailable(classId, plan.teacherId, courseId, day, periods[i + j], tempSch)) {
+                        allAvailable = false;
+                        break;
+                    }
+                }
+                if(allAvailable) {
+                    positions.push({ day, startPeriod, periods: periodsToPlace });
+                }
+            }
+        }
+        return positions;
+    }
+    
+    function addConsecutiveBlockAtPosition(classId, courseId, day, startPeriod, tempSch) {
+        let plan = getPlan(classId, courseId);
+        if(!plan) return false;
+        let size = plan.consecutiveSize || 2;
+        let startIdx = periods.indexOf(startPeriod);
+        let success = true;
+        for(let i = 0; i < size; i++) {
+            if(!addLesson(classId, plan.teacherId, courseId, day, periods[startIdx + i], tempSch)) success = false;
+        }
+        return success;
+    }
+    
+    function detectCrossClassConsecutive(classId, day, period, tempSch) {
+        let schedule = tempSch[classId] || {};
+        let lesson = schedule[day + "-" + period];
+        if(!lesson || !lesson.teacherId) return false;
+        let pairs = getConsecutivePairsFromRules();
+        let allPairs = [...pairs.stage1, ...pairs.stage2];
+        for(let pair of allPairs) {
+            let period1 = pair[0], period2 = pair[1];
+            if(period === period1 || period === period2) {
+                let otherPeriod = (period === period1) ? period2 : period1;
+                let otherKey = day + "-" + otherPeriod;
+                for(let cid in tempSch) {
+                    if(cid == classId) continue;
+                    let otherSch = tempSch[cid];
+                    if(otherSch && otherSch[otherKey] && 
+                       otherSch[otherKey].teacherId == lesson.teacherId &&
+                       otherSch[otherKey].courseId == lesson.courseId) return true;
+                }
+            }
+        }
+        return false;
+    }
+    
+    // ========== 集合计算 ==========
+    function calculateMovableToEmpty(emptyKey, tempSch) {
+        let movable = new Set();
+        let schedule = tempSch[currentClassId] || {};
+        let [emptyDay, emptyPeriod] = emptyKey.split("-");
+        for(let key in schedule) {
+            if(key === emptyKey) continue;
+            let lesson = schedule[key];
+            if(!lesson) continue;
+            let [day, period] = key.split("-");
+            if(isClassConsecutive(currentClassId, day, period, tempSch)) continue;
+            if(moveLesson(currentClassId, key, emptyKey, tempSch)) {
+                movable.add(key);
+                moveLesson(currentClassId, emptyKey, key, tempSch);
+            }
+        }
+        return movable;
+    }
+    
+    function calculatePlaceableForCourse(courseId, tempSch) {
+        let placeable = new Set();
+        let plan = getPlan(currentClassId, courseId);
+        if(!plan) return placeable;
+        let teacherId = plan.teacherId;
+        
+        for(let day of weekdays) {
+            for(let period of periods) {
+                let key = day + "-" + period;
+                if(isPositionAvailable(currentClassId, teacherId, courseId, day, period, tempSch)) {
+                    placeable.add(key);
+                }
+            }
+        }
+        return placeable;
+    }
+    
+    // ========== 自动保存 ==========
+    function autoSave() {
+        if(currentClassId && currentSchedule) {
+            schedules[currentClassId] = JSON.parse(JSON.stringify(currentSchedule));
+            localStorage.setItem(SCHEDULES_KEY, JSON.stringify(schedules));
+            renderClassList();
+        }
+    }
+    
+    // ========== 右键菜单 ==========
+    function showContextMenu(e, classId, key, day, period, hasLesson, courseId) {
+        e.preventDefault();
+        let existingMenu = document.querySelector(".context-menu");
+        if(existingMenu) existingMenu.remove();
+        
+        let menu = document.createElement("div");
+        menu.className = "context-menu";
+        menu.style.left = e.pageX + "px";
+        menu.style.top = e.pageY + "px";
+        
+        if(hasLesson) {
+            let isLocked = isLessonLocked(classId, key);
+            let isConsecutive = isClassConsecutive(classId, day, period, { [classId]: currentSchedule });
+            
+            if(!isConsecutive) {
+                let lockItem = document.createElement("div");
+                lockItem.className = "context-menu-item";
+                lockItem.innerText = isLocked ? "🔓 解锁课程" : "🔒 锁定课程";
+                lockItem.onclick = () => { setLessonLock(classId, key, !isLocked); menu.remove(); };
+                menu.appendChild(lockItem);
+            }
+            
+            let deleteItem = document.createElement("div");
+            deleteItem.className = "context-menu-item danger";
+            deleteItem.innerText = "🗑️ 删除课程";
+            deleteItem.onclick = () => {
+                if(isConsecutive) {
+                    if(confirm("⚠️ 这是班内连排块！删除将移除整个连排块，确定吗？")) {
+                        if(removeConsecutiveBlock(classId, day, period, { [classId]: currentSchedule })) {
+                            autoSave();
+                            renderTimetableAndCourses();
+                            showToast("已删除连排块");
+                        }
+                    }
+                } else {
+                    if(confirm("确定删除此课程？")) {
+                        removeLesson(classId, day, period, { [classId]: currentSchedule });
+                        autoSave();
+                        renderTimetableAndCourses();
+                        showToast("已删除");
+                    }
+                }
+                menu.remove();
+            };
+            menu.appendChild(deleteItem);
+        }
+        
+        let cancelItem = document.createElement("div");
+        cancelItem.className = "context-menu-item";
+        cancelItem.innerText = "取消";
+        cancelItem.onclick = () => menu.remove();
+        menu.appendChild(cancelItem);
+        
+        document.body.appendChild(menu);
+        setTimeout(() => {
+            document.addEventListener("click", function removeMenu() { if(menu && menu.remove) menu.remove(); document.removeEventListener("click", removeMenu); });
+        }, 0);
+    }
+    
+    // ========== 渲染左侧班级列表 ==========
+    function renderClassList() {
+        let container = document.getElementById("classList");
+        if(classes.length === 0) { container.innerHTML = '<div style="text-align:center;padding:20px;">暂无班级</div>'; return; }
+        let html = "";
+        for(let cls of classes) {
+            let stats = getClassTotalStats(cls.id, schedules[cls.id] || {});
+            let isActive = (currentClassId === cls.id);
+            html += `<div class="class-item ${isActive ? 'active' : ''}" data-id="${cls.id}">
+                        <div class="class-name">${escapeHtml(cls.name)}</div>
+                        <div class="class-stats">
+                            <span class="completed">✓ ${stats.totalScheduled}</span>
+                            <span class="${stats.missing > 0 ? 'missing' : ''}">${stats.missing > 0 ? '缺' + stats.missing : '✓完成'}</span>
+                        </div>
+                    </div>`;
+        }
+        container.innerHTML = html;
+        document.querySelectorAll(".class-item").forEach(item => {
+            item.addEventListener("click", () => { selectClass(parseInt(item.getAttribute("data-id"))); });
+        });
+    }
+    
+    function selectClass(classId) {
+        currentClassId = classId;
+        currentSchedule = JSON.parse(JSON.stringify(schedules[classId] || {}));
+        selectedEmptyKey = null;
+        selectedCourseId = null;
+        highlightedCourseId = null;
+        movablePositions.clear();
+        placeablePositions.clear();
+        intersectionPositions.clear();
+        renderClassList();
+        renderTimetableAndCourses();
+    }
+    
+    // ========== 渲染课表 ==========
+    function renderTimetableAndCourses() {
+        let container = document.getElementById("timetablePanel");
+        if(!currentClassId) { container.innerHTML = '<div class="empty-tip">👈 请从左侧选择一个班级</div>'; return; }
+        
+        let schedule = currentSchedule || {};
+        let classPlans = plans.filter(p => p.classId == currentClassId);
+        
+        if(selectedEmptyKey) {
+            movablePositions = calculateMovableToEmpty(selectedEmptyKey, { [currentClassId]: currentSchedule });
+        }
+        if(selectedCourseId) {
+            placeablePositions = calculatePlaceableForCourse(selectedCourseId, { [currentClassId]: currentSchedule });
+            intersectionPositions.clear();
+            if(selectedEmptyKey) {
+                for(let pos of movablePositions) {
+                    if(placeablePositions.has(pos)) intersectionPositions.add(pos);
+                }
+            }
+        }
+        
+        let html = `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <span style="font-size: 18px; font-weight: bold; color: #1e3c72;">📅 ${getClassName(currentClassId)} 周课表</span>
+                    </div>`;
+        html += `<div class="timetable-wrapper"><table class="timetable-table" id="timetableTable"><thead><tr><th>节次</th>`;
+        for(let day of weekdays) html += `<th>${day}</th>`;
+        html += `</tr></thead><tbody>`;
+        
+        for(let period of periods) {
+            html += `<tr><td style="background:#e8f4fd; font-weight:bold;">${period}</td>`;
+            for(let day of weekdays) {
+                let key = day + "-" + period;
+                let lesson = schedule[key];
+                let isEmpty = !lesson;
+                let isSelectedEmpty = (selectedEmptyKey === key);
+                let isMovable = movablePositions.has(key);
+                let isPlaceable = placeablePositions.has(key);
+                let isIntersection = intersectionPositions.has(key);
+                let isHighlighted = (highlightedCourseId && lesson && lesson.courseId == highlightedCourseId);
+                let isClassBlock = lesson && isClassConsecutive(currentClassId, day, period, { [currentClassId]: currentSchedule });
+                let isCrossBlock = lesson && !isClassBlock && detectCrossClassConsecutive(currentClassId, day, period, { [currentClassId]: currentSchedule, ...schedules });
+                let isLocked = lesson && isLessonLocked(currentClassId, key);
+                
+                let cellClass = "";
+                if(isSelectedEmpty) cellClass = " selected-empty";
+                if(isIntersection) cellClass = " intersection";
+                else if(isMovable) cellClass = " movable-to-empty";
+                else if(isPlaceable) cellClass = " placeable";
+                if(isHighlighted) cellClass += " highlight";
+                if(isClassBlock) cellClass += " class-consecutive";
+                if(isLocked) cellClass += " locked";
+                if(lesson && lesson.forced) cellClass += " forced";
+                
+                html += `<td class="${cellClass.trim()}" data-key="${key}" data-day="${day}" data-period="${period}" data-haslesson="${!!lesson}" data-courseid="${lesson ? lesson.courseId : ''}" data-teacherid="${lesson ? lesson.teacherId : ''}">`;
+                if(lesson) {
+                    html += `<div class="lesson-name"><strong>${escapeHtml(lesson.courseName)}</strong>`;
+                    if(isClassBlock) html += `<span class="consecutive-mark class-consecutive-mark"> 🔗</span>`;
+                    if(isCrossBlock) html += `<span class="consecutive-mark cross-consecutive-mark"> 🔗</span>`;
+                    html += `</div><div class="lesson-teacher">${escapeHtml(lesson.teacherName)}</div>`;
+                } else {
+                    html += `<div class="empty-cell"><span class="add-btn" data-key="${key}" data-day="${day}" data-period="${period}">+</span></div>`;
+                }
+                html += `</div>`;
+            }
+            html += `</tr>`;
+        }
+        html += `</tbody></table></div>`;
+        
+        html += `<div class="course-info"><div class="course-title">📖 课程列表（点击卡片高亮课程）</div><div id="courseCardsContainer" class="course-cards"></div></div>`;
+        html += `<div class="action-bar"><button id="clearSelectionBtn" class="btn btn-secondary">清除选择</button><button id="refreshBtn" class="btn btn-secondary">刷新</button></div>`;
+        container.innerHTML = html;
+        
+        // 绑定加号按钮事件
+        document.querySelectorAll(".add-btn").forEach(btn => {
+            btn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                let key = btn.getAttribute("data-key");
+                let day = btn.getAttribute("data-day");
+                let period = btn.getAttribute("data-period");
+                pendingAddPosition = { day, period, key };
+                showAddCourseModal();
+            });
+        });
+        
+        // 绑定表格单元格事件
+        let table = document.getElementById("timetableTable");
+        if(table) {
+            for(let i = 0; i < table.rows.length; i++) {
+                let row = table.rows[i];
+                for(let j = 1; j < row.cells.length; j++) {
+                    let cell = row.cells[j];
+                    let key = cell.getAttribute("data-key");
+                    let hasLesson = cell.getAttribute("data-haslesson") === "true";
+                    let day = cell.getAttribute("data-day");
+                    let period = cell.getAttribute("data-period");
+                    let courseId = parseInt(cell.getAttribute("data-courseid"));
+                    
+                    cell.onclick = (function(k, h, d, p, cid) { return function(e) {
+                        if(e.target.classList && e.target.classList.contains("add-btn")) return;
+                        
+                        if(h && cid) {
+                            if(highlightedCourseId === cid) {
+                                highlightedCourseId = null;
+                                showToast("已取消高亮");
+                            } else {
+                                highlightedCourseId = cid;
+                                showToast(`已高亮 ${getCourseName(cid)}`);
+                            }
+                            renderTimetableAndCourses();
+                            return;
+                        }
+                        
+                        if(!h) {
+                            if(selectedEmptyKey === k) {
+                                selectedEmptyKey = null;
+                                movablePositions.clear();
+                                intersectionPositions.clear();
+                                showToast("已取消选择空闲格");
+                            } else {
+                                selectedEmptyKey = k;
+                                selectedCourseId = null;
+                                movablePositions.clear();
+                                intersectionPositions.clear();
+                                showToast(`已选中空闲格，绿色格子为可移动位置`);
+                            }
+                            renderTimetableAndCourses();
+                        }
+                    }; })(key, hasLesson, day, period, courseId);
+                    
+                    cell.oncontextmenu = (function(k, h, d, p) { return function(e) {
+                        showContextMenu(e, currentClassId, k, d, p, h, parseInt(cell.getAttribute("data-courseid")));
+                        return false;
+                    }; })(key, hasLesson, day, period);
+                }
+            }
+        }
+        
+        renderCourseCards();
+        
+        document.getElementById("clearSelectionBtn").onclick = () => {
+            selectedEmptyKey = null;
+            selectedCourseId = null;
+            highlightedCourseId = null;
+            movablePositions.clear();
+            placeablePositions.clear();
+            intersectionPositions.clear();
+            renderTimetableAndCourses();
+            showToast("已清除选择");
+        };
+        document.getElementById("refreshBtn").onclick = () => { renderTimetableAndCourses(); };
+    }
+    
+    // 添加课程弹窗
+    function showAddCourseModal() {
+        let classPlans = plans.filter(p => p.classId == currentClassId);
+        let schedule = currentSchedule || {};
+        
+        let normalCourses = [];
+        let consecutiveCourses = [];
+        
+        for(let plan of classPlans) {
+            let scheduled = getScheduledCount(currentClassId, plan.courseId, schedule);
+            let remaining = plan.hoursPerWeek - scheduled;
+            if(remaining <= 0) continue;
+            
+            let isConsecutive = plan.consecutiveEnabled && plan.consecutiveCount > 0;
+            let courseInfo = {
+                courseId: plan.courseId,
+                courseName: getCourseName(plan.courseId),
+                teacherId: plan.teacherId,
+                scheduled: scheduled,
+                total: plan.hoursPerWeek,
+                isConsecutive: isConsecutive,
+                consecutiveSize: plan.consecutiveSize || 2,
+                consecutiveCount: plan.consecutiveCount
+            };
+            
+            if(isConsecutive) {
+                consecutiveCourses.push(courseInfo);
+            } else {
+                normalCourses.push(courseInfo);
+            }
+        }
+        
+        let modalHtml = `<div id="addCourseModal" class="modal" style="display:flex;"><div class="modal-content"><div class="modal-title">添加到 ${pendingAddPosition.day} ${pendingAddPosition.period}</div>`;
+        
+        if(normalCourses.length > 0) {
+            modalHtml += `<div style="margin-bottom: 10px;"><strong>📖 普通课程</strong></div>`;
+            modalHtml += `<div class="modal-course-list">`;
+            modalHtml += normalCourses.map(c => `<div class="modal-course-item" data-courseid="${c.courseId}" data-teacherid="${c.teacherId}" data-isconsecutive="false"><span class="modal-course-name">${escapeHtml(c.courseName)}</span><span class="modal-course-progress">${c.scheduled}/${c.total}节</span></div>`).join('');
+            modalHtml += `</div>`;
+        }
+        
+        if(consecutiveCourses.length > 0) {
+            modalHtml += `<div style="margin-top: 15px; margin-bottom: 10px;"><strong>🔗 班内连排课程</strong></div>`;
+            modalHtml += `<div class="modal-course-list">`;
+            modalHtml += consecutiveCourses.map(c => `<div class="modal-course-item" data-courseid="${c.courseId}" data-teacherid="${c.teacherId}" data-isconsecutive="true" data-consecutive-size="${c.consecutiveSize}"><span class="modal-course-name">${escapeHtml(c.courseName)} 🔗</span><span class="modal-course-progress">${c.scheduled}/${c.total}节 (${c.consecutiveSize}节连排)</span></div>`).join('');
+            modalHtml += `</div>`;
+        }
+        
+        modalHtml += `<div class="modal-buttons"><button class="btn-cancel" id="closeModalBtn">取消</button></div></div></div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        document.querySelectorAll(".modal-course-item").forEach(item => {
+            item.addEventListener("click", async () => {
+                let courseId = parseInt(item.getAttribute("data-courseid"));
+                let teacherId = parseInt(item.getAttribute("data-teacherid"));
+                let isConsecutive = item.getAttribute("data-isconsecutive") === "true";
+                
+                if(isConsecutive) {
+                    let plan = getPlan(currentClassId, courseId);
+                    let remaining = plan.hoursPerWeek - getScheduledCount(currentClassId, courseId, currentSchedule);
+                    if(remaining < (plan.consecutiveSize || 2)) {
+                        showToast("剩余课时不足一个连排块", true);
+                        closeModal();
+                        return;
+                    }
+                    
+                    let positions = getAvailableConsecutivePositions(currentClassId, courseId, { [currentClassId]: currentSchedule });
+                    if(positions.length === 0) {
+                        showToast("当前没有可用的连排位置", true);
+                        closeModal();
+                        return;
+                    }
+                    
+                    closeModal();
+                    showConsecutivePositionModal(currentClassId, courseId, teacherId, positions);
+                } else {
+                    let fullTempSch = { [currentClassId]: currentSchedule, ...schedules };
+                    let violations = getAllViolations(currentClassId, teacherId, courseId, pendingAddPosition.day, pendingAddPosition.period, fullTempSch);
+                    
+                    if(violations.length > 0) {
+                        showConflictConfirm(violations, (force) => {
+                            if(force) {
+                                forceAddLesson(currentClassId, teacherId, courseId, pendingAddPosition.day, pendingAddPosition.period, { [currentClassId]: currentSchedule });
+                                autoSave();
+                                renderTimetableAndCourses();
+                                showToast(`已强制添加 ${getCourseName(courseId)}`);
+                                closeModal();
+                            }
+                        });
+                    } else {
+                        addLesson(currentClassId, teacherId, courseId, pendingAddPosition.day, pendingAddPosition.period, { [currentClassId]: currentSchedule });
+                        autoSave();
+                        renderTimetableAndCourses();
+                        showToast(`已添加 ${getCourseName(courseId)}`);
+                        closeModal();
+                    }
+                }
+            });
+        });
+        
+        let closeBtn = document.getElementById("closeModalBtn");
+        if(closeBtn) closeBtn.onclick = closeModal;
+        function closeModal() { let modal = document.getElementById("addCourseModal"); if(modal) modal.remove(); pendingAddPosition = null; }
+    }
+    
+    function showConsecutivePositionModal(classId, courseId, teacherId, positions) {
+        let modalHtml = `
+            <div id="consecutiveModal" class="modal" style="display:flex;">
+                <div class="modal-content">
+                    <div class="modal-title">选择连排位置 - ${getCourseName(courseId)} (${positions[0]?.periods?.length || 2}节连排)</div>
+                    <div class="consecutive-positions-list">
+                        ${positions.map(pos => `
+                            <div class="consecutive-position-item" data-day="${pos.day}" data-start="${pos.startPeriod}">
+                                <span class="consecutive-position-name">${pos.day} ${pos.startPeriod} 开始</span>
+                                <span class="consecutive-position-detail">${pos.periods.join(" → ")}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="modal-buttons">
+                        <button class="btn-cancel" id="closeConsecutiveBtn">取消</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        document.querySelectorAll(".consecutive-position-item").forEach(item => {
+            item.addEventListener("click", () => {
+                let day = item.getAttribute("data-day");
+                let startPeriod = item.getAttribute("data-start");
+                if(addConsecutiveBlockAtPosition(classId, courseId, day, startPeriod, { [currentClassId]: currentSchedule })) {
+                    autoSave();
+                    renderTimetableAndCourses();
+                    showToast(`已添加 ${getCourseName(courseId)} 连排块`);
+                } else {
+                    showToast("添加失败", true);
+                }
+                document.getElementById("consecutiveModal").remove();
+            });
+        });
+        document.getElementById("closeConsecutiveBtn").onclick = () => {
+            document.getElementById("consecutiveModal").remove();
+        };
+    }
+    
+    function renderCourseCards() {
+        let container = document.getElementById("courseCardsContainer");
+        if(!container) return;
+        let classPlans = plans.filter(p => p.classId == currentClassId);
+        let schedule = currentSchedule || {};
+        let html = "";
+        for(let plan of classPlans) {
+            let scheduled = getScheduledCount(currentClassId, plan.courseId, schedule);
+            let remaining = plan.hoursPerWeek - scheduled;
+            let statusClass = "";
+            let statusIcon = "";
+            let canPlace = true;
+            
+            if(scheduled === plan.hoursPerWeek) {
+                statusClass = "complete";
+                statusIcon = "✓";
+                canPlace = false;
+            } else if(scheduled > plan.hoursPerWeek) {
+                statusClass = "overload";
+                statusIcon = "⚠";
+                canPlace = false;
+            } else {
+                statusClass = "incomplete";
+                statusIcon = "✗";
+                canPlace = true;
+            }
+            
+            let isActive = (highlightedCourseId === plan.courseId);
+            
+            html += `<div class="course-card ${statusClass} ${isActive ? 'active' : ''}" 
+                         data-courseid="${plan.courseId}" 
+                         data-canplace="${canPlace}"
+                         data-remaining="${remaining}">
+                        <div class="course-name">
+                            ${escapeHtml(getCourseName(plan.courseId))}
+                            <span class="status-badge status-${statusClass}">${statusIcon}</span>
+                        </div>
+                        <div class="course-teacher">${escapeHtml(getTeacherName(plan.teacherId))}</div>
+                        <div class="course-progress">${scheduled}/${plan.hoursPerWeek}节 ${remaining > 0 ? `缺${remaining}` : ""}</div>
+                        ${plan.consecutiveEnabled && plan.consecutiveCount > 0 ? `<div class="course-consecutive">🔗 班内连排 ${plan.consecutiveCount}×${plan.consecutiveSize}节</div>` : ''}
+                    </div>`;
+        }
+        container.innerHTML = html;
+        
+        container.querySelectorAll(".course-card").forEach(card => {
+            card.addEventListener("click", () => {
+                let courseId = parseInt(card.getAttribute("data-courseid"));
+                let canPlace = card.getAttribute("data-canplace") === "true";
+                
+                if(highlightedCourseId === courseId) {
+                    highlightedCourseId = null;
+                    showToast("已取消高亮");
+                } else {
+                    highlightedCourseId = courseId;
+                    showToast(`已高亮 ${getCourseName(courseId)}`);
+                }
+                
+                if(canPlace) {
+                    if(selectedCourseId === courseId) {
+                        selectedCourseId = null;
+                        placeablePositions.clear();
+                        intersectionPositions.clear();
+                    } else {
+                        selectedCourseId = courseId;
+                        placeablePositions = calculatePlaceableForCourse(courseId, { [currentClassId]: currentSchedule });
+                        intersectionPositions.clear();
+                        if(selectedEmptyKey) {
+                            for(let pos of movablePositions) {
+                                if(placeablePositions.has(pos)) intersectionPositions.add(pos);
+                            }
+                        }
+                        showToast(`已选择 ${getCourseName(courseId)}，绿色格子为可放置位置`);
+                    }
+                } else {
+                    selectedCourseId = null;
+                    placeablePositions.clear();
+                    intersectionPositions.clear();
+                    showToast(`已高亮 ${getCourseName(courseId)}（仅查看，不可添加）`);
+                }
+                
+                renderTimetableAndCourses();
+                renderCourseCards();
+            });
+        });
+    }
+    
+    function showToast(msg, isErr) {
+        let t = document.createElement("div");
+        t.className = "toast" + (isErr ? " error" : "");
+        t.innerText = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 3000);
+    }
+    
+    // ========== 初始化 ==========
+    function initPeriodGroups() {
+        let sc = localStorage.getItem(SCHEDULE_CONFIG_KEY);
+        let morningCount = 4, afternoonCount = 2;
+        if(sc) { try { let config = JSON.parse(sc); morningCount = config.morningPeriods || 4; afternoonCount = config.afternoonPeriods || 2; weekdays = config.selectedWeekdays || ["星期一","星期二","星期三","星期四","星期五"]; } catch(e) {} }
+        periods = [];
+        for(let i = 1; i <= morningCount + afternoonCount; i++) periods.push("第" + i + "节");
+        morningPeriodsList = []; afternoonPeriodsList = [];
+        for(let i = 1; i <= morningCount; i++) morningPeriodsList.push("第" + i + "节");
+        for(let i = 1; i <= afternoonCount; i++) afternoonPeriodsList.push("第" + (morningCount + i) + "节");
+    }
+    
+    function loadAllData() {
+        initPeriodGroups();
+        let rulesData = localStorage.getItem(RULES_KEY);
+        if(rulesData) { try { let r = JSON.parse(rulesData);
+            teacherDailyLimits = r.teacherDailyLimits || [];
+            teacherPeriodLimits = r.teacherPeriodLimits || [];
+            teacherFreeTimes = r.teacherFreeTimes || [];
+            groupFreeTimes = r.groupFreeTimes || [];
+            schoolFreeTimes = r.schoolFreeTimes || [];
+            courseCannotTimes = r.courseCannotTimes || [];
+            courseMustTimes = r.courseMustTimes || [];
+            courseMutexGroups = r.courseMutexGroups || [];
+            dailyCourseLimit = r.dailyCourseLimit ?? true;
+            consecutivePairsStage1 = r.consecutiveRules?.stage1?.pairs || [];
+            consecutivePairsStage2 = r.consecutiveRules?.stage2?.pairs || [];
+        } catch(e) {} }
+        let teacherGroupsData = localStorage.getItem("pk_teacherGroups");
+        if(teacherGroupsData) try { teacherGroups = JSON.parse(teacherGroupsData); } catch(e) {}
+        plans = JSON.parse(localStorage.getItem(PLANS_KEY) || "[]");
+        classes = JSON.parse(localStorage.getItem(CLASSES_KEY) || "[]");
+        courses = JSON.parse(localStorage.getItem(COURSES_KEY) || "[]");
+        teachers = JSON.parse(localStorage.getItem(TEACHERS_KEY) || "[]");
+        schedules = JSON.parse(localStorage.getItem(SCHEDULES_KEY) || "{}");
+        if(classes.length > 0 && currentClassId === null) { currentClassId = classes[0].id; currentSchedule = JSON.parse(JSON.stringify(schedules[currentClassId] || {})); }
+        renderClassList();
+        renderTimetableAndCourses();
+    }
+    
+    function goBack() { window.location.href = "04-全自动排课.html"; }
+    
+    function init() {
+        loadAllData();
+        document.getElementById("backBtn").onclick = goBack;
+    }
+    init();
+</script>
+</body>
+</html>
