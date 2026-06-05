@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>早读自习排课系统 - 完整版</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background: #f0f4f8; margin: 0; padding: 24px 20px; color: #1e293b; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .card { background: white; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); padding: 20px 24px; margin-bottom: 24px; }
+        .card-header { font-size: 1.3rem; font-weight: 700; border-left: 5px solid #3b82f6; padding-left: 16px; margin-bottom: 20px; }
+        h1 { font-size: 1.8rem; margin: 0 0 8px 0; color: #0c4a6e; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .badge { background: #dbeafe; color: #1e40af; border-radius: 30px; padding: 4px 12px; font-size: 0.75rem; }
+        .toolbar { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; align-items: center; }
+        .btn { padding: 8px 18px; border-radius: 40px; border: none; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: 0.2s; background: #f1f5f9; color: #1e293b; }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-success:hover { background: #059669; }
+        .btn-warning { background: #f59e0b; color: white; }
+        .btn-warning:hover { background: #d97706; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-secondary { background: #64748b; color: white; }
+        .config-row { display: flex; flex-wrap: wrap; gap: 24px; margin-bottom: 20px; align-items: flex-end; }
+        .config-item { display: flex; flex-direction: column; gap: 6px; }
+        .switch-group { display: flex; gap: 30px; align-items: center; flex-wrap: wrap; }
+        .switch-item { display: flex; align-items: center; gap: 8px; background: #f8fafc; padding: 6px 16px; border-radius: 40px; }
+        .week-config { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; align-items: center; }
+        .week-item { background: #f8fafc; padding: 6px 12px; border-radius: 30px; display: inline-flex; align-items: center; gap: 8px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        th, td { border: 1px solid #e2e8f0; padding: 8px 6px; text-align: center; vertical-align: middle; }
+        th { background: #f8fafc; font-weight: 700; position: sticky; top: 0; }
+        .status-msg { background: #e6f7e6; padding: 8px 16px; border-radius: 20px; margin-top: 12px; font-size: 0.8rem; }
+        .status-warning { background: #fff3e0; color: #b45309; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; border-radius: 24px; width: 95%; max-width: 95%; max-height: 85%; overflow: auto; padding: 20px; position: relative; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #e2e8f0; }
+        .close-modal { font-size: 28px; cursor: pointer; background: none; border: none; }
+        .view-toolbar { margin-bottom: 16px; display: flex; gap: 12px; justify-content: flex-end; }
+        .drag-cell { cursor: grab; background-color: #fff9e6; transition: 0.1s; user-select: none; }
+        .drag-cell:active { cursor: grabbing; }
+        .drag-over { background-color: #dbeafe; }
+        .class-selector { margin-bottom: 16px; display: flex; gap: 12px; align-items: center; }
+        footer { text-align: center; font-size: 0.7rem; color: #94a3b8; margin-top: 20px; }
+        select, input { padding: 4px 8px; border-radius: 8px; border: 1px solid #cbd5e1; }
+        .rule-group { background: #f1f5f9; border-radius: 16px; padding: 12px 16px; margin-bottom: 16px; }
+        .rule-title { font-weight: 700; margin-bottom: 10px; color: #1e40af; }
+        .rule-row { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; }
+        .confirm-dialog { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1100; display: flex; justify-content: center; align-items: center; }
+        .confirm-content { background: white; border-radius: 20px; padding: 24px; min-width: 350px; max-width: 500px; }
+        .confirm-buttons { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+        .table-wrapper { overflow-x: auto; max-height: 60vh; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>📖 早读自习排课系统 <span class="badge">持久化存储 · 拖拽互换 · 导出Excel</span></h1>
+
+    <!-- 卡片1：规则配置 -->
+    <div class="card">
+        <div class="card-header">⚙️ 规则配置</div>
+        
+        <div class="rule-group">
+            <div class="rule-title">👥 教师多班规则</div>
+            <div class="rule-row">
+                <div class="switch-item">
+                    <span>📘 早读：</span>
+                    <label><input type="radio" name="morningMulti" value="false"> 禁止</label>
+                    <label><input type="radio" name="morningMulti" value="true"> 允许</label>
+                    <input type="number" id="morningMaxClass" value="3" min="1" max="20" style="width: 60px;" disabled>
+                    <span>个班</span>
+                </div>
+                <div class="switch-item">
+                    <span>📚 自习：</span>
+                    <label><input type="radio" name="selfMulti" value="false"> 禁止</label>
+                    <label><input type="radio" name="selfMulti" value="true"> 允许</label>
+                    <input type="number" id="selfMaxClass" value="2" min="1" max="20" style="width: 60px;" disabled>
+                    <span>个班</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="rule-group">
+            <div class="rule-title">📅 每天每班每门课程至多</div>
+            <div class="rule-row">
+                <div class="config-item"><label>📘 早读</label><input type="number" id="maxPerDayMorning" value="1" min="1" max="5" style="width: 70px;"><span>节</span></div>
+                <div class="config-item"><label>📚 自习</label><input type="number" id="maxPerDaySelf" value="2" min="1" max="5" style="width: 70px;"><span>节</span></div>
+            </div>
+        </div>
+
+        <div class="rule-group">
+            <div class="rule-title">📊 每天总节数上限</div>
+            <div class="rule-row">
+                <div class="config-item"><label>📘 每天早读最多</label><input type="number" id="maxMorning" value="4" min="1" max="6" style="width:80px;"><span>节</span></div>
+                <div class="config-item"><label>📚 每天自习最多</label><input type="number" id="maxSelf" value="4" min="1" max="6" style="width:80px;"><span>节</span></div>
+            </div>
+        </div>
+
+        <div class="rule-group">
+            <div class="rule-title">📆 每天节数配置（早读/自习实际节数）</div>
+            <div id="dailyConfigPanel"></div>
+        </div>
+
+        <div style="margin-top: 16px;">
+            <button class="btn btn-primary" id="applyRulesBtn">✅ 确认应用规则</button>
+        </div>
+    </div>
+
+    <!-- 卡片2：计划管理 -->
+    <div class="card">
+        <div class="card-header">📋 计划管理</div>
+        <div class="toolbar">
+            <button class="btn btn-primary" id="downloadTemplateBtn">📥 下载模板</button>
+            <button class="btn btn-success" id="uploadBtn">📂 导入Excel</button>
+            <input type="file" id="uploadExcel" style="display:none;">
+            <button class="btn btn-warning" id="exportPlanBtn">📎 导出计划</button>
+            <button class="btn btn-danger" id="clearPlanBtn">🗑️ 清空计划</button>
+        </div>
+        <div class="status-msg" id="planStatusMsg">📊 当前计划：0 条记录</div>
+    </div>
+
+    <!-- 卡片3：排课执行 -->
+    <div class="card">
+        <div class="card-header">🚀 排课执行</div>
+        <div class="toolbar">
+            <button class="btn btn-primary" id="startSchedulingBtn" style="padding: 8px 28px;">开始排课</button>
+            <button class="btn btn-secondary" id="clearTimetableBtn">🗑️ 清空已排课程</button>
+        </div>
+        <div class="status-msg" id="schedulingStatusMsg">⏳ 排课状态：未排课</div>
+    </div>
+
+    <!-- 卡片4：视图入口 -->
+    <div class="card">
+        <div class="card-header">📅 排课视图</div>
+        <div class="toolbar">
+            <button class="btn btn-primary" id="openSchoolViewBtn">🏫 全校总表</button>
+            <button class="btn btn-primary" id="openClassViewBtn">📖 班级课表</button>
+            <button class="btn btn-primary" id="openTeacherViewBtn">👩‍🏫 教师课表</button>
+        </div>
+        <div class="status-msg" id="timetableMsg">✨ 点击开始排课生成课表，打开视图后支持拖拽单元格互换，可导出Excel</div>
+    </div>
+    <footer>💾 所有数据自动保存到浏览器，刷新不丢失。拖拽单元格可互换内容，导出当前视图表格。</footer>
+</div>
+
+<!-- 弹窗模态框 -->
+<div id="viewModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle">全校总表</h3>
+            <button class="close-modal">&times;</button>
+        </div>
+        <div class="view-toolbar">
+            <button class="btn btn-success" id="exportModalExcelBtn">📎 导出当前视图为Excel</button>
+            <button class="btn btn-outline" id="refreshModalBtn">🔄 刷新</button>
+        </div>
+        <div id="modalTableContainer" class="table-wrapper"></div>
+    </div>
+</div>
+
+<script>
+    // ---------- 存储 KEY ----------
+    const STORAGE_KEYS = {
+        PLAN_DATA: 'morningPlanData',
+        RULES: 'morningRules',
+        DAILY_CONFIG: 'morningDailyConfig',
+        TIMETABLE: 'morningTimetable'
+    };
+
+    // ---------- 全局数据 ----------
+    let planData = [];
+    let dailyConfig = {};
+    let weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const weekMap = { 'Monday': '周一', 'Tuesday': '周二', 'Wednesday': '周三', 'Thursday': '周四', 'Friday': '周五', 'Saturday': '周六', 'Sunday': '周日' };
+    
+    let maxMorning = 4, maxSelf = 4;
+    let morningMulti = true, morningMaxClass = 3;
+    let selfMulti = false, selfMaxClass = 2;
+    let maxPerDayMorning = 1;
+    let maxPerDaySelf = 2;
+    
+    let currentTimetableMap = new Map();
+    let currentViewType = 'school';
+    let currentClassForView = '';
+
+    // ---------- 辅助函数 ----------
+    function escapeHtml(str) { 
+        if (!str) return ''; 
+        return String(str).replace(/[&<>]/g, function(m) {
+            return m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;';
+        }); 
+    }
+    
+    function saveAllData() {
+        localStorage.setItem(STORAGE_KEYS.PLAN_DATA, JSON.stringify(planData));
+        const rules = { maxMorning, maxSelf, morningMulti, morningMaxClass, selfMulti, selfMaxClass, maxPerDayMorning, maxPerDaySelf };
+        localStorage.setItem(STORAGE_KEYS.RULES, JSON.stringify(rules));
+        localStorage.setItem(STORAGE_KEYS.DAILY_CONFIG, JSON.stringify(dailyConfig));
+        const timetableArray = Array.from(currentTimetableMap.entries());
+        localStorage.setItem(STORAGE_KEYS.TIMETABLE, JSON.stringify(timetableArray));
+    }
+    
+    function loadAllData() {
+        const savedPlan = localStorage.getItem(STORAGE_KEYS.PLAN_DATA);
+        if (savedPlan) planData = JSON.parse(savedPlan);
+        
+        const savedRules = localStorage.getItem(STORAGE_KEYS.RULES);
+        if (savedRules) {
+            const rules = JSON.parse(savedRules);
+            maxMorning = rules.maxMorning || 4;
+            maxSelf = rules.maxSelf || 4;
+            morningMulti = rules.morningMulti !== undefined ? rules.morningMulti : true;
+            morningMaxClass = rules.morningMaxClass || 3;
+            selfMulti = rules.selfMulti !== undefined ? rules.selfMulti : false;
+            selfMaxClass = rules.selfMaxClass || 2;
+            maxPerDayMorning = rules.maxPerDayMorning !== undefined ? rules.maxPerDayMorning : 1;
+            maxPerDaySelf = rules.maxPerDaySelf !== undefined ? rules.maxPerDaySelf : 2;
+            
+            document.getElementById('maxMorning').value = maxMorning;
+            document.getElementById('maxSelf').value = maxSelf;
+            document.getElementById('maxPerDayMorning').value = maxPerDayMorning;
+            document.getElementById('maxPerDaySelf').value = maxPerDaySelf;
+            document.querySelectorAll('input[name="morningMulti"]').forEach(r => r.checked = r.value === String(morningMulti));
+            document.querySelectorAll('input[name="selfMulti"]').forEach(r => r.checked = r.value === String(selfMulti));
+            document.getElementById('morningMaxClass').value = morningMaxClass;
+            document.getElementById('selfMaxClass').value = selfMaxClass;
+            updateMultiInputState();
+        }
+        
+        const savedDaily = localStorage.getItem(STORAGE_KEYS.DAILY_CONFIG);
+        if (savedDaily) {
+            dailyConfig = JSON.parse(savedDaily);
+        } else {
+            for (let wk of weekDays) dailyConfig[wk] = { morning: 0, self: 0 };
+        }
+        
+        const savedTimetable = localStorage.getItem(STORAGE_KEYS.TIMETABLE);
+        if (savedTimetable) {
+            const arr = JSON.parse(savedTimetable);
+            currentTimetableMap = new Map(arr);
+            updateSchedulingStatus(true);
+        } else {
+            currentTimetableMap.clear();
+            updateSchedulingStatus(false);
+        }
+        updatePlanStatusMsg();
+        renderDailyConfig();
+    }
+    
+    function updateMultiInputState() {
+        document.getElementById('morningMaxClass').disabled = !morningMulti;
+        document.getElementById('selfMaxClass').disabled = !selfMulti;
+    }
+    
+    function updatePlanStatusMsg() {
+        let classes = [...new Set(planData.map(p => p.className))];
+        let classStr = classes.length > 0 ? `（${classes.slice(0, 3).join('、')}${classes.length > 3 ? '等' : ''}）` : '';
+        document.getElementById('planStatusMsg').innerHTML = `📊 当前计划：${planData.length} 条记录 ${classStr}`;
+    }
+    
+    function updateSchedulingStatus(hasTimetable) {
+        const el = document.getElementById('schedulingStatusMsg');
+        if (hasTimetable && currentTimetableMap.size > 0) {
+            el.innerHTML = `✅ 排课状态：已排课，共 ${currentTimetableMap.size} 条排课记录`;
+            el.className = 'status-msg';
+        } else {
+            el.innerHTML = `⏳ 排课状态：未排课，请点击"开始排课"`;
+            el.className = 'status-msg status-warning';
+        }
+    }
+    
+    function renderDailyConfig() {
+        const container = document.getElementById('dailyConfigPanel');
+        let html = '<div class="week-config">';
+        for (let wk of weekDays) {
+            let morning = dailyConfig[wk]?.morning ?? 0;
+            let self = dailyConfig[wk]?.self ?? 0;
+            html += `<div class="week-item">${weekMap[wk]} 早<select class="daily-morning" data-week="${wk}">${genOptions(maxMorning, morning)}</select> 自<select class="daily-self" data-week="${wk}">${genOptions(maxSelf, self)}</select></div>`;
+        }
+        html += `</div>`;
+        container.innerHTML = html;
+        
+        document.querySelectorAll('.daily-morning, .daily-self').forEach(sel => {
+            sel.addEventListener('change', () => {
+                for (let wk of weekDays) {
+                    let morningVal = parseInt(document.querySelector(`.daily-morning[data-week="${wk}"]`)?.value || 0);
+                    let selfVal = parseInt(document.querySelector(`.daily-self[data-week="${wk}"]`)?.value || 0);
+                    if (!dailyConfig[wk]) dailyConfig[wk] = {};
+                    dailyConfig[wk].morning = morningVal;
+                    dailyConfig[wk].self = selfVal;
+                }
+                saveAllData();
+                document.getElementById('timetableMsg').innerHTML = '✅ 节数配置已保存，请重新点击"开始排课"。';
+            });
+        });
+    }
+    
+    function genOptions(max, selected) {
+        let opts = '';
+        for (let i = 0; i <= max; i++) opts += `<option value="${i}" ${selected === i ? 'selected' : ''}>${i}</option>`;
+        return opts;
+    }
+    
+    // 核心排课算法
+    function generateTimetable() {
+        let dailySlots = {};
+        for (let wk of weekDays) {
+            let slots = [];
+            let morningCnt = dailyConfig[wk]?.morning || 0;
+            let selfCnt = dailyConfig[wk]?.self || 0;
+            for (let i = 1; i <= morningCnt; i++) slots.push({ type: 'morning', idx: i, label: `早读${i}` });
+            for (let i = 1; i <= selfCnt; i++) slots.push({ type: 'self', idx: i, label: `自习${i}` });
+            dailySlots[wk] = slots;
+        }
+        
+        let classPlans = new Map();
+        for (let p of planData) {
+            if (!classPlans.has(p.className)) classPlans.set(p.className, []);
+            classPlans.get(p.className).push(p);
+        }
+        
+        let result = new Map();
+        let teacherOccupy = new Map();
+        let classSubjectDailyCount = new Map();
+        
+        for (let [className, plans] of classPlans.entries()) {
+            let morningNeeds = [], selfNeeds = [];
+            for (let plan of plans) {
+                let prefSet = new Set();
+                if (plan.preferredWeekdays) {
+                    let arr = plan.preferredWeekdays.split(/[,，、 ]+/);
+                    for (let w of arr) {
+                        let matched = Object.keys(weekMap).find(k => weekMap[k] === w.trim() || k.includes(w.trim()));
+                        if (matched) prefSet.add(matched);
+                    }
+                }
+                let item = { subject: plan.subject, teacher: plan.teacher, times: plan.weeklyCount, preferredSet: prefSet };
+                if (plan.type === '早读') morningNeeds.push(item);
+                else selfNeeds.push(item);
+            }
+            
+            let morningSlots = [], selfSlots = [];
+            for (let wk of weekDays) {
+                for (let slot of (dailySlots[wk] || [])) {
+                    if (slot.type === 'morning') morningSlots.push({ week: wk, slotLabel: slot.label });
+                    else selfSlots.push({ week: wk, slotLabel: slot.label });
+                }
+            }
+            
+            function assign(needs, slots, typeFlag, multiAllowed, maxClassPerTeacher, maxPerDayPerSubject) {
+                needs.sort((a, b) => b.times - a.times);
+                for (let need of needs) {
+                    let assigned = 0;
+                    let preferred = slots.filter(s => need.preferredSet.has(s.week));
+                    let other = slots.filter(s => !need.preferredSet.has(s.week));
+                    let candidates = [...preferred, ...other];
+                    
+                    for (let slot of candidates) {
+                        if (assigned >= need.times) break;
+                        
+                        let key = `${className}|${slot.week}|${slot.slotLabel}`;
+                        let occupyKey = `${slot.week}|${slot.slotLabel}|${need.teacher}`;
+                        let subjectDailyKey = `${className}|${slot.week}|${need.subject}`;
+                        
+                        let currentTeacherCount = teacherOccupy.get(occupyKey) || 0;
+                        let currentSubjectDailyCount = classSubjectDailyCount.get(subjectDailyKey) || 0;
+                        
+                        let conflict = false;
+                        if (!multiAllowed && currentTeacherCount >= 1) conflict = true;
+                        if (multiAllowed && currentTeacherCount >= maxClassPerTeacher) conflict = true;
+                        if (currentSubjectDailyCount >= maxPerDayPerSubject) conflict = true;
+                        if (result.has(key)) conflict = true;
+                        
+                        if (!conflict) {
+                            result.set(key, { subject: need.subject, teacher: need.teacher, type: typeFlag });
+                            teacherOccupy.set(occupyKey, currentTeacherCount + 1);
+                            classSubjectDailyCount.set(subjectDailyKey, currentSubjectDailyCount + 1);
+                            assigned++;
+                        }
+                    }
+                    if (assigned < need.times) {
+                        console.warn(`⚠️ ${className} ${need.subject} (${typeFlag}) 只排了${assigned}/${need.times}节`);
+                    }
+                }
+            }
+            
+            assign(morningNeeds, morningSlots, '早读', morningMulti, morningMaxClass, maxPerDayMorning);
+            assign(selfNeeds, selfSlots, '自习', selfMulti, selfMaxClass, maxPerDaySelf);
+        }
+        return result;
+    }
+    
+    function runScheduling() {
+        currentTimetableMap = generateTimetable();
+        saveAllData();
+        updateSchedulingStatus(true);
+        document.getElementById('timetableMsg').innerHTML = `✅ 排课完成！共生成 ${currentTimetableMap.size} 条排课记录。`;
+    }
+    
+    function clearTimetable() {
+        currentTimetableMap.clear();
+        saveAllData();
+        updateSchedulingStatus(false);
+        document.getElementById('timetableMsg').innerHTML = '🗑️ 已清空排课结果，可重新排课。';
+    }
+    
+    // 获取所有时段（按星期和节次排序）
+    function getAllSlots() {
+        let slots = [];
+        for (let wk of weekDays) {
+            let morningCnt = dailyConfig[wk]?.morning || 0;
+            let selfCnt = dailyConfig[wk]?.self || 0;
+            for (let i = 1; i <= morningCnt; i++) {
+                slots.push({ week: wk, weekLabel: weekMap[wk], slotLabel: `早读${i}`, order: `${wk}_早读${i}` });
+            }
+            for (let i = 1; i <= selfCnt; i++) {
+                slots.push({ week: wk, weekLabel: weekMap[wk], slotLabel: `自习${i}`, order: `${wk}_自习${i}` });
+            }
+        }
+        return slots;
+    }
+    
+    // 全校总表渲染
+    function renderSchoolView() {
+        let classes = [...new Set(planData.map(p => p.className))].sort();
+        let container = document.getElementById('modalTableContainer');
+        if (classes.length === 0) {
+            container.innerHTML = '<div class="status-msg">暂无班级计划，请先导入计划</div>';
+            return;
+        }
+        if (currentTimetableMap.size === 0) {
+            container.innerHTML = '<div class="status-msg">暂无排课数据，请先点击"开始排课"</div>';
+            return;
+        }
+        
+        let allSlots = getAllSlots();
+        
+        let html = '<table><thead><tr><th>班级</th>';
+        for (let slot of allSlots) {
+            html += `<th>${slot.weekLabel}<br><span style="font-size:0.7rem;">${slot.slotLabel}</span></th>`;
+        }
+        html += '</tr></thead><tbody>';
+        
+        for (let cls of classes) {
+            html += `<tr><td style="font-weight:bold; background:#f8fafc;">${escapeHtml(cls)}</td>`;
+            for (let slot of allSlots) {
+                let key = `${cls}|${slot.week}|${slot.slotLabel}`;
+                let val = currentTimetableMap.get(key);
+                let content = val ? `${val.subject}<br><span style="font-size:0.7rem;">${val.teacher}</span>` : '—';
+                html += `<td class="drag-cell" data-key="${escapeHtml(key)}" style="white-space:pre-line; cursor:grab;">${content}</td>`;
+            }
+            html += '</tr>';
+        }
+        html += '</tbody></table>';
+        container.innerHTML = html;
+        makeDraggable(container);
+    }
+    
+    // 班级课表渲染
+    function renderClassView(className) {
+        let classes = [...new Set(planData.map(p => p.className))].sort();
+        let container = document.getElementById('modalTableContainer');
+        
+        if (classes.length === 0) {
+            container.innerHTML = '<div class="status-msg">暂无班级计划</div>';
+            return;
+        }
+        
+        let selectHtml = `<div class="class-selector">
+            <span style="font-weight:600;">选择班级：</span>
+            <select id="modalClassSelect">${classes.map(c => `<option value="${escapeHtml(c)}" ${c === className ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('')}</select>
+        </div><div id="modalClassTable"></div>`;
+        container.innerHTML = selectHtml;
+        
+        function loadClass(cls) {
+            let maxM = maxMorning, maxS = maxSelf;
+            let rows = [];
+            for (let i = 1; i <= maxM; i++) rows.push({ type: 'morning', label: `早读${i}` });
+            for (let i = 1; i <= maxS; i++) rows.push({ type: 'self', label: `自习${i}` });
+            
+            let weeksWithSlots = weekDays.filter(wk => (dailyConfig[wk]?.morning > 0) || (dailyConfig[wk]?.self > 0));
+            
+            let html = '<div class="table-wrapper"><table><thead><tr><th>时段</th>';
+            for (let wk of weeksWithSlots) {
+                html += `<th>${weekMap[wk]}</th>`;
+            }
+            html += '</tr></thead><tbody>';
+            
+            for (let row of rows) {
+                html += `<tr><td style="font-weight:bold; background:#f8fafc;">${row.label}</td>`;
+                for (let wk of weeksWithSlots) {
+                    let key = `${cls}|${wk}|${row.label}`;
+                    let val = currentTimetableMap.get(key);
+                    let content = val ? `${val.subject}<br><span style="font-size:0.7rem;">${val.teacher}</span>` : '—';
+                    html += `<td class="drag-cell" data-key="${escapeHtml(key)}" style="white-space:pre-line; cursor:grab;">${content}</td>`;
+                }
+                html += '</tr>';
+            }
+            html += '</tbody></table></div>';
+            document.getElementById('modalClassTable').innerHTML = html;
+            makeDraggable(document.getElementById('modalClassTable'));
+            currentClassForView = cls;
+        }
+        
+        let selectEl = document.getElementById('modalClassSelect');
+        if (selectEl) {
+            selectEl.addEventListener('change', (e) => loadClass(e.target.value));
+        }
+        loadClass(className || classes[0]);
+    }
+    
+    // 教师课表渲染
+    function renderTeacherView() {
+        let container = document.getElementById('modalTableContainer');
+        if (currentTimetableMap.size === 0) {
+            container.innerHTML = '<div class="status-msg">暂无排课数据，请先点击"开始排课"</div>';
+            return;
+        }
+        
+        let teachersSet = new Set();
+        for (let v of currentTimetableMap.values()) teachersSet.add(v.teacher);
+        let teachers = [...teachersSet].sort();
+        
+        if (teachers.length === 0) {
+            container.innerHTML = '<div class="status-msg">暂无教师排课数据</div>';
+            return;
+        }
+        
+        let allSlots = getAllSlots();
+        
+        let html = '<div class="table-wrapper"><table><thead><tr><th>教师</th>';
+        for (let slot of allSlots) {
+            html += `<th>${slot.weekLabel}<br><span style="font-size:0.7rem;">${slot.slotLabel}</span></th>`;
+        }
+        html += '</tr></thead><tbody>';
+        
+        for (let teacher of teachers) {
+            html += `<tr><td style="font-weight:bold; background:#f8fafc;">${escapeHtml(teacher)}</td>`;
+            for (let slot of allSlots) {
+                let foundClasses = [];
+                for (let [key, val] of currentTimetableMap.entries()) {
+                    if (val.teacher === teacher && key.includes(`|${slot.week}|${slot.slotLabel}`)) {
+                        let className = key.split('|')[0];
+                        foundClasses.push(className);
+                    }
+                }
+                let content = foundClasses.length ? foundClasses.join(',') : '—';
+                let keyForDrag = `teacher_${teacher}_${slot.week}_${slot.slotLabel}`;
+                html += `<td class="drag-cell" data-key="${escapeHtml(keyForDrag)}" data-teacher="${escapeHtml(teacher)}" data-week="${slot.week}" data-slot="${slot.slotLabel}" style="cursor:grab;">${escapeHtml(content)}</td>`;
+            }
+            html += '</tr>';
+        }
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+        attachTeacherDrag(container);
+    }
+    
+    // 拖拽功能
+    let dragSource = null;
+    
+    function makeDraggable(container) {
+        if (!container) return;
+        const cells = container.querySelectorAll('.drag-cell');
+        cells.forEach(cell => {
+            cell.setAttribute('draggable', 'true');
+            cell.addEventListener('dragstart', function(e) {
+                dragSource = this;
+                e.dataTransfer.setData('text/plain', '');
+                this.style.opacity = '0.5';
+            });
+            cell.addEventListener('dragend', function(e) { 
+                if (this) this.style.opacity = '1';
+                dragSource = null;
+            });
+            cell.addEventListener('dragover', function(e) { 
+                e.preventDefault(); 
+                this.classList.add('drag-over');
+            });
+            cell.addEventListener('dragleave', function() { 
+                this.classList.remove('drag-over');
+            });
+            cell.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('drag-over');
+                if (!dragSource || dragSource === this) return;
+                
+                let sourceKey = dragSource.dataset.key;
+                let targetKey = this.dataset.key;
+                
+                if (sourceKey && targetKey && !sourceKey.startsWith('teacher_') && !targetKey.startsWith('teacher_')) {
+                    let sourceVal = currentTimetableMap.get(sourceKey);
+                    let targetVal = currentTimetableMap.get(targetKey);
+                    if (sourceVal) currentTimetableMap.set(targetKey, { ...sourceVal });
+                    else currentTimetableMap.delete(targetKey);
+                    if (targetVal) currentTimetableMap.set(sourceKey, { ...targetVal });
+                    else currentTimetableMap.delete(sourceKey);
+                    saveAllData();
+                    refreshCurrentModal();
+                }
+            });
+        });
+    }
+    
+    function attachTeacherDrag(container) {
+        if (!container) return;
+        let cells = container.querySelectorAll('.drag-cell');
+        cells.forEach(cell => {
+            cell.setAttribute('draggable', 'true');
+            cell.addEventListener('dragstart', function(e) {
+                dragSource = this;
+                e.dataTransfer.setData('text/plain', '');
+                this.style.opacity = '0.5';
+            });
+            cell.addEventListener('dragend', function(e) { 
+                if (this) this.style.opacity = '1';
+                dragSource = null;
+            });
+            cell.addEventListener('dragover', function(e) { 
+                e.preventDefault(); 
+                this.classList.add('drag-over');
+            });
+            cell.addEventListener('dragleave', function() { 
+                this.classList.remove('drag-over');
+            });
+            cell.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('drag-over');
+                if (!dragSource || dragSource === this) return;
+                
+                let sourceTeacher = dragSource.dataset.teacher;
+                let sourceWeek = dragSource.dataset.week;
+                let sourceSlot = dragSource.dataset.slot;
+                let targetTeacher = this.dataset.teacher;
+                let targetWeek = this.dataset.week;
+                let targetSlot = this.dataset.slot;
+                
+                if (sourceTeacher && sourceWeek && sourceSlot && targetTeacher && targetWeek && targetSlot) {
+                    let sourceClasses = [], targetClasses = [];
+                    for (let [key, val] of currentTimetableMap.entries()) {
+                        if (val.teacher === sourceTeacher && key.includes(`|${sourceWeek}|${sourceSlot}`)) {
+                            sourceClasses.push(key);
+                        }
+                        if (val.teacher === targetTeacher && key.includes(`|${targetWeek}|${targetSlot}`)) {
+                            targetClasses.push(key);
+                        }
+                    }
+                    for (let key of sourceClasses) {
+                        let val = currentTimetableMap.get(key);
+                        if (val) currentTimetableMap.set(key, { ...val, teacher: targetTeacher });
+                    }
+                    for (let key of targetClasses) {
+                        let val = currentTimetableMap.get(key);
+                        if (val) currentTimetableMap.set(key, { ...val, teacher: sourceTeacher });
+                    }
+                    saveAllData();
+                    refreshCurrentModal();
+                }
+            });
+        });
+    }
+    
+    function refreshCurrentModal() {
+        if (currentViewType === 'school') renderSchoolView();
+        else if (currentViewType === 'class') renderClassView(currentClassForView);
+        else if (currentViewType === 'teacher') renderTeacherView();
+    }
+    
+    // 导出当前视图为Excel
+    function exportCurrentViewToExcel() {
+        let container = document.getElementById('modalTableContainer');
+        let table = container.querySelector('table');
+        if (!table) { alert('没有可导出的表格'); return; }
+        let wsData = [];
+        let rows = table.querySelectorAll('tr');
+        for (let row of rows) {
+            let rowData = [];
+            let cells = row.querySelectorAll('th, td');
+            cells.forEach(cell => rowData.push(cell.innerText.trim()));
+            wsData.push(rowData);
+        }
+        let ws = XLSX.utils.aoa_to_sheet(wsData);
+        let wb = XLSX.utils.book_new();
+        let sheetName = currentViewType === 'school' ? '全校总表' : (currentViewType === 'class' ? '班级课表' : '教师课表');
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+        XLSX.writeFile(wb, `${sheetName}_${new Date().toISOString().slice(0, 19)}.xlsx`);
+    }
+    
+    // 弹窗控制
+    let modal = document.getElementById('viewModal');
+    function openModal(title, viewType) {
+        document.getElementById('modalTitle').innerText = title;
+        currentViewType = viewType;
+        if (viewType === 'school') renderSchoolView();
+        else if (viewType === 'class') renderClassView(currentClassForView);
+        else if (viewType === 'teacher') renderTeacherView();
+        modal.style.display = 'flex';
+    }
+    
+    document.querySelectorAll('.close-modal').forEach(btn => btn.addEventListener('click', () => modal.style.display = 'none'));
+    window.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+    
+    // 计划管理
+    function downloadTemplate() {
+        let wsData = [['班级', '科目', '类型', '周次数', '教师', '首选星期']];
+        wsData.push(['高一1班', '英语', '早读', 2, '张老师', '周一,周三']);
+        wsData.push(['高一1班', '语文', '早读', 2, '李老师', '周二,周四']);
+        wsData.push(['高一2班', '数学', '自习', 3, '王老师', '周一,周三,周五']);
+        let wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wsData), '模板');
+        XLSX.writeFile(wb, '早读自习模板.xlsx');
+    }
+    
+    function exportPlan() {
+        let sheet = [['班级', '科目', '类型', '周次数', '教师', '首选星期']];
+        planData.forEach(p => sheet.push([p.className, p.subject, p.type, p.weeklyCount, p.teacher, p.preferredWeekdays || '']));
+        let wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheet), '计划');
+        XLSX.writeFile(wb, `计划_${new Date().toISOString().slice(0, 19)}.xlsx`);
+    }
+    
+    function handleUpload(file) {
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            let data = new Uint8Array(e.target.result);
+            let wb = XLSX.read(data, { type: 'array' });
+            let sheet = wb.Sheets[wb.SheetNames[0]];
+            let rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+            if (!rows || rows.length < 2) return;
+            let headers = rows[0];
+            let idxC = headers.indexOf('班级'), idxSub = headers.indexOf('科目'), idxT = headers.indexOf('类型'), idxCnt = headers.indexOf('周次数'), idxTea = headers.indexOf('教师'), idxPref = headers.indexOf('首选星期');
+            let newPlans = [];
+            for (let i = 1; i < rows.length; i++) {
+                let r = rows[i];
+                let className = r[idxC]?.toString().trim();
+                let subject = r[idxSub]?.toString().trim();
+                let type = r[idxT]?.toString().trim();
+                let cnt = parseInt(r[idxCnt]);
+                let teacher = r[idxTea]?.toString().trim();
+                let pref = r[idxPref]?.toString().trim() || '';
+                if (className && subject && teacher && !isNaN(cnt) && (type === '早读' || type === '自习')) {
+                    newPlans.push({ className, subject, type, weeklyCount: cnt, teacher, preferredWeekdays: pref });
+                }
+            }
+            if (newPlans.length) { 
+                planData = newPlans; 
+                saveAllData(); 
+                updatePlanStatusMsg(); 
+                document.getElementById('timetableMsg').innerHTML = '计划已导入，请重新排课。';
+            } else alert('解析失败');
+        };
+        reader.readAsArrayBuffer(file);
+    }
+    
+    function showConfirmDialog(message, onConfirm) {
+        const dialog = document.createElement('div');
+        dialog.className = 'confirm-dialog';
+        dialog.innerHTML = `
+            <div class="confirm-content">
+                <p style="white-space: pre-line;">${message}</p>
+                <div class="confirm-buttons">
+                    <button class="btn" id="confirmCancelBtn">取消</button>
+                    <button class="btn btn-primary" id="confirmOkBtn">确认</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(dialog);
+        document.getElementById('confirmCancelBtn').onclick = () => dialog.remove();
+        document.getElementById('confirmOkBtn').onclick = () => { onConfirm(); dialog.remove(); };
+    }
+    
+    function applyRules() {
+        maxMorning = parseInt(document.getElementById('maxMorning').value);
+        maxSelf = parseInt(document.getElementById('maxSelf').value);
+        morningMulti = document.querySelector('input[name="morningMulti"]:checked').value === 'true';
+        selfMulti = document.querySelector('input[name="selfMulti"]:checked').value === 'true';
+        morningMaxClass = parseInt(document.getElementById('morningMaxClass').value);
+        selfMaxClass = parseInt(document.getElementById('selfMaxClass').value);
+        maxPerDayMorning = parseInt(document.getElementById('maxPerDayMorning').value);
+        maxPerDaySelf = parseInt(document.getElementById('maxPerDaySelf').value);
+        updateMultiInputState();
+        renderDailyConfig();
+        saveAllData();
+        document.getElementById('timetableMsg').innerHTML = '规则已应用，节数配置已保存。';
+    }
+    
+    // 初始化
+    function init() {
+        loadAllData();
+        
+        document.getElementById('applyRulesBtn').onclick = () => {
+            let newMorningMulti = document.querySelector('input[name="morningMulti"]:checked').value === 'true';
+            let newSelfMulti = document.querySelector('input[name="selfMulti"]:checked').value === 'true';
+            let newMorningMaxClass = parseInt(document.getElementById('morningMaxClass').value);
+            let newSelfMaxClass = parseInt(document.getElementById('selfMaxClass').value);
+            let newMaxPerDayMorning = parseInt(document.getElementById('maxPerDayMorning').value);
+            let newMaxPerDaySelf = parseInt(document.getElementById('maxPerDaySelf').value);
+            let newMaxMorning = parseInt(document.getElementById('maxMorning').value);
+            let newMaxSelf = parseInt(document.getElementById('maxSelf').value);
+            
+            const msg = `确认应用以下规则？
+
+👥 教师多班规则：
+• 早读：${newMorningMulti ? `允许，最多 ${newMorningMaxClass} 个班` : '禁止'}
+• 自习：${newSelfMulti ? `允许，最多 ${newSelfMaxClass} 个班` : '禁止'}
+
+📅 每天每班每门课程至多：
+• 早读：${newMaxPerDayMorning} 节
+• 自习：${newMaxPerDaySelf} 节
+
+📊 每天总节数上限：
+• 每天早读最多：${newMaxMorning} 节
+• 每天自习最多：${newMaxSelf} 节
+
+📆 节数配置：周一至周日已设置`;
+            showConfirmDialog(msg, applyRules);
+        };
+        
+        document.querySelectorAll('input[name="morningMulti"]').forEach(r => r.addEventListener('change', updateMultiInputState));
+        document.querySelectorAll('input[name="selfMulti"]').forEach(r => r.addEventListener('change', updateMultiInputState));
+        
+        document.getElementById('startSchedulingBtn').onclick = () => { runScheduling(); };
+        document.getElementById('clearTimetableBtn').onclick = () => { showConfirmDialog('确认清空所有已排课程？清空后可重新排课。', clearTimetable); };
+        document.getElementById('downloadTemplateBtn').onclick = downloadTemplate;
+        document.getElementById('uploadBtn').onclick = () => document.getElementById('uploadExcel').click();
+        document.getElementById('exportPlanBtn').onclick = exportPlan;
+        document.getElementById('clearPlanBtn').onclick = () => { showConfirmDialog('确认清空所有计划数据？', () => { planData = []; saveAllData(); updatePlanStatusMsg(); currentTimetableMap.clear(); updateSchedulingStatus(false); document.getElementById('timetableMsg').innerHTML = '计划已清空。'; }); };
+        document.getElementById('uploadExcel').onchange = (e) => { if (e.target.files[0]) handleUpload(e.target.files[0]); e.target.value = ''; };
+        document.getElementById('openSchoolViewBtn').onclick = () => openModal('全校总表 (拖拽单元格互换)', 'school');
+        document.getElementById('openClassViewBtn').onclick = () => openModal('班级课表 (拖拽互换)', 'class');
+        document.getElementById('openTeacherViewBtn').onclick = () => openModal('教师课表 (拖拽互换)', 'teacher');
+        document.getElementById('exportModalExcelBtn').onclick = exportCurrentViewToExcel;
+        document.getElementById('refreshModalBtn').onclick = () => refreshCurrentModal();
+    }
+    
+    init();
+</script>
+</body>
+</html>
