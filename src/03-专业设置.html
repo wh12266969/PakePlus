@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>类别管理 - 智能排课系统</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card h3 {
+            color: #1e3c72;
+            margin-top: 0;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #1e3c72;
+            padding-bottom: 8px;
+        }
+        
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            background: #1e3c72;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .btn:hover { background: #2b4c7c; transform: translateY(-1px); }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-warning { background: #ffc107; color: #333; }
+        .btn-warning:hover { background: #e0a800; }
+        .btn-info { background: #17a2b8; }
+        .btn-info:hover { background: #138496; }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        .data-table th, .data-table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        .data-table th {
+            background: #1e3c72;
+            color: white;
+        }
+        .data-table tr:hover { background: #f5f5f5; }
+        
+        /* 弹窗 - 加大尺寸 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            width: 800px;
+            max-width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+        .modal-content h4 {
+            margin-top: 0;
+            color: #1e3c72;
+            font-size: 20px;
+            border-bottom: 2px solid #1e3c72;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #333;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #1e3c72;
+            box-shadow: 0 0 0 3px rgba(30,60,114,0.1);
+        }
+        
+        /* 课程选择区域 */
+        .course-selector {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        /* 搜索栏 */
+        .search-bar {
+            padding: 12px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .search-bar input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+        }
+        .search-bar input:focus {
+            outline: none;
+            border-color: #1e3c72;
+        }
+        
+        /* 全选栏 */
+        .select-all-bar {
+            padding: 10px 12px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .select-all-bar label {
+            margin: 0;
+            font-weight: normal;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .select-all-bar input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        .selected-count {
+            margin-left: auto;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        /* 课程列表 - 网格布局 */
+        .course-list {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 12px;
+            background: white;
+        }
+        .course-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 8px;
+        }
+        .course-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #fafbfc;
+            border: 1px solid #eef2f6;
+        }
+        .course-item:hover {
+            background: #e8f4fd;
+            border-color: #1e3c72;
+        }
+        .course-item input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            margin: 0;
+        }
+        .course-item label {
+            flex: 1;
+            cursor: pointer;
+            margin: 0;
+            font-size: 13px;
+            color: #333;
+        }
+        .course-item.selected {
+            background: #e8f4fd;
+            border-color: #1e3c72;
+        }
+        
+        /* 空状态 */
+        .empty-courses {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 25px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 2000;
+            animation: fadeOut 2s ease-in-out;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .toast.error { background: #dc3545; }
+        @keyframes fadeOut {
+            0% { opacity: 1; transform: translateX(0); }
+            70% { opacity: 1; transform: translateX(0); }
+            100% { opacity: 0; transform: translateX(20px); visibility: hidden; }
+        }
+        
+        .tip-text {
+            font-size: 11px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        /* 滚动条美化 */
+        .course-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        .course-list::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+        .course-list::-webkit-scrollbar-thumb {
+            background: #cbd5e0;
+            border-radius: 3px;
+        }
+    </style>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <h3>📂 类别管理</h3>
+        
+        <div class="toolbar">
+            <button id="addBtn" class="btn btn-success">+ 添加类别</button>
+            <button id="importBtn" class="btn">📥 导入Excel</button>
+            <button id="exportBtn" class="btn">📤 导出Excel</button>
+            <button id="downloadTemplateBtn" class="btn btn-warning">📎 下载模板</button>
+        </div>
+        
+        <table class="data-table" id="dataTable">
+            <thead>
+                <tr><th>ID</th><th>类别名称</th><th>课程列表</th><th>操作</th> </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 编辑模态框 -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <h4 id="modalTitle">📝 添加类别</h4>
+        <div class="form-group">
+            <label>📌 类别名称</label>
+            <input type="text" id="categoryName" placeholder="如：理科、文科、计算机" autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label>📚 选择课程（可多选）</label>
+            <div class="course-selector">
+                <div class="search-bar">
+                    <input type="text" id="courseSearchInput" placeholder="🔍 搜索课程名称...">
+                </div>
+                <div class="select-all-bar">
+                    <label>
+                        <input type="checkbox" id="selectAllCheckbox"> 全选
+                    </label>
+                    <span class="selected-count" id="selectedCount">已选择 0 门课程</span>
+                </div>
+                <div class="course-list" id="courseList">
+                    <div class="course-grid" id="courseGrid"></div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-buttons">
+            <button id="cancelBtn" class="btn btn-danger">取消</button>
+            <button id="saveBtn" class="btn btn-success">保存</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const CATEGORY_KEY = "pk_categories";
+    const COURSE_KEY = "pk_courses";
+    let categories = [];
+    let courses = [];
+    let editingId = null;
+    let selectedCourseIds = new Set(); // 使用 Set 存储选中的课程ID
+    let currentSearchKeyword = "";
+
+    function loadData() {
+        let stored = localStorage.getItem(CATEGORY_KEY);
+        if (stored) categories = JSON.parse(stored);
+        else categories = [];
+        
+        let courseStored = localStorage.getItem(COURSE_KEY);
+        if (courseStored) courses = JSON.parse(courseStored);
+        else courses = [];
+        
+        renderTable();
+    }
+    
+    function saveData() {
+        localStorage.setItem(CATEGORY_KEY, JSON.stringify(categories));
+        renderTable();
+    }
+    
+    function getCourseName(id) {
+        let c = courses.find(c => c.id == id);
+        return c ? c.name : "未知";
+    }
+    
+    function renderTable() {
+        let tbody = document.getElementById("tableBody");
+        tbody.innerHTML = "";
+        for (let item of categories) {
+            let courseNames = (item.courseIds || []).map(id => getCourseName(id)).join("、");
+            let row = tbody.insertRow();
+            row.insertCell(0).innerText = item.id;
+            row.insertCell(1).innerText = item.name;
+            row.insertCell(2).innerHTML = courseNames || "<span style='color:#999;'>未配置</span>";
+            let actionCell = row.insertCell(3);
+            actionCell.innerHTML = `<button class="edit-btn" data-id="${item.id}" style="background:#ffc107; color:#333; border:none; padding:4px 10px; border-radius:4px; margin-right:5px; cursor:pointer;">✏️ 编辑</button>
+                                    <button class="delete-btn" data-id="${item.id}" style="background:#dc3545; color:white; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;">🗑️ 删除</button>`;
+        }
+        
+        document.querySelectorAll('.edit-btn').forEach(btn => {
+            btn.onclick = () => openEditModal(parseInt(btn.dataset.id));
+        });
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.onclick = () => {
+                if (confirm("确定要删除这个类别吗？")) {
+                    categories = categories.filter(i => i.id !== parseInt(btn.dataset.id));
+                    saveData();
+                    showToast("✅ 已删除");
+                }
+            };
+        });
+    }
+    
+    // 渲染课程复选框列表
+    function renderCourseList(selectedIds = []) {
+        selectedCourseIds.clear();
+        selectedIds.forEach(id => selectedCourseIds.add(id));
+        
+        const courseGrid = document.getElementById("courseGrid");
+        const searchInput = document.getElementById("courseSearchInput");
+        const selectAllCheckbox = document.getElementById("selectAllCheckbox");
+        const selectedCountSpan = document.getElementById("selectedCount");
+        
+        // 过滤课程
+        let filteredCourses = courses;
+        if (currentSearchKeyword) {
+            filteredCourses = courses.filter(c => 
+                c.name.toLowerCase().includes(currentSearchKeyword.toLowerCase())
+            );
+        }
+        
+        // 渲染课程列表
+        if (filteredCourses.length === 0) {
+            courseGrid.innerHTML = `<div class="empty-courses">📭 暂无课程，请先在课程管理中添加课程</div>`;
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.disabled = true;
+        } else {
+            selectAllCheckbox.disabled = false;
+            let html = '';
+            for (let course of filteredCourses) {
+                const isSelected = selectedCourseIds.has(course.id);
+                html += `
+                    <div class="course-item ${isSelected ? 'selected' : ''}" data-id="${course.id}">
+                        <input type="checkbox" class="course-checkbox" id="course_${course.id}" value="${course.id}" ${isSelected ? 'checked' : ''}>
+                        <label for="course_${course.id}">${escapeHtml(course.name)}</label>
+                    </div>
+                `;
+            }
+            courseGrid.innerHTML = html;
+            
+            // 绑定复选框事件
+            document.querySelectorAll('.course-checkbox').forEach(checkbox => {
+                checkbox.onchange = (e) => {
+                    e.stopPropagation();
+                    const courseId = parseInt(checkbox.value);
+                    if (checkbox.checked) {
+                        selectedCourseIds.add(courseId);
+                    } else {
+                        selectedCourseIds.delete(courseId);
+                    }
+                    updateSelectedCount();
+                    updateSelectAllState();
+                    // 更新高亮样式
+                    const parentDiv = checkbox.closest('.course-item');
+                    if (parentDiv) {
+                        if (checkbox.checked) {
+                            parentDiv.classList.add('selected');
+                        } else {
+                            parentDiv.classList.remove('selected');
+                        }
+                    }
+                };
+            });
+            
+            // 绑定行点击事件（点击整行也可以勾选）
+            document.querySelectorAll('.course-item').forEach(item => {
+                item.onclick = (e) => {
+                    // 避免点击复选框时重复触发
+                    if (e.target.type !== 'checkbox') {
+                        const checkbox = item.querySelector('.course-checkbox');
+                        if (checkbox) {
+                            checkbox.checked = !checkbox.checked;
+                            const event = new Event('change');
+                            checkbox.dispatchEvent(event);
+                        }
+                    }
+                };
+            });
+        }
+        
+        // 更新全选状态
+        function updateSelectAllState() {
+            const visibleCheckboxes = Array.from(document.querySelectorAll('.course-checkbox'));
+            const allVisibleSelected = visibleCheckboxes.length > 0 && visibleCheckboxes.every(cb => cb.checked);
+            selectAllCheckbox.checked = allVisibleSelected;
+            selectAllCheckbox.indeterminate = !allVisibleSelected && visibleCheckboxes.some(cb => cb.checked);
+        }
+        
+        // 更新已选数量
+        function updateSelectedCount() {
+            selectedCountSpan.innerText = `已选择 ${selectedCourseIds.size} 门课程`;
+            updateSelectAllState();
+        }
+        
+        // 全选/取消全选
+        selectAllCheckbox.onchange = () => {
+            const isChecked = selectAllCheckbox.checked;
+            const visibleCheckboxes = document.querySelectorAll('.course-checkbox');
+            visibleCheckboxes.forEach(checkbox => {
+                checkbox.checked = isChecked;
+                const courseId = parseInt(checkbox.value);
+                if (isChecked) {
+                    selectedCourseIds.add(courseId);
+                } else {
+                    selectedCourseIds.delete(courseId);
+                }
+                // 更新样式
+                const parentDiv = checkbox.closest('.course-item');
+                if (parentDiv) {
+                    if (isChecked) {
+                        parentDiv.classList.add('selected');
+                    } else {
+                        parentDiv.classList.remove('selected');
+                    }
+                }
+            });
+            updateSelectedCount();
+        };
+        
+        updateSelectedCount();
+    }
+    
+    // 搜索功能
+    function setupSearch() {
+        const searchInput = document.getElementById("courseSearchInput");
+        if (!searchInput) return;
+        
+        searchInput.oninput = (e) => {
+            currentSearchKeyword = e.target.value;
+            // 获取当前选中的课程ID列表
+            const currentSelected = Array.from(selectedCourseIds);
+            renderCourseList(currentSelected);
+        };
+    }
+    
+    function openEditModal(id) {
+        editingId = id;
+        const modal = document.getElementById("editModal");
+        const categoryNameInput = document.getElementById("categoryName");
+        
+        // 重置搜索关键词
+        currentSearchKeyword = "";
+        const searchInput = document.getElementById("courseSearchInput");
+        if (searchInput) searchInput.value = "";
+        
+        if (id) {
+            let item = categories.find(i => i.id === id);
+            document.getElementById("modalTitle").innerHTML = "✏️ 编辑类别";
+            categoryNameInput.value = item.name;
+            renderCourseList(item.courseIds || []);
+        } else {
+            document.getElementById("modalTitle").innerHTML = "➕ 添加类别";
+            categoryNameInput.value = "";
+            renderCourseList([]);
+        }
+        
+        modal.style.display = "flex";
+        setupSearch();
+    }
+    
+    function saveCategory() {
+        let name = document.getElementById("categoryName").value.trim();
+        if (!name) { 
+            showToast("❌ 请输入类别名称", true); 
+            return; 
+        }
+        
+        const courseIds = Array.from(selectedCourseIds);
+        
+        if (editingId) {
+            let index = categories.findIndex(i => i.id === editingId);
+            if (index !== -1) {
+                categories[index] = { ...categories[index], name, courseIds: courseIds };
+            }
+            showToast("✅ 更新成功");
+        } else {
+            let newId = categories.length > 0 ? Math.max(...categories.map(i => i.id)) + 1 : 1;
+            categories.push({ id: newId, name, courseIds: courseIds });
+            showToast("✅ 添加成功");
+        }
+        saveData();
+        closeModal();
+    }
+    
+    function closeModal() {
+        document.getElementById("editModal").style.display = "none";
+        editingId = null;
+        selectedCourseIds.clear();
+        currentSearchKeyword = "";
+    }
+    
+    function exportData() {
+        let wsData = [["ID", "类别名称", "课程列表"]];
+        for (let item of categories) {
+            let courseNames = (item.courseIds || []).map(id => getCourseName(id)).join("、");
+            wsData.push([item.id, item.name, courseNames]);
+        }
+        let ws = XLSX.utils.aoa_to_sheet(wsData);
+        let wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "类别管理");
+        XLSX.writeFile(wb, "类别管理.xlsx");
+        showToast("✅ 导出成功");
+    }
+    
+    function downloadTemplate() {
+        let wsData = [["类别名称", "课程名称"]];
+        wsData.push(["理科", "数学"]);
+        wsData.push(["理科", "语文"]);
+        wsData.push(["理科", "英语"]);
+        wsData.push(["理科", "物理"]);
+        wsData.push(["理科", "化学"]);
+        wsData.push(["理科", "生物"]);
+        wsData.push(["文科", "数学"]);
+        wsData.push(["文科", "语文"]);
+        wsData.push(["文科", "英语"]);
+        wsData.push(["文科", "历史"]);
+        wsData.push(["文科", "地理"]);
+        wsData.push(["文科", "政治"]);
+        let ws = XLSX.utils.aoa_to_sheet(wsData);
+        ws['!cols'] = [{wch:15}, {wch:20}];
+        let wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "类别模板");
+        XLSX.writeFile(wb, "类别模板.xlsx");
+        showToast("📎 模板下载成功");
+    }
+    
+    function importExcel(file) {
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            let workbook = XLSX.read(e.target.result, { type: 'array' });
+            let sheet = workbook.Sheets[workbook.SheetNames[0]];
+            let rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+            if (!rows || rows.length < 2) { showToast("文件至少需要两行", true); return; }
+            
+            let categoryCoursesMap = new Map();
+            
+            for (let i = 1; i < rows.length; i++) {
+                let row = rows[i];
+                if (!row[0] || !row[0].toString().trim()) continue;
+                let categoryName = row[0].toString().trim();
+                let courseName = row[1] ? row[1].toString().trim() : "";
+                if (!courseName) continue;
+                
+                if (!categoryCoursesMap.has(categoryName)) {
+                    categoryCoursesMap.set(categoryName, new Set());
+                }
+                categoryCoursesMap.get(categoryName).add(courseName);
+            }
+            
+            let maxId = categories.length > 0 ? Math.max(...categories.map(i => i.id)) : 0;
+            let newCount = 0;
+            
+            for (let [categoryName, courseSet] of categoryCoursesMap) {
+                let courseIds = [];
+                for (let courseName of courseSet) {
+                    let course = courses.find(c => c.name === courseName);
+                    if (course) {
+                        courseIds.push(course.id);
+                    } else {
+                        console.warn(`课程 "${courseName}" 不存在于课程管理中`);
+                    }
+                }
+                
+                let existingCategory = categories.find(c => c.name === categoryName);
+                if (existingCategory) {
+                    let existingCourseSet = new Set(existingCategory.courseIds || []);
+                    for (let id of courseIds) {
+                        existingCourseSet.add(id);
+                    }
+                    existingCategory.courseIds = Array.from(existingCourseSet);
+                } else {
+                    maxId++;
+                    categories.push({
+                        id: maxId,
+                        name: categoryName,
+                        courseIds: courseIds
+                    });
+                    newCount++;
+                }
+            }
+            
+            saveData();
+            showToast(`📥 导入完成，新增 ${newCount} 个类别，更新了 ${categoryCoursesMap.size - newCount} 个类别的课程`);
+        };
+        reader.readAsArrayBuffer(file);
+    }
+    
+    function showToast(msg, isErr) {
+        let t = document.createElement("div");
+        t.className = "toast" + (isErr ? " error" : "");
+        t.innerText = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 3000);
+    }
+    
+    function escapeHtml(s) {
+        if (!s) return '';
+        return s.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+    
+    function init() {
+        loadData();
+        document.getElementById("addBtn").onclick = () => openEditModal(null);
+        document.getElementById("cancelBtn").onclick = closeModal;
+        document.getElementById("saveBtn").onclick = saveCategory;
+        document.getElementById("exportBtn").onclick = exportData;
+        document.getElementById("downloadTemplateBtn").onclick = downloadTemplate;
+        document.getElementById("importBtn").onclick = () => {
+            let input = document.createElement("input");
+            input.type = "file";
+            input.accept = ".xlsx, .xls";
+            input.onchange = e => { if (e.target.files[0]) importExcel(e.target.files[0]); };
+            input.click();
+        };
+        window.onclick = e => { if (e.target === document.getElementById("editModal")) closeModal(); };
+    }
+    init();
+</script>
+</body>
+</html>
