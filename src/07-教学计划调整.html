@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>调课计划 - 智能排课系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .card h3 {
+            color: #1e3c72;
+            margin-bottom: 16px;
+            border-bottom: 2px solid #1e3c72;
+            padding-bottom: 8px;
+        }
+
+        .search-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            width: 100%;
+            max-width: 400px;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 16px;
+            outline: none;
+            transition: 0.2s;
+        }
+
+        .search-input:focus {
+            border-color: #1e3c72;
+        }
+
+        .dropdown-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: auto;
+            width: 100%;
+            max-width: 400px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .dropdown-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .dropdown-item:hover {
+            background: #e8f4fd;
+        }
+
+        .class-checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .class-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #f8f9fa;
+            padding: 8px 16px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .class-checkbox:hover {
+            background: #e8f4fd;
+        }
+
+        .class-checkbox input {
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .btn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-primary {
+            background: #1e3c72;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2b4c7c;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .preview-btn {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+        }
+
+        .selection-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .selected-info {
+            background: #e8f4fd;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            display: inline-block;
+        }
+
+        .selected-classes-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .selected-class-tag {
+            background: #1e3c72;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .selected-class-tag .remove {
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .selected-class-tag .remove:hover {
+            color: #ffc107;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 1200px;
+            max-height: 85%;
+            overflow: auto;
+            padding: 24px;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .modal-header h2 {
+            color: #1e3c72;
+        }
+
+        .close-modal {
+            font-size: 28px;
+            cursor: pointer;
+            background: none;
+            border: none;
+        }
+
+        .batch-info {
+            background: #e8f4fd;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .two-columns {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .column {
+            flex: 1;
+            min-width: 300px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .column h4 {
+            color: #1e3c72;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .teacher-info {
+            background: #e8f4fd;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .schedule-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .schedule-table th, .schedule-table td {
+            border: 1px solid #ddd;
+            padding: 8px 4px;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .schedule-table th {
+            background: #1e3c72;
+            color: white;
+        }
+
+        .schedule-cell {
+            background: #f5f5f5;
+        }
+
+        .schedule-cell.source-course {
+            background: #d4edda;
+            font-weight: bold;
+        }
+
+        .schedule-cell.conflict {
+            background: #dc3545;
+            color: white;
+        }
+
+        .conflict-warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 12px;
+            margin-top: 16px;
+            border-radius: 8px;
+            color: #856404;
+        }
+
+        .action-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 2000;
+            animation: fadeOut 2s ease-in-out;
+        }
+
+        .toast.error {
+            background: #dc3545;
+        }
+
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; visibility: hidden; }
+        }
+        
+        .tip-text {
+            font-size: 13px;
+            color: #6c757d;
+            margin-top: 8px;
+        }
+        
+        .class-selector-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <h3>📋 第一步：选择原教师</h3>
+        <div class="search-container">
+            <input type="text" id="teacherSearch" class="search-input" placeholder="🔍 输入教师姓名搜索...">
+            <div id="teacherDropdown" class="dropdown-list"></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>🏫 第二步：选择要调整的班级（可多选）</h3>
+        <div class="selection-bar">
+            <span class="selected-info" id="selectedCountInfo">已选择 0 个班级</span>
+            <div>
+                <button id="selectAllClassesBtn" class="btn btn-sm btn-secondary">全选</button>
+                <button id="clearAllClassesBtn" class="btn btn-sm btn-secondary">清空</button>
+            </div>
+        </div>
+        <div id="classCheckboxGroup" class="class-checkbox-group">
+            <!-- 动态加载班级列表 -->
+        </div>
+        <div id="selectedClassesTags" class="selected-classes-list"></div>
+    </div>
+
+    <div class="card">
+        <h3>🚀 第三步：预览并调课</h3>
+        <button id="previewBtn" class="btn btn-primary preview-btn">📅 预览原教师课表并调课</button>
+    </div>
+</div>
+
+<!-- 弹窗 -->
+<div id="scheduleModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>批量调课计划 - 教师调换</h2>
+            <button class="close-modal">&times;</button>
+        </div>
+
+        <div id="batchInfo" class="batch-info"></div>
+
+        <div class="two-columns">
+            <!-- 左边：原教师课表汇总 -->
+            <div class="column">
+                <h4>📖 原教师课表（选中班级汇总）</h4>
+                <div id="sourceTeacherInfo" class="teacher-info">请先选择原教师</div>
+                <div id="sourceClassesInfo" class="teacher-info"></div>
+                <div id="sourceScheduleTable"></div>
+            </div>
+
+            <!-- 右边：目标教师课表 -->
+            <div class="column">
+                <h4>🎯 目标教师</h4>
+                <div class="search-container" style="margin-bottom: 16px;">
+                    <input type="text" id="targetTeacherSearch" class="search-input" placeholder="🔍 输入目标教师姓名...">
+                    <div id="targetTeacherDropdown" class="dropdown-list"></div>
+                </div>
+                <div id="targetTeacherInfo" class="teacher-info">请选择目标教师</div>
+                <div id="targetScheduleTable"></div>
+                <div id="conflictInfo" class="conflict-warning" style="display: none;">
+                    ⚠️ <span id="conflictText"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <button id="cancelModalBtn" class="btn btn-secondary">取消</button>
+            <button id="confirmSwapBtn" class="btn btn-primary" disabled>确认批量调课</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ========== 存储KEY ==========
+    const TEACHERS_KEY = "pk_teachers";
+    const CLASSES_KEY = "pk_classes";
+    const COURSES_KEY = "pk_courses";
+    const PLANS_KEY = "pk_plans";
+    const SCHEDULES_KEY = "pk_schedules";
+    const SCHEDULE_CONFIG_KEY = "pk_scheduleConfig";
+
+    // ========== 全局数据 ==========
+    let teachers = [];
+    let classes = [];
+    let courses = [];
+    let plans = [];
+    let schedules = {};
+    let weekdays = ["星期一", "星期二", "星期三", "星期四", "星期五"];
+    let periods = [];
+
+    // 当前选中的数据
+    let selectedTeacher = null;
+    let selectedClassIds = [];      // 多选班级ID数组
+    let sourceCoursesMap = new Map(); // 班级ID -> 课程列表
+    let selectedTargetTeacher = null;
+    let conflicts = [];              // 冲突的时段列表
+
+    // ========== 加载数据 ==========
+    function loadData() {
+        let t = localStorage.getItem(TEACHERS_KEY);
+        if (t) teachers = JSON.parse(t);
+        else teachers = [];
+
+        let c = localStorage.getItem(CLASSES_KEY);
+        if (c) classes = JSON.parse(c);
+        else classes = [];
+
+        let cs = localStorage.getItem(COURSES_KEY);
+        if (cs) courses = JSON.parse(cs);
+        else courses = [];
+
+        let p = localStorage.getItem(PLANS_KEY);
+        if (p) plans = JSON.parse(p);
+        else plans = [];
+
+        let s = localStorage.getItem(SCHEDULES_KEY);
+        if (s) schedules = JSON.parse(s);
+        else schedules = {};
+
+        let sc = localStorage.getItem(SCHEDULE_CONFIG_KEY);
+        if (sc) {
+            try {
+                let config = JSON.parse(sc);
+                periods = [];
+                for (let i = 1; i <= (config.dayPeriods || 6); i++) {
+                    periods.push("第" + i + "节");
+                }
+                weekdays = config.selectedWeekdays || ["星期一", "星期二", "星期三", "星期四", "星期五"];
+            } catch(e) {}
+        } else {
+            periods = ["第1节", "第2节", "第3节", "第4节", "第5节", "第6节"];
+        }
+    }
+
+    function getTeacherName(id) {
+        let t = teachers.find(t => t.id == id);
+        return t ? t.name : "未知教师";
+    }
+
+    function getCourseName(id) {
+        let c = courses.find(c => c.id == id);
+        return c ? c.name : "未知课程";
+    }
+
+    function getClassName(id) {
+        let c = classes.find(c => c.id == id);
+        return c ? c.name : "未知班级";
+    }
+
+    // ========== 搜索框功能 ==========
+    function initTeacherSearch() {
+        let input = document.getElementById("teacherSearch");
+        let dropdown = document.getElementById("teacherDropdown");
+
+        input.addEventListener("input", function() {
+            let keyword = this.value.toLowerCase();
+            if (keyword === "") {
+                dropdown.style.display = "none";
+                return;
+            }
+
+            let matched = teachers.filter(t => t.name.toLowerCase().includes(keyword));
+            if (matched.length === 0) {
+                dropdown.style.display = "none";
+                return;
+            }
+
+            dropdown.innerHTML = "";
+            matched.forEach(t => {
+                let div = document.createElement("div");
+                div.className = "dropdown-item";
+                let teacherClasses = plans.filter(p => p.teacherId == t.id).map(p => getClassName(p.classId));
+                let uniqueClasses = [...new Set(teacherClasses)];
+                div.innerHTML = `<strong>${t.name}</strong> <span style="color:#666; font-size:12px;">(${uniqueClasses.join(", ")})</span>`;
+                div.onclick = () => {
+                    input.value = t.name;
+                    selectedTeacher = t;
+                    dropdown.style.display = "none";
+                    loadClassCheckboxes();
+                    updateSelectedCountDisplay();
+                };
+                dropdown.appendChild(div);
+            });
+            dropdown.style.display = "block";
+        });
+
+        document.addEventListener("click", function(e) {
+            if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.style.display = "none";
+            }
+        });
+    }
+
+    function loadClassCheckboxes() {
+        if (!selectedTeacher) return;
+
+        let container = document.getElementById("classCheckboxGroup");
+        let teacherClassIds = [...new Set(plans.filter(p => p.teacherId == selectedTeacher.id).map(p => p.classId))];
+        let teacherClasses = classes.filter(c => teacherClassIds.includes(c.id));
+
+        if (teacherClasses.length === 0) {
+            container.innerHTML = "<span style='color:#999;'>该教师暂无任课班级</span>";
+            return;
+        }
+
+        container.innerHTML = "";
+        teacherClasses.forEach(cls => {
+            let isChecked = selectedClassIds.includes(cls.id);
+            let label = document.createElement("label");
+            label.className = "class-checkbox";
+            label.innerHTML = `<input type="checkbox" value="${cls.id}" ${isChecked ? 'checked' : ''}> ${cls.name}`;
+            let checkbox = label.querySelector("input");
+            checkbox.addEventListener("change", function(e) {
+                if (this.checked) {
+                    if (!selectedClassIds.includes(cls.id)) {
+                        selectedClassIds.push(cls.id);
+                    }
+                } else {
+                    selectedClassIds = selectedClassIds.filter(id => id !== cls.id);
+                }
+                updateSelectedCountDisplay();
+                renderSelectedClassTags();
+            });
+            container.appendChild(label);
+        });
+        
+        renderSelectedClassTags();
+    }
+
+    function updateSelectedCountDisplay() {
+        let count = selectedClassIds.length;
+        document.getElementById("selectedCountInfo").innerHTML = `已选择 ${count} 个班级`;
+    }
+
+    function renderSelectedClassTags() {
+        let container = document.getElementById("selectedClassesTags");
+        if (selectedClassIds.length === 0) {
+            container.innerHTML = "";
+            return;
+        }
+        
+        container.innerHTML = "";
+        selectedClassIds.forEach(classId => {
+            let className = getClassName(classId);
+            let tag = document.createElement("span");
+            tag.className = "selected-class-tag";
+            tag.innerHTML = `${className} <span class="remove" data-id="${classId}">✖</span>`;
+            tag.querySelector(".remove").onclick = () => {
+                selectedClassIds = selectedClassIds.filter(id => id !== classId);
+                // 更新复选框状态
+                let checkboxes = document.querySelectorAll("#classCheckboxGroup input[type='checkbox']");
+                checkboxes.forEach(cb => {
+                    if (parseInt(cb.value) === classId) {
+                        cb.checked = false;
+                    }
+                });
+                updateSelectedCountDisplay();
+                renderSelectedClassTags();
+            };
+            container.appendChild(tag);
+        });
+    }
+
+    function selectAllClasses() {
+        let checkboxes = document.querySelectorAll("#classCheckboxGroup input[type='checkbox']");
+        selectedClassIds = [];
+        checkboxes.forEach(cb => {
+            cb.checked = true;
+            selectedClassIds.push(parseInt(cb.value));
+        });
+        updateSelectedCountDisplay();
+        renderSelectedClassTags();
+    }
+
+    function clearAllClasses() {
+        let checkboxes = document.querySelectorAll("#classCheckboxGroup input[type='checkbox']");
+        checkboxes.forEach(cb => {
+            cb.checked = false;
+        });
+        selectedClassIds = [];
+        updateSelectedCountDisplay();
+        renderSelectedClassTags();
+    }
+
+    // ========== 获取原教师课程（多班级） ==========
+    function getAllSourceCourses() {
+        sourceCoursesMap.clear();
+        let allCourses = [];
+        
+        for (let classId of selectedClassIds) {
+            let schedule = schedules[classId] || {};
+            let classCourses = [];
+            for (let key in schedule) {
+                let lesson = schedule[key];
+                if (lesson && lesson.teacherId == selectedTeacher.id) {
+                    let [day, period] = key.split("-");
+                    let courseItem = {
+                        classId: classId,
+                        className: getClassName(classId),
+                        day: day,
+                        period: period,
+                        courseId: lesson.courseId,
+                        courseName: getCourseName(lesson.courseId),
+                        teacherId: lesson.teacherId,
+                        key: key
+                    };
+                    classCourses.push(courseItem);
+                    allCourses.push(courseItem);
+                }
+            }
+            sourceCoursesMap.set(classId, classCourses);
+        }
+        
+        return allCourses;
+    }
+
+    // ========== 检查冲突 ==========
+    function checkConflictsForTarget(targetTeacherId, sourceCoursesList) {
+        if (!targetTeacherId || sourceCoursesList.length === 0) return [];
+        
+        let conflictList = [];
+        
+        for (let source of sourceCoursesList) {
+            for (let classId in schedules) {
+                let schedule = schedules[classId];
+                let key = source.day + "-" + source.period;
+                let lesson = schedule[key];
+                if (lesson && lesson.teacherId == targetTeacherId) {
+                    conflictList.push({
+                        day: source.day,
+                        period: source.period,
+                        className: getClassName(parseInt(classId)),
+                        courseName: getCourseName(lesson.courseId),
+                        sourceClass: source.className,
+                        sourceCourse: source.courseName
+                    });
+                    break;
+                }
+            }
+        }
+        
+        return conflictList;
+    }
+
+    // ========== 弹窗功能 ==========
+    function openModal() {
+        if (!selectedTeacher) {
+            showToast("请先选择原教师", true);
+            return;
+        }
+        if (selectedClassIds.length === 0) {
+            showToast("请至少选择一个班级", true);
+            return;
+        }
+
+        // 获取原教师课程
+        let allSourceCourses = getAllSourceCourses();
+        let totalCourses = allSourceCourses.length;
+        
+        if (totalCourses === 0) {
+            showToast("该教师在所选班级中没有课程", true);
+            return;
+        }
+
+        let modal = document.getElementById("scheduleModal");
+        modal.style.display = "flex";
+
+        // 更新批量信息
+        let classNames = selectedClassIds.map(id => getClassName(id)).join("、");
+        document.getElementById("batchInfo").innerHTML = `📊 批量调课信息：原教师 <strong>${selectedTeacher.name}</strong> 在 <strong>${selectedClassIds.length}</strong> 个班级（${classNames}）中共有 <strong>${totalCourses}</strong> 节课需要调换`;
+        
+        document.getElementById("sourceTeacherInfo").innerHTML = `<strong>原教师：</strong> ${selectedTeacher.name}`;
+        document.getElementById("sourceClassesInfo").innerHTML = `<strong>涉及班级：</strong> ${classNames}<br><strong>课程总数：</strong> ${totalCourses}节`;
+        
+        // 渲染原教师课表汇总（合并显示多个班级）
+        renderSourceScheduleSummary();
+
+        // 重置目标教师相关
+        selectedTargetTeacher = null;
+        conflicts = [];
+        document.getElementById("targetTeacherSearch").value = "";
+        document.getElementById("targetTeacherInfo").innerHTML = "请选择目标教师";
+        document.getElementById("targetScheduleTable").innerHTML = "";
+        document.getElementById("conflictInfo").style.display = "none";
+        document.getElementById("confirmSwapBtn").disabled = true;
+
+        initTargetTeacherSearch();
+    }
+
+    function renderSourceScheduleSummary() {
+        // 创建一个合并视图：按节次显示所有选中班级中该教师的课程
+        let html = '<table class="schedule-table"><thead><tr><th>节次</th>';
+        for (let day of weekdays) {
+            html += `<th>${day}</th>`;
+        }
+        html += '</tr></thead><tbody>';
+
+        for (let period of periods) {
+            html += `<tr><td style="font-weight:bold;">${period}</td>`;
+            for (let day of weekdays) {
+                let coursesAtSlot = [];
+                for (let classId of selectedClassIds) {
+                    let schedule = schedules[classId] || {};
+                    let key = day + "-" + period;
+                    let lesson = schedule[key];
+                    if (lesson && lesson.teacherId == selectedTeacher.id) {
+                        coursesAtSlot.push({
+                            className: getClassName(classId),
+                            courseName: getCourseName(lesson.courseId)
+                        });
+                    }
+                }
+                
+                let content = "";
+                if (coursesAtSlot.length > 0) {
+                    content = coursesAtSlot.map(c => `<span style="display:block; font-size:11px;">${c.className}<br>${c.courseName}</span>`).join("");
+                }
+                let hasCourse = coursesAtSlot.length > 0;
+                let cellClass = hasCourse ? "source-course" : "";
+                html += `<td class="schedule-cell ${cellClass}">${content || "—"}<\/td>`;
+            }
+            html += '</tr>';
+        }
+        html += '</tbody></table>';
+        document.getElementById("sourceScheduleTable").innerHTML = html;
+    }
+
+    function initTargetTeacherSearch() {
+        let input = document.getElementById("targetTeacherSearch");
+        let dropdown = document.getElementById("targetTeacherDropdown");
+
+        // 移除旧的事件监听器，重新创建
+        let newInput = input.cloneNode(true);
+        input.parentNode.replaceChild(newInput, input);
+        input = newInput;
+        
+        let newDropdown = dropdown.cloneNode(true);
+        dropdown.parentNode.replaceChild(newDropdown, dropdown);
+        dropdown = newDropdown;
+
+        let allSourceCourses = getAllSourceCourses();
+
+        input.addEventListener("input", function() {
+            let keyword = this.value.toLowerCase();
+            if (keyword === "") {
+                dropdown.style.display = "none";
+                return;
+            }
+
+            let matched = teachers.filter(t => t.name.toLowerCase().includes(keyword) && t.id !== selectedTeacher.id);
+            if (matched.length === 0) {
+                dropdown.style.display = "none";
+                return;
+            }
+
+            dropdown.innerHTML = "";
+            matched.forEach(t => {
+                let div = document.createElement("div");
+                div.className = "dropdown-item";
+                let teacherClasses = plans.filter(p => p.teacherId == t.id).map(p => getClassName(p.classId));
+                let uniqueClasses = [...new Set(teacherClasses)];
+                div.innerHTML = `<strong>${t.name}</strong> <span style="color:#666; font-size:12px;">(${uniqueClasses.join(", ")})</span>`;
+                div.onclick = () => {
+                    input.value = t.name;
+                    selectedTargetTeacher = t;
+                    dropdown.style.display = "none";
+                    
+                    // 检查冲突
+                    conflicts = checkConflictsForTarget(selectedTargetTeacher.id, allSourceCourses);
+                    renderTargetSchedule();
+                    updateConflictInfo();
+                };
+                dropdown.appendChild(div);
+            });
+            dropdown.style.display = "block";
+        });
+
+        document.addEventListener("click", function(e) {
+            if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.style.display = "none";
+            }
+        });
+        
+        document.getElementById("targetTeacherSearch").value = "";
+        document.getElementById("targetTeacherInfo").innerHTML = "请选择目标教师";
+        document.getElementById("targetScheduleTable").innerHTML = "";
+    }
+
+    function renderTargetSchedule() {
+        if (!selectedTargetTeacher) return;
+
+        document.getElementById("targetTeacherInfo").innerHTML = `<strong>目标教师：</strong> ${selectedTargetTeacher.name}`;
+        
+        // 收集目标教师的所有课程（所有班级）
+        let teacherCourses = [];
+        for (let classId in schedules) {
+            let schedule = schedules[classId];
+            for (let key in schedule) {
+                let lesson = schedule[key];
+                if (lesson && lesson.teacherId == selectedTargetTeacher.id) {
+                    let [day, period] = key.split("-");
+                    teacherCourses.push({
+                        classId: parseInt(classId),
+                        className: getClassName(parseInt(classId)),
+                        day, period,
+                        courseName: getCourseName(lesson.courseId)
+                    });
+                }
+            }
+        }
+
+        let html = '<table class="schedule-table"><thead><tr><th>节次</th>';
+        for (let day of weekdays) {
+            html += `<th>${day}</th>`;
+        }
+        html += '</tr></thead><tbody>';
+
+        for (let period of periods) {
+            html += `<tr><td style="font-weight:bold;">${period}</td>`;
+            for (let day of weekdays) {
+                let course = teacherCourses.find(c => c.day === day && c.period === period);
+                let isConflict = conflicts.some(c => c.day === day && c.period === period);
+                
+                if (course) {
+                    let conflictClass = isConflict ? "conflict" : "";
+                    html += `<td class="schedule-cell ${conflictClass}">${course.courseName}<br><span style="font-size:11px;">${course.className}</span></td>`;
+                } else {
+                    let conflictClass = isConflict ? "conflict" : "";
+                    html += `<td class="${conflictClass}">—<\/td>`;
+                }
+            }
+            html += '</tr>';
+        }
+        html += '</tbody></tr>';
+        document.getElementById("targetScheduleTable").innerHTML = html;
+    }
+
+    function updateConflictInfo() {
+        if (conflicts.length > 0) {
+            let conflictText = conflicts.map(c => `${c.day} ${c.period}（${c.className} ${c.courseName}）`).join("；");
+            document.getElementById("conflictInfo").style.display = "block";
+            document.getElementById("conflictText").innerHTML = `目标教师 ${selectedTargetTeacher.name} 在以下时段已有课程，冲突！无法批量调课：${conflictText}`;
+            document.getElementById("confirmSwapBtn").disabled = true;
+        } else {
+            document.getElementById("conflictInfo").style.display = "none";
+            document.getElementById("confirmSwapBtn").disabled = false;
+        }
+    }
+
+    function confirmSwap() {
+        if (!selectedTargetTeacher) return;
+        if (conflicts.length > 0) {
+            showToast("存在冲突，无法批量调课", true);
+            return;
+        }
+
+        let allSourceCourses = getAllSourceCourses();
+        let successCount = 0;
+        
+        // 批量调课：将所有原教师课程调给目标教师
+        for (let source of allSourceCourses) {
+            // 1. 修改课表 (schedules)
+            if (schedules[source.classId] && schedules[source.classId][source.key]) {
+                schedules[source.classId][source.key].teacherId = selectedTargetTeacher.id;
+                schedules[source.classId][source.key].teacherName = selectedTargetTeacher.name;
+            }
+            
+            // 2. 修改教学计划 (plans)
+            let planIndex = plans.findIndex(p => 
+                p.classId == source.classId && 
+                p.courseId == source.courseId && 
+                p.teacherId == selectedTeacher.id
+            );
+            
+            if (planIndex !== -1) {
+                plans[planIndex].teacherId = selectedTargetTeacher.id;
+                plans[planIndex].teacherName = selectedTargetTeacher.name;
+            }
+            
+            successCount++;
+        }
+        
+        // 保存到localStorage
+        localStorage.setItem(SCHEDULES_KEY, JSON.stringify(schedules));
+        localStorage.setItem(PLANS_KEY, JSON.stringify(plans));
+        
+        let classNames = selectedClassIds.map(id => getClassName(id)).join("、");
+        showToast(`批量调课成功！已将 ${successCount} 节课从 ${selectedTeacher.name} 调给 ${selectedTargetTeacher.name}（涉及班级：${classNames}）`);
+        
+        // 关闭弹窗并刷新
+        document.getElementById("scheduleModal").style.display = "none";
+        
+        // 可选：清空选择
+        // selectedClassIds = [];
+        // updateSelectedCountDisplay();
+        // renderSelectedClassTags();
+        // let checkboxes = document.querySelectorAll("#classCheckboxGroup input[type='checkbox']");
+        // checkboxes.forEach(cb => cb.checked = false);
+    }
+
+    function closeModal() {
+        document.getElementById("scheduleModal").style.display = "none";
+    }
+
+    function showToast(msg, isErr) {
+        let t = document.createElement("div");
+        t.className = "toast" + (isErr ? " error" : "");
+        t.innerText = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 3000);
+    }
+
+    function goBack() { 
+        window.location.href = "02-目录.html";
+    }
+    
+    function logout() { 
+        localStorage.removeItem("currentUser"); 
+        window.location.href = "01-登录.html"; 
+    }
+    
+    function displayCurrentUser() {
+        let user = localStorage.getItem("currentUser");
+        if (user) {
+            try {
+                let u = JSON.parse(user);
+                // 不显示用户名
+            } catch(e) {}
+        }
+    }
+
+    function init() {
+        displayCurrentUser();
+        loadData();
+        initTeacherSearch();
+        
+        document.getElementById("previewBtn").onclick = openModal;
+        document.getElementById("cancelModalBtn").onclick = closeModal;
+        document.getElementById("confirmSwapBtn").onclick = confirmSwap;
+        document.getElementById("selectAllClassesBtn").onclick = selectAllClasses;
+        document.getElementById("clearAllClassesBtn").onclick = clearAllClasses;
+        
+        document.querySelectorAll(".close-modal").forEach(btn => {
+            btn.onclick = closeModal;
+        });
+        window.onclick = (e) => {
+            let modal = document.getElementById("scheduleModal");
+            if (e.target === modal) closeModal();
+        };
+    }
+
+    init();
+</script>
+</body>
+</html>
